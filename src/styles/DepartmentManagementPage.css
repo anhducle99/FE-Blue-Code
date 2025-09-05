@@ -1,0 +1,21 @@
+:where(.ant-btn).ant-btn:hover,
+:where(.ant-btn).ant-btn:focus {
+  background: inherit !important;
+  color: inherit !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+}
+
+:where(.ant-btn-primary).ant-btn-primary:hover,
+:where(.ant-btn-primary).ant-btn-primary:focus {
+  background: #1677ff !important; /* giữ nguyên màu gốc */
+  border-color: #1677ff !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+:where(.ant-switch).ant-switch:hover {
+  background: inherit !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+}

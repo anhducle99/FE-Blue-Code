@@ -1,0 +1,343 @@
+import React, { useState } from "react";
+import { Modal, Input, Select, Switch } from "antd";
+import { PageHeader } from "../components/PageHeader";
+import { MoreVertical } from "lucide-react";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+
+const { Option } = Select;
+
+interface User {
+  id: number;
+  organization: string;
+  name: string;
+  email: string;
+  password: string;
+  phone: string;
+  department: string;
+  isDepartmentAccount: boolean;
+  isDepartment: boolean;
+}
+
+const userSchema = Yup.object().shape({
+  organization: Yup.string().required("Vui lòng chọn tổ chức"),
+  name: Yup.string().required("Tên không được để trống"),
+  email: Yup.string()
+    .email("Email không hợp lệ")
+    .required("Email bắt buộc")
+    .matches(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Email không hợp lệ"),
+  password: Yup.string()
+    .required("Mật khẩu không được để trống")
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"
+    ),
+  phone: Yup.string()
+    .required("Số điện thoại không được để trống")
+    .matches(/^[0-9]{10}$/, "Số điện thoại phải đúng 10 số"),
+  department: Yup.string().required("Vui lòng chọn khoa phòng"),
+});
+
+export const UsersPage: React.FC = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
+
+  const [users, setUsers] = useState<User[]>([
+    {
+      id: 1,
+      organization: "Bệnh viện A",
+      name: "An Ninh",
+      email: "admin@gmail.com",
+      password: "123456",
+      phone: "0123456789",
+      department: "Khoa Nội",
+      isDepartmentAccount: false,
+      isDepartment: false,
+    },
+  ]);
+
+  const formik = useFormik<Omit<User, "id">>({
+    initialValues: {
+      organization: "",
+      name: "",
+      email: "",
+      password: "",
+      phone: "",
+      department: "",
+      isDepartmentAccount: false,
+      isDepartment: false,
+    },
+    enableReinitialize: true,
+    validationSchema: userSchema,
+    onSubmit: (values) => {
+      if (editingUser) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === editingUser.id ? { ...editingUser, ...values } : u
+          )
+        );
+      } else {
+        setUsers((prev) => [...prev, { ...values, id: Date.now() }]);
+      }
+      handleClose();
+    },
+  });
+
+  const handleOpenCreate = () => {
+    setEditingUser(null);
+    formik.resetForm();
+    setIsOpen(true);
+  };
+
+  const handleOpenEdit = (user: User) => {
+    setEditingUser(user);
+    formik.setValues({
+      organization: user.organization,
+      name: user.name,
+      email: user.email,
+      password: user.password,
+      phone: user.phone,
+      department: user.department,
+      isDepartmentAccount: user.isDepartmentAccount,
+      isDepartment: user.isDepartment,
+    });
+    setIsOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setEditingUser(null);
+    formik.resetForm();
+  };
+
+  return (
+    <>
+      <div className="mx-4">
+        <PageHeader
+          title="Người dùng và phân quyền"
+          createButton={
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="h-10 w-10 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center"
+            >
+              <i className="bi bi-plus text-2xl text-white" />
+            </button>
+          }
+        />
+      </div>
+
+      <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
+        <table className="min-w-full table-auto">
+          <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
+            <tr>
+              <th className="px-4 py-2 text-left">Tên</th>
+              <th className="px-4 py-2 text-left">Email</th>
+              <th className="px-4 py-2"></th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700 text-sm">
+            {users.map((d, index) => (
+              <tr key={d.id} className="border-t">
+                <td className="px-4 py-2">{d.name}</td>
+                <td className="px-4 py-2">{d.email}</td>
+                <td className="px-4 py-2 text-right relative">
+                  <button
+                    onClick={() =>
+                      setDropdownIndex(dropdownIndex === index ? null : index)
+                    }
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
+                    <MoreVertical className="w-4 h-4 text-gray-500" />
+                  </button>
+
+                  {dropdownIndex === index && (
+                    <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
+                      <button
+                        onClick={() => {
+                          handleOpenEdit(d);
+                          setDropdownIndex(null);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                      >
+                        Sửa
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm("Bạn có chắc muốn xóa " + d.name + "?")) {
+                            setUsers(users.filter((u) => u.id !== d.id));
+                          }
+                          setDropdownIndex(null);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal
+        title={
+          <span className="text-lg font-semibold text-blue-600">
+            {editingUser ? "Sửa người dùng" : "Thêm người dùng"}
+          </span>
+        }
+        open={isOpen}
+        onCancel={handleClose}
+        onOk={formik.submitForm}
+        okText="Lưu"
+        cancelText="Hủy"
+        width={700}
+        className="rounded-xl"
+      >
+        <form onSubmit={formik.handleSubmit}>
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tổ chức <span className="text-red-500">*</span>
+              </label>
+              <Select
+                placeholder="Chọn tổ chức"
+                value={formik.values.organization}
+                onChange={(val) => formik.setFieldValue("organization", val)}
+                onBlur={() => formik.setFieldTouched("organization", true)}
+                className="w-full"
+              >
+                <Option value="Bệnh viện A">Bệnh viện A</Option>
+                <Option value="Bệnh viện B">Bệnh viện B</Option>
+              </Select>
+              {formik.touched.organization && formik.errors.organization && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.organization}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tên <span className="text-red-500">*</span>
+              </label>
+              <Input
+                name="name"
+                placeholder="Nhập tên"
+                value={formik.values.name}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+              />
+              {formik.touched.name && formik.errors.name && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.name}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <Input
+                name="email"
+                placeholder="exemple@gmail"
+                value={formik.values.email}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+              />
+              {formik.touched.email && formik.errors.email && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.email}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mật khẩu <span className="text-red-500">*</span>
+              </label>
+              <Input.Password
+                name="password"
+                placeholder="Nhập mật khẩu"
+                value={formik.values.password}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+              />
+              {formik.touched.password && formik.errors.password && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.password}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Số điện thoại <span className="text-red-500">*</span>
+              </label>
+              <Input
+                name="phone"
+                placeholder="Nhập số điện thoại"
+                value={formik.values.phone}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+              />
+              {formik.touched.phone && formik.errors.phone && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.phone}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Khoa phòng <span className="text-red-500">*</span>
+              </label>
+              <Select
+                placeholder="Chọn khoa phòng"
+                value={formik.values.department}
+                onChange={(val) => formik.setFieldValue("department", val)}
+                onBlur={() => formik.setFieldTouched("department", true)}
+                className="w-full"
+              >
+                <Option value="Khoa Nội">Khoa Nội</Option>
+                <Option value="Khoa Ngoại">Khoa Ngoại</Option>
+                <Option value="Khoa Nhi">Khoa Nhi</Option>
+              </Select>
+              {formik.touched.department && formik.errors.department && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.department}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 flex items-center">
+            <Switch
+              checked={formik.values.isDepartmentAccount}
+              onChange={(val) =>
+                formik.setFieldValue("isDepartmentAccount", val)
+              }
+            />
+            <span className="ml-2 text-gray-700 font-medium">
+              Tài khoản phòng ban
+            </span>
+          </div>
+
+          <div className="mt-6 flex items-center">
+            <Switch
+              checked={formik.values.isDepartment}
+              onChange={(val) => formik.setFieldValue("isDepartment", val)}
+            />
+            <span className="ml-2 text-gray-700 font-medium">
+              Có quyền xem toàn bộ dữ liệu
+            </span>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
+};
