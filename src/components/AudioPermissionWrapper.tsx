@@ -1,36 +1,34 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import AudioPermissionModal from "./AudioPermissionModal";
 
 const AudioPermissionWrapper: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [showModal, setShowModal] = useState(false);
+  const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const navType = (() => {
-      const nav = performance.getEntriesByType(
-        "navigation"
-      )[0] as PerformanceNavigationTiming;
-      if (nav) return nav.type;
-      return (performance as any).navigation?.type === 1
-        ? "reload"
-        : "navigate";
-    })();
+    if (!user) return;
 
-    const isReload = navType === "reload";
-    const isDirectVisit = navType === "navigate" && document.referrer === "";
+    const navEntry = performance.getEntriesByType(
+      "navigation"
+    )[0] as PerformanceNavigationTiming;
+    const isReload = navEntry?.type === "reload";
 
-    if (isReload || isDirectVisit) {
-      setShowModal(true);
+    if (isReload || !localStorage.getItem("audioConfirmed")) {
+      setIsOpen(true);
     }
-  }, []);
+  }, [user]);
+
+  const handleConfirm = () => {
+    setIsOpen(false);
+    localStorage.setItem("audioConfirmed", "true");
+  };
 
   return (
     <>
-      <AudioPermissionModal
-        isOpen={showModal}
-        onConfirm={() => setShowModal(false)}
-      />
+      <AudioPermissionModal isOpen={isOpen} onConfirm={handleConfirm} />
       {children}
     </>
   );

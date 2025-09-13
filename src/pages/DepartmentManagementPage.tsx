@@ -1,9 +1,8 @@
-// src/pages/DepartmentManagementPage.tsx
 import React, { useState, useEffect } from "react";
-import { Modal, Input, Select, Switch, Button } from "antd";
+import { Modal, Input, Select, Button } from "antd";
 import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import "../styles/DepartmentManagementPage.css";
+import { useDepartments } from "../contexts/DepartmentContext";
 
 const { Option } = Select;
 
@@ -16,26 +15,11 @@ interface Department {
 }
 
 export const DepartmentManagementPage: React.FC = () => {
+  const { departments, setDepartments } = useDepartments();
+
   const [isOpen, setIsOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
-
-  const [departments, setDepartments] = useState<Department[]>([
-    {
-      id: 1,
-      name: "An Ninh",
-      phone: "0943.855.357",
-      group: "An ninh",
-      isDepartmentAccount: true,
-    },
-    {
-      id: 2,
-      name: "Phòng Cháy Chữa Cháy",
-      phone: "0979.606.063",
-      group: "Phòng cháy chữa cháy",
-      isDepartmentAccount: false,
-    },
-  ]);
 
   const [formData, setFormData] = useState<Department>({
     id: Date.now(),
@@ -45,7 +29,6 @@ export const DepartmentManagementPage: React.FC = () => {
     isDepartmentAccount: false,
   });
 
-  // Khi mở modal edit → load lại dữ liệu vào form
   useEffect(() => {
     if (editingDept) {
       setFormData(editingDept);
@@ -60,7 +43,6 @@ export const DepartmentManagementPage: React.FC = () => {
     }
   }, [editingDept, isOpen]);
 
-  // Lưu khoa/phòng
   const handleSave = () => {
     if (!formData.name || !formData.group) {
       alert("Tên và Nhóm báo động là bắt buộc!");
@@ -91,7 +73,9 @@ export const DepartmentManagementPage: React.FC = () => {
           title="Quản lý khoa, phòng"
           createButton={
             <Button
-              className="!bg-blue-500 !border-blue-500 !text-white !shadow-none hover:!bg-blue-500 hover:!border-blue-500 hover:!text-white hover:!shadow-none focus:!bg-blue-500 focus:!border-blue-500 focus:!text-white focus:!shadow-none"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !shadow-none 
+             hover:!bg-[#0365af] hover:!border-[#0365af] hover:!text-white hover:!shadow-none 
+             focus:!bg-[#0365af] focus:!border-[#0365af] focus:!text-white focus:!shadow-none"
               type="primary"
               shape="circle"
               onClick={() => {
@@ -104,8 +88,6 @@ export const DepartmentManagementPage: React.FC = () => {
           }
         />
       </div>
-
-      {/* Table */}
       <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
         <table className="min-w-full table-auto">
           <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
@@ -113,7 +95,6 @@ export const DepartmentManagementPage: React.FC = () => {
               <th className="px-4 py-2 text-left">Khoa, phòng</th>
               <th className="px-4 py-2 text-left">Điện thoại</th>
               <th className="px-4 py-2 text-left">Nhóm báo động</th>
-              <th className="px-4 py-2 text-left">Tài khoản khoa</th>
               <th className="px-4 py-2"></th>
             </tr>
           </thead>
@@ -123,9 +104,6 @@ export const DepartmentManagementPage: React.FC = () => {
                 <td className="px-4 py-2">{d.name}</td>
                 <td className="px-4 py-2">{d.phone}</td>
                 <td className="px-4 py-2">{d.group}</td>
-                <td className="px-4 py-2">
-                  {d.isDepartmentAccount ? "Có" : "Không"}
-                </td>
                 <td className="px-4 py-2 text-right relative">
                   <Button
                     type="text"
@@ -173,8 +151,6 @@ export const DepartmentManagementPage: React.FC = () => {
           </tbody>
         </table>
       </div>
-
-      {/* Modal Ant Design */}
       <Modal
         open={isOpen}
         title={editingDept ? "Sửa khoa phòng" : "Thêm khoa phòng"}
@@ -182,6 +158,13 @@ export const DepartmentManagementPage: React.FC = () => {
         onOk={handleSave}
         okText="Lưu"
         cancelText="Hủy"
+        okButtonProps={{
+          className:
+            "dept-modal-ok !bg-[#0365af] !border-[#0365af] !text-white ",
+        }}
+        cancelButtonProps={{
+          className: "dept-modal-cancel !bg-gray-100 !text-gray-700 ",
+        }}
       >
         <div className="space-y-4">
           <div>
@@ -225,17 +208,6 @@ export const DepartmentManagementPage: React.FC = () => {
               <Option value="An ninh">An ninh</Option>
               <Option value="Y tế">Y tế</Option>
             </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1">Tài khoản khoa/phòng</label>
-            <Switch
-              className="hover:!bg-inherit hover:!border-inherit hover:!shadow-none focus:!bg-inherit focus:!border-inherit focus:!shadow-none"
-              checked={formData.isDepartmentAccount}
-              onChange={(checked) =>
-                setFormData({ ...formData, isDepartmentAccount: checked })
-              }
-            />
           </div>
         </div>
       </Modal>

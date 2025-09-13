@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Modal, Input, Select, Button } from "antd";
 import rawUsers from "../data/mockUsers.json";
 
 interface User {
@@ -15,39 +16,35 @@ const users: User[] = rawUsers as User[];
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  useEffect(() => {
-    if (user && location.pathname === "/login") {
-      navigate("/", { replace: true });
-    }
-  }, [user, location.pathname, navigate]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
 
     const foundUser = users.find(
       (u) => u.email === email && u.password === password
-    ) as User | undefined;
+    );
+
     if (foundUser) {
       login(foundUser);
+      navigate("/main", { replace: true });
     } else {
       alert("Sai email hoặc mật khẩu!");
     }
   };
 
   return (
-    <div
-      className="relative flex flex-1 bg-cover bg-center"
-      style={{
-        backgroundImage: "url('/app/assets/tth-resize-ce3ac320.jpeg')",
-        height: "100vh",
-      }}
-    >
+    <div className="relative flex flex-1 h-screen">
+      <img
+        src="/img/tth-resize-ce3ac320.jpeg"
+        alt="background"
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
       <div className="absolute inset-0 bg-black opacity-50" />
+
       <div className="relative flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full">
         <form
           onSubmit={handleLogin}
@@ -62,12 +59,15 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-gray-900">
                 Email
               </label>
-              <input
+              <Input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-2 w-full rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          hover:border-gray-300          
+                          focus:border-blue-500 focus:ring-2 focus:ring-blue-500
+                          outline-none"
               />
             </div>
 
@@ -75,18 +75,21 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-gray-900">
                 Mật khẩu
               </label>
-              <input
+              <Input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-2 w-full rounded-md border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500"
+                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          hover:border-gray-300          
+                          focus:border-blue-500 focus:ring-2 focus:ring-blue-500
+                          outline-none"
               />
             </div>
 
             <button
               type="submit"
-              className="mt-4 w-full rounded-lg bg-red-600 py-2 text-base text-white hover:bg-red-700"
+              className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700"
             >
               Đăng nhập
             </button>

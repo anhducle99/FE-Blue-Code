@@ -34,7 +34,6 @@ export default function NotificationInput({ disabled, onSend }: Props) {
         Gửi nội dung thông báo:
       </p>
       <div className="flex flex-wrap md:flex-nowrap gap-6">
-        {/* Nội dung */}
         <textarea
           rows={5}
           value={message}
@@ -42,8 +41,6 @@ export default function NotificationInput({ disabled, onSend }: Props) {
           className="block p-2.5 w-full text-gray-900 bg-gray-50 rounded-lg border border-gray-300"
           placeholder="Nhập nội dung..."
         />
-
-        {/* Ảnh upload */}
         <label
           htmlFor="file-input"
           className="cursor-pointer border border-gray-300 rounded-lg bg-white flex items-center justify-center md:w-40 w-28 h-40 md:h-40"
@@ -61,8 +58,6 @@ export default function NotificationInput({ disabled, onSend }: Props) {
           accept="image/*"
           onChange={handleImageChange}
         />
-
-        {/* Nút gửi */}
         <button
           onClick={handleSend}
           disabled={disabled}

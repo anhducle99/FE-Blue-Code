@@ -1,14 +1,49 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Sidebar } from "../components/Sidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export const DashboardLayout: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = () => {
+    logout();
     navigate("/login");
+    setDropdownOpen(false);
   };
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setDropdownOpen(false);
+      }
+    };
+
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
+  const avatarText = user?.name
+    ? user.name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+    : "U";
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -19,12 +54,12 @@ export const DashboardLayout: React.FC = () => {
             <i className="bi bi-list text-xl" />
           </button>
 
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm focus:outline-none"
+              className="bg-[#0365af] text-white rounded-full w-8 h-8 flex items-center justify-center font-normal text-xs focus:outline-none"
             >
-              KC
+              {avatarText}
             </button>
 
             {dropdownOpen && (
