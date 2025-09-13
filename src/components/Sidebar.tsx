@@ -8,8 +8,6 @@ export interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const khoa = "Khoa cấp cứu";
-  const avatarText = "KC";
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -36,6 +34,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const avatarText = user?.name
+    ? user.name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+    : "U";
+
   return (
     <>
       {isOpen && (
@@ -53,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="flex grow flex-col gap-y-5 relative">
           <div className="pt-5 border-b pb-3 px-6 flex items-center justify-between">
             <Link
-              to="/"
+              to="/main"
               onClick={onClose}
               className="flex items-center gap-4 font-bold text-primary"
             >
@@ -62,7 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 src="/app/assets/logophanmem.png"
                 alt="logo"
               />
-              <span className="text-sm leading-tight">
+              <span className="text-sm leading-tight text-[#0365af]">
                 Bệnh viện <br /> Thái Thượng Hoàng
               </span>
             </Link>
@@ -80,16 +86,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">
+                <div className="bg-[#0365af] text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-xs">
                   {avatarText}
                 </div>
-                <span className="text-sm font-medium text-gray-800">
-                  {khoa}
+                <span className="text-sm font-medium text-gray-500">
+                  {user?.name || "Người dùng"}
                 </span>
               </div>
               <button
                 onClick={() => setShowDropdown((prev) => !prev)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 mt-1"
               >
                 <i className="bi bi-three-dots text-lg" />
               </button>
@@ -115,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={`${
                     isActive("/dashboard/history")
-                      ? "bg-gray-100 text-primary font-semibold"
+                      ? "bg-gray-100 text-[#0365af] font-semibold"
                       : "text-gray-600 hover:bg-gray-100"
                   } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                 >
@@ -128,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={`${
                     isActive("/dashboard/statistics")
-                      ? "bg-gray-100 text-primary font-semibold"
+                      ? "bg-gray-100 text-[#0365af] font-semibold"
                       : "text-gray-600 hover:bg-gray-100"
                   } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                 >
@@ -136,6 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   Quản lý
                 </Link>
               </li>
+
               {(user?.role === "Admin" || user?.role === "SuperAdmin") && (
                 <>
                   <li>
@@ -144,12 +151,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       onClick={onClose}
                       className={`${
                         isActive("/dashboard/managements")
-                          ? "bg-gray-100 text-primary font-semibold"
+                          ? "bg-gray-100 text-[#0365af] font-semibold"
                           : "text-gray-600 hover:bg-gray-100"
                       } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                     >
-                      <i className="bi bi-building-fill"></i> Quản lý khoa
-                      ,phòng
+                      <i className="bi bi-building-fill"></i> Quản lý khoa,
+                      phòng
                     </Link>
                   </li>
                   <li>
@@ -158,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       onClick={onClose}
                       className={`${
                         isActive("/dashboard/organization")
-                          ? "bg-gray-100 text-primary font-semibold"
+                          ? "bg-gray-100 text-[#0365af] font-semibold"
                           : "text-gray-600 hover:bg-gray-100"
                       } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                     >
@@ -171,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                       onClick={onClose}
                       className={`${
                         isActive("/dashboard/usersPage")
-                          ? "bg-gray-100 text-primary font-semibold"
+                          ? "bg-gray-100 text-[#0365af] font-semibold"
                           : "text-gray-600 hover:bg-gray-100"
                       } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                     >

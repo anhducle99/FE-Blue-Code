@@ -144,12 +144,16 @@ export const HistoryTable: React.FC<FilterProps> = ({ filters }) => {
                   </td>
                   <td className="py-2 border px-2 text-center whitespace-nowrap">
                     <span
-                      className={`btn-template ${
-                        item.status.includes("Tham gia") ||
-                        item.status.includes("Không tham gia")
-                          ? "bg-success"
-                          : "bg-gray"
-                      }`}
+                      className={`px-2 py-1 rounded text-white text-xs font-medium
+                        ${
+                          item.status.includes("Không liên lạc được")
+                            ? "bg-gray-400"
+                            : item.status.includes("Tham gia")
+                            ? "bg-green-500"
+                            : item.status.includes("Không tham gia")
+                            ? "bg-red-500"
+                            : "bg-gray-200"
+                        }`}
                     >
                       {item.status}
                     </span>
@@ -178,8 +182,6 @@ export const HistoryTable: React.FC<FilterProps> = ({ filters }) => {
           </tbody>
         </table>
       </div>
-
-      {/* Pagination */}
       <div className="flex flex-wrap justify-between items-center gap-y-2 py-4 text-sm text-zinc-800 mt-4">
         <div className="font-normal">Tổng: {total} mục</div>
         <div className="space-x-2">
