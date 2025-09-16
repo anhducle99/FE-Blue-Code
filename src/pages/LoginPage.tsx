@@ -1,37 +1,38 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Modal, Input, Select, Button } from "antd";
-import rawUsers from "../data/mockUsers.json";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  password: string;
-  role: "Admin" | "User";
-}
-
-const users: User[] = rawUsers as User[];
+import { Input } from "antd";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
 
-    const foundUser = users.find(
-      (u) => u.email === email && u.password === password
-    );
+    try {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (foundUser) {
-      login(foundUser);
-      navigate("/main", { replace: true });
-    } else {
-      alert("Sai email hoặc mật khẩu!");
+      const data = await res.json();
+      if (data.success) {
+        login(data.data.user, data.data.token);
+        navigate("/main", { replace: true });
+      } else {
+        alert(data.message || "Sai email hoặc mật khẩu!");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      alert("Không thể kết nối đến server!");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -75,8 +76,7 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-gray-900">
                 Mật khẩu
               </label>
-              <Input
-                type="password"
+              <Input.Password
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -89,9 +89,10 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700"
+              disabled={loading}
+              className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700 disabled:opacity-50"
             >
-              Đăng nhập
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </button>
           </div>
         </form>

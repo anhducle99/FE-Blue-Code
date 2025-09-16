@@ -9,9 +9,16 @@ export const HistoryPage: React.FC = () => {
     bat_dau: "",
     ket_thuc: "",
   });
+  const [appliedFilters, setAppliedFilters] = useState<typeof filters>({
+    ...filters,
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const handleSearch = () => {
+    setAppliedFilters({ ...filters });
   };
 
   return (
@@ -53,14 +60,15 @@ export const HistoryPage: React.FC = () => {
           />
           <button
             className="col-span-12 lg:col-span-2 h-10 rounded bg-blue-600 text-white font-bold flex justify-center items-center gap-2"
-            onClick={() => {}}
+            onClick={handleSearch}
           >
             <i className="bi bi-search" />
             Tìm kiếm
           </button>
         </div>
+
         <div className="overflow-auto">
-          <HistoryTable filters={filters} />
+          <HistoryTable filters={appliedFilters} />
         </div>
       </div>
     </>

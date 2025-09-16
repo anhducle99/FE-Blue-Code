@@ -1,70 +1,46 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Modal, Input, Select, Switch, Button } from "antd";
+import React, { useState, useEffect } from "react";
+import { Modal, Input, Select, Switch, Button, message } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { MoreVertical } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDepartments } from "../contexts/DepartmentContext";
+import {
+  IUser,
+  IUserForm,
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+} from "../services/userService";
 
 const { Option } = Select;
 
-interface User {
-  id: number;
-  organization: string;
-  name: string;
-  email: string;
-  password?: string;
-  phone: string;
-  department: string;
-  isDepartmentAccount: boolean;
-  isDepartment: boolean;
-}
-
 export const UsersPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 1,
-      organization: "Bệnh viện A",
-      name: "An Ninh",
-      email: "admin@gmail.com",
-      password: "123456@Ab",
-      phone: "0123456789",
-      department: "Khoa Nội",
-      isDepartmentAccount: false,
-      isDepartment: false,
-    },
-  ]);
-
-  const dropdownRef = useRef<HTMLDivElement | null>(null);
-
+  const [users, setUsers] = useState<IUser[]>([]);
   const { departments } = useDepartments();
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setDropdownIndex(null);
-      }
-    };
-
-    if (dropdownIndex !== null) {
-      document.addEventListener("mousedown", handleClickOutside);
+  const fetchUsers = async () => {
+    try {
+      const res = await getUsers();
+      setUsers(res.data);
+    } catch (err) {
+      console.error(err);
+      message.error("Lấy danh sách người dùng thất bại");
     }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [dropdownIndex]);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const userSchema = Yup.object().shape({
     organization: Yup.string().required("Vui lòng chọn tổ chức"),
     name: Yup.string().required("Tên không được để trống"),
-    email: Yup.string()
-      .email("Email không hợp lệ")
-      .required("Email bắt buộc")
-      .matches(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Email không hợp lệ"),
+    email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
       .required("Số điện thoại không được để trống")
       .matches(/^[0-9]{10}$/, "Số điện thoại phải đúng 10 số"),
@@ -80,9 +56,10 @@ export const UsersPage: React.FC = () => {
           ),
       otherwise: (schema) => schema.notRequired(),
     }),
+    role: Yup.string().oneOf(["Admin", "User"]).required("Vui lòng chọn role"),
   });
 
-  const formik = useFormik<Omit<User, "id">>({
+  const formik = useFormik<IUserForm>({
     initialValues: {
       organization: "",
       name: "",
@@ -92,22 +69,30 @@ export const UsersPage: React.FC = () => {
       department: "",
       isDepartmentAccount: false,
       isDepartment: false,
+      role: "User",
     },
     enableReinitialize: true,
     validationSchema: userSchema,
-    onSubmit: (values) => {
-      if (editingUser) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id
-              ? { ...editingUser, ...values, password: editingUser.password }
-              : u
-          )
-        );
-      } else {
-        setUsers((prev) => [...prev, { ...values, id: Date.now() }]);
+    onSubmit: async (values) => {
+      try {
+        if (editingUser) {
+          const updated = await updateUser(editingUser.id, values);
+          setUsers((prev) =>
+            prev.map((u) => (u.id === updated.id ? updated : u))
+          );
+          message.success("Cập nhật người dùng thành công");
+        } else {
+          const created = await createUser(
+            values as IUserForm & { password: string }
+          );
+          setUsers((prev) => [...prev, created]);
+          message.success("Thêm người dùng thành công");
+        }
+        handleClose();
+      } catch (err) {
+        console.error(err);
+        message.error("Lỗi khi lưu người dùng");
       }
-      handleClose();
     },
   });
 
@@ -117,17 +102,18 @@ export const UsersPage: React.FC = () => {
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (user: User) => {
+  const handleOpenEdit = (user: IUser) => {
     setEditingUser(user);
     formik.setValues({
-      organization: user.organization,
+      organization: user.organization || "",
       name: user.name,
       email: user.email,
       password: "",
-      phone: user.phone,
-      department: user.department,
-      isDepartmentAccount: user.isDepartmentAccount,
-      isDepartment: user.isDepartment,
+      phone: user.phone || "",
+      department: user.department || "",
+      isDepartmentAccount: user.isDepartmentAccount || false,
+      isDepartment: user.isDepartment || false,
+      role: user.role || "User",
     });
     setIsOpen(true);
   };
@@ -138,6 +124,29 @@ export const UsersPage: React.FC = () => {
     formik.resetForm();
   };
 
+  const handleDelete = async (id: number, name: string) => {
+    if (!confirm(`Bạn có chắc muốn xóa ${name}?`)) return;
+    try {
+      await deleteUser(id);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      message.success("Xóa người dùng thành công");
+    } catch (err) {
+      console.error(err);
+      message.error("Xóa người dùng thất bại");
+    }
+  };
+
+  const handleResetPassword = async (id: number, name: string) => {
+    if (!confirm(`Bạn có chắc muốn cấp lại mật khẩu cho ${name}?`)) return;
+    try {
+      await updateUser(id, { password: "123456Ab@" });
+      message.success(`Cấp lại mật khẩu cho ${name} thành công`);
+    } catch (err) {
+      console.error(err);
+      message.error("Cấp lại mật khẩu thất bại");
+    }
+  };
+
   return (
     <>
       <div className="mx-4">
@@ -145,8 +154,7 @@ export const UsersPage: React.FC = () => {
           title="Người dùng và phân quyền"
           createButton={
             <Button
-              className="!bg-[#0365af] !border-[#0365af] !text-white !shadow-none 
-                hover:!bg-[#02508c] hover:!border-[#02508c]"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !shadow-none hover:!bg-[#02508c] hover:!border-[#02508c]"
               type="primary"
               shape="circle"
               onClick={handleOpenCreate}
@@ -156,6 +164,7 @@ export const UsersPage: React.FC = () => {
           }
         />
       </div>
+
       <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
         <table className="min-w-full table-auto">
           <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
@@ -171,7 +180,7 @@ export const UsersPage: React.FC = () => {
                 <td className="px-4 py-2">{d.name}</td>
                 <td className="px-4 py-2">{d.email}</td>
                 <td className="px-4 py-2 text-right relative">
-                  <div ref={dropdownRef} className="inline-block">
+                  <div className="inline-block">
                     <button
                       onClick={() =>
                         setDropdownIndex(dropdownIndex === index ? null : index)
@@ -182,7 +191,13 @@ export const UsersPage: React.FC = () => {
                     </button>
 
                     {dropdownIndex === index && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
+                      <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
+                        <button
+                          onClick={() => handleResetPassword(d.id, d.name)}
+                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          Cấp lại mật khẩu
+                        </button>
                         <button
                           onClick={() => {
                             handleOpenEdit(d);
@@ -193,12 +208,7 @@ export const UsersPage: React.FC = () => {
                           Sửa
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Bạn có chắc muốn xóa ${d.name}?`)) {
-                              setUsers(users.filter((u) => u.id !== d.id));
-                            }
-                            setDropdownIndex(null);
-                          }}
+                          onClick={() => handleDelete(d.id, d.name)}
                           className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                         >
                           Xóa
@@ -212,6 +222,7 @@ export const UsersPage: React.FC = () => {
           </tbody>
         </table>
       </div>
+
       <Modal
         title={
           <span className="text-lg font-semibold text-[#0365af]">
@@ -227,9 +238,7 @@ export const UsersPage: React.FC = () => {
         okButtonProps={{
           className: "!bg-[#0365af] !border-[#0365af] !text-white",
         }}
-        cancelButtonProps={{
-          className: "!bg-gray-100 !text-gray-700",
-        }}
+        cancelButtonProps={{ className: "!bg-gray-100 !text-gray-700" }}
       >
         <form onSubmit={formik.handleSubmit}>
           <div className="grid grid-cols-2 gap-6">
@@ -253,6 +262,7 @@ export const UsersPage: React.FC = () => {
                 </div>
               )}
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Tên <span className="text-red-500">*</span>
@@ -270,6 +280,7 @@ export const UsersPage: React.FC = () => {
                 </div>
               )}
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email <span className="text-red-500">*</span>
@@ -287,6 +298,7 @@ export const UsersPage: React.FC = () => {
                 </div>
               )}
             </div>
+
             {!editingUser && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -306,6 +318,7 @@ export const UsersPage: React.FC = () => {
                 )}
               </div>
             )}
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Số điện thoại <span className="text-red-500">*</span>
@@ -323,11 +336,11 @@ export const UsersPage: React.FC = () => {
                 </div>
               )}
             </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Khoa phòng <span className="text-red-500">*</span>
               </label>
-
               <Select
                 placeholder="Chọn khoa phòng"
                 value={formik.values.department}
@@ -347,6 +360,7 @@ export const UsersPage: React.FC = () => {
               )}
             </div>
           </div>
+
           <div className="mt-6 space-y-4">
             <div className="flex items-center">
               <Switch
@@ -359,7 +373,6 @@ export const UsersPage: React.FC = () => {
                 Tài khoản phòng ban
               </span>
             </div>
-
             <div className="flex items-center">
               <Switch
                 checked={formik.values.isDepartment}

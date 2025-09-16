@@ -1,68 +1,105 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Input, Select, Button } from "antd";
+import { Modal, Input, Select, Switch, Button, message } from "antd";
 import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
-import { useDepartments } from "../contexts/DepartmentContext";
+import {
+  IDepartment,
+  getDepartments,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+} from "../services/departmentService";
 
 const { Option } = Select;
 
-interface Department {
-  id: number;
-  name: string;
-  phone: string;
-  group: string;
-  isDepartmentAccount: boolean;
-}
-
 export const DepartmentManagementPage: React.FC = () => {
-  const { departments, setDepartments } = useDepartments();
-
+  const [departments, setDepartments] = useState<IDepartment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-  const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [editingDept, setEditingDept] = useState<IDepartment | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
 
-  const [formData, setFormData] = useState<Department>({
-    id: Date.now(),
+  const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
     phone: "",
-    group: "",
-    isDepartmentAccount: false,
+    alert_group: "",
   });
+  const [isDepartmentAccount, setIsDepartmentAccount] = useState(false);
+
+  const fetchDepartments = async () => {
+    try {
+      setLoading(true);
+      const res = await getDepartments();
+      setDepartments(Array.isArray(res.data.data) ? res.data.data : []);
+    } catch (err) {
+      console.error(err);
+      message.error("Lấy danh sách khoa/phòng thất bại");
+      setDepartments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDepartments();
+  }, []);
 
   useEffect(() => {
     if (editingDept) {
       setFormData(editingDept);
+      setIsDepartmentAccount(false);
     } else {
-      setFormData({
-        id: Date.now(),
-        name: "",
-        phone: "",
-        group: "",
-        isDepartmentAccount: false,
-      });
+      setFormData({ name: "", phone: "", alert_group: "" });
+      setIsDepartmentAccount(false);
     }
   }, [editingDept, isOpen]);
 
-  const handleSave = () => {
-    if (!formData.name || !formData.group) {
-      alert("Tên và Nhóm báo động là bắt buộc!");
+  const handleSave = async () => {
+    if (!formData.name || !formData.alert_group) {
+      message.error("Tên và nhóm báo động là bắt buộc");
       return;
     }
+    try {
+      if (editingDept && editingDept.id) {
+        const res = await updateDepartment(editingDept.id, {
+          name: formData.name,
+          phone: formData.phone,
+          alert_group: formData.alert_group,
+        });
+        setDepartments((prev) =>
+          prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
+        );
+        message.success("Cập nhật thành công");
+      } else {
+        const res = await createDepartment({
+          name: formData.name,
+          phone: formData.phone,
+          alert_group: formData.alert_group,
+        });
+        setDepartments((prev) => [...prev, res.data.data]);
+        message.success("Thêm khoa/phòng thành công");
+      }
 
-    if (editingDept) {
-      setDepartments(
-        departments.map((d) => (d.id === editingDept.id ? formData : d))
-      );
-    } else {
-      setDepartments([...departments, { ...formData, id: Date.now() }]);
+      setIsOpen(false);
+      setEditingDept(null);
+      setFormData({ name: "", phone: "", alert_group: "" });
+      setIsDepartmentAccount(false);
+    } catch (err) {
+      console.error(err);
+      message.error("Lưu khoa/phòng thất bại");
     }
-    setIsOpen(false);
-    setEditingDept(null);
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm("Bạn có chắc muốn xóa khoa/phòng này?")) {
-      setDepartments(departments.filter((d) => d.id !== id));
+  const handleDelete = async (id?: number) => {
+    if (!id) return;
+    if (!confirm("Bạn có chắc muốn xóa khoa/phòng này?")) return;
+    try {
+      await deleteDepartment(id);
+      setDepartments((prev) => prev.filter((d) => d.id !== id));
+      message.success("Xóa thành công");
+    } catch (err) {
+      console.error(err);
+      message.error("Xóa thất bại");
     }
   };
 
@@ -73,11 +110,9 @@ export const DepartmentManagementPage: React.FC = () => {
           title="Quản lý khoa, phòng"
           createButton={
             <Button
-              className="!bg-[#0365af] !border-[#0365af] !text-white !shadow-none 
-             hover:!bg-[#0365af] hover:!border-[#0365af] hover:!text-white hover:!shadow-none 
-             focus:!bg-[#0365af] focus:!border-[#0365af] focus:!text-white focus:!shadow-none"
               type="primary"
               shape="circle"
+              className="!bg-[#0365af] !border-[#0365af] !text-white"
               onClick={() => {
                 setEditingDept(null);
                 setIsOpen(true);
@@ -88,83 +123,90 @@ export const DepartmentManagementPage: React.FC = () => {
           }
         />
       </div>
-      <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
-        <table className="min-w-full table-auto">
-          <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
-            <tr>
-              <th className="px-4 py-2 text-left">Khoa, phòng</th>
-              <th className="px-4 py-2 text-left">Điện thoại</th>
-              <th className="px-4 py-2 text-left">Nhóm báo động</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody className="text-gray-700 text-sm">
-            {departments.map((d, index) => (
-              <tr key={d.id} className="border-t">
-                <td className="px-4 py-2">{d.name}</td>
-                <td className="px-4 py-2">{d.phone}</td>
-                <td className="px-4 py-2">{d.group}</td>
-                <td className="px-4 py-2 text-right relative">
-                  <Button
-                    type="text"
-                    onClick={() =>
-                      setDropdownIndex(dropdownIndex === index ? null : index)
-                    }
-                    icon={<MoreVertical className="w-4 h-4 text-gray-500" />}
-                  />
 
-                  {dropdownIndex === index && (
-                    <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
-                      <button
-                        onClick={() => {
-                          alert("Cấp lại mật khẩu cho " + d.name);
-                          setDropdownIndex(null);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        Cấp lại mật khẩu
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditingDept(d);
-                          setIsOpen(true);
-                          setDropdownIndex(null);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => {
-                          handleDelete(d.id);
-                          setDropdownIndex(null);
-                        }}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        Xóa
-                      </button>
-                    </div>
-                  )}
-                </td>
+      <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
+        {loading ? (
+          <div className="text-center py-8">Đang tải...</div>
+        ) : departments.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            Chưa có khoa/phòng nào
+          </div>
+        ) : (
+          <table className="min-w-full table-auto">
+            <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
+              <tr>
+                <th className="px-4 py-2 text-left">Khoa, phòng</th>
+                <th className="px-4 py-2 text-left">Điện thoại</th>
+                <th className="px-4 py-2 text-left">Nhóm báo động</th>
+                <th className="px-4 py-2"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="text-gray-700 text-sm">
+              {departments.map((d, index) => (
+                <tr key={d.id} className="border-t">
+                  <td className="px-4 py-2">{d.name}</td>
+                  <td className="px-4 py-2">{d.phone}</td>
+                  <td className="px-4 py-2">{d.alert_group}</td>
+                  <td className="px-4 py-2 text-right relative">
+                    <Button
+                      type="text"
+                      icon={<MoreVertical className="w-4 h-4 text-gray-500" />}
+                      onClick={() =>
+                        setDropdownIndex(dropdownIndex === index ? null : index)
+                      }
+                    />
+                    {dropdownIndex === index && (
+                      <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
+                        <button
+                          onClick={() => {
+                            alert("Cấp lại mật khẩu cho " + d.name);
+                            setDropdownIndex(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          Cấp lại mật khẩu
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingDept(d);
+                            setIsOpen(true);
+                            setDropdownIndex(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDelete(d.id);
+                            setDropdownIndex(null);
+                          }}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
+
       <Modal
         open={isOpen}
-        title={editingDept ? "Sửa khoa phòng" : "Thêm khoa phòng"}
+        title={editingDept ? "Sửa khoa/phòng" : "Thêm khoa/phòng"}
         onCancel={() => setIsOpen(false)}
         onOk={handleSave}
         okText="Lưu"
         cancelText="Hủy"
+        width={700}
         okButtonProps={{
-          className:
-            "dept-modal-ok !bg-[#0365af] !border-[#0365af] !text-white ",
+          className: "!bg-[#0365af] !border-[#0365af] !text-white",
         }}
-        cancelButtonProps={{
-          className: "dept-modal-cancel !bg-gray-100 !text-gray-700 ",
-        }}
+        cancelButtonProps={{ className: "!bg-gray-100 !text-gray-700" }}
       >
         <div className="space-y-4">
           <div>
@@ -179,7 +221,6 @@ export const DepartmentManagementPage: React.FC = () => {
               placeholder="Nhập tên khoa/phòng"
             />
           </div>
-
           <div>
             <label className="block text-sm mb-1">Số điện thoại</label>
             <Input
@@ -190,14 +231,13 @@ export const DepartmentManagementPage: React.FC = () => {
               placeholder="Nhập số điện thoại"
             />
           </div>
-
           <div>
             <label className="block text-sm mb-1">
               Nhóm báo động <span className="text-red-500">*</span>
             </label>
             <Select
-              value={formData.group}
-              onChange={(value) => setFormData({ ...formData, group: value })}
+              value={formData.alert_group}
+              onChange={(val) => setFormData({ ...formData, alert_group: val })}
               className="w-full"
               placeholder="Chọn nhóm"
             >
@@ -208,6 +248,15 @@ export const DepartmentManagementPage: React.FC = () => {
               <Option value="An ninh">An ninh</Option>
               <Option value="Y tế">Y tế</Option>
             </Select>
+          </div>
+          <div className="flex items-center mt-2">
+            <Switch
+              checked={isDepartmentAccount}
+              onChange={(val) => setIsDepartmentAccount(val)}
+            />
+            <span className="ml-2 text-gray-700 font-medium">
+              Tài khoản phòng ban
+            </span>
           </div>
         </div>
       </Modal>
