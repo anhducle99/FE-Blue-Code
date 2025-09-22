@@ -80,6 +80,21 @@ export const StatisticsPage: React.FC = () => {
     }
   };
 
+  const alertGroupColors: Record<string, string> = {
+    "y tế": "#22c55e",
+    "lãnh đạo": "#3b82f6",
+    "sửa chữa": "#f97316",
+    "thất lạc": "#facc15",
+    "phòng cháy chữa cháy": "#ef4444",
+    "an ninh": "#6b7280",
+  };
+
+  const getColorByLabel = (label?: string) => {
+    const normalized = label?.trim().toLowerCase() || "default";
+    const color = alertGroupColors[normalized] || "#999";
+    return color;
+  };
+
   useEffect(() => {
     fetchDepartmentStats();
   }, [startDateDept, endDateDept]);
@@ -88,24 +103,25 @@ export const StatisticsPage: React.FC = () => {
     fetchGroupStats();
   }, [startDateGroup, endDateGroup]);
 
-  const groupChartData = (label: "Gửi thông báo" | "Nhận thông báo") => ({
-    labels: groups.map((g) => g.label),
-    datasets: [
-      {
-        label,
-        data: groups.map((g) =>
-          label === "Gửi thông báo" ? g.sent : g.received
-        ),
-        backgroundColor: groups.map(() => "rgba(75,192,192,0.7)"),
-        borderWidth: 1,
-      },
-    ],
-  });
+  const groupChartData = (label: "Gửi thông báo" | "Nhận thông báo") => {
+    return {
+      labels: groups.map((g) => g.label),
+      datasets: [
+        {
+          label,
+          data: groups.map((g) =>
+            label === "Gửi thông báo" ? g.sent : g.received
+          ),
+          backgroundColor: groups.map((g) => getColorByLabel(g.label)),
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
 
   return (
     <div className="mx-2 sm:mx-4">
       <PageHeader title="Thống kê" />
-
       <div className="mt-6 bg-white p-4 rounded shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
           <p className="font-medium text-gray-800 max-w-full sm:max-w-[60%] break-words">

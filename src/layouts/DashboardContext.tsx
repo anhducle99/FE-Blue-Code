@@ -1,130 +1,37 @@
-import React, { createContext, useContext } from "react";
-
-export interface LogEntry {
-  date: string;
-  sent: number;
-  received: number;
-}
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { getDepartments } from "../services/departmentService";
 
 export interface Department {
+  id: number;
   name: string;
   phone: string;
-  logs?: LogEntry[];
-  sent?: number;
-  received?: number;
 }
 
 export interface SupportContact {
+  id: number;
   label: string;
   phone: string;
   color: string;
-  logs: LogEntry[];
+  alert_group: string;
+}
+
+export interface LeaderContact {
+  id: number;
+  label: string;
+  phone: string;
+  color: string;
 }
 
 interface DashboardContextType {
   departments: Department[];
   supportContacts: SupportContact[];
+  leaders: LeaderContact[];
+  loading: boolean;
+  setDepartments: React.Dispatch<React.SetStateAction<Department[]>>;
+  setSupportContacts: React.Dispatch<React.SetStateAction<SupportContact[]>>;
+  setLeaders: React.Dispatch<React.SetStateAction<LeaderContact[]>>;
+  reloadData: () => void;
 }
-
-const departments: Department[] = [
-  {
-    name: "Khoa X Quang",
-    phone: "0935293322",
-    logs: [
-      { date: "2025-07-01", sent: 2, received: 1 },
-      { date: "2025-07-02", sent: 3, received: 1 },
-      { date: "2025-07-03", sent: 3, received: 1 },
-    ],
-  },
-  {
-    name: "Phòng khám 1",
-    phone: "0973448253",
-    logs: [
-      { date: "2025-07-01", sent: 2, received: 1 },
-      { date: "2025-07-02", sent: 2, received: 1 },
-      { date: "2025-07-03", sent: 1, received: 0 },
-    ],
-  },
-  {
-    name: "Trung tâm O XY cao áp",
-    phone: "0869702968",
-    logs: [
-      { date: "2025-07-01", sent: 4, received: 2 },
-      { date: "2025-07-02", sent: 3, received: 3 },
-      { date: "2025-07-03", sent: 3, received: 4 },
-    ],
-  },
-  {
-    name: "YHCT - PHCN sau đột quỵ",
-    phone: "0383530227",
-    logs: [
-      { date: "2025-07-01", sent: 2, received: 1 },
-      { date: "2025-07-02", sent: 2, received: 1 },
-    ],
-  },
-  {
-    name: "YHCT - PHCN sau chấn thương",
-    phone: "0978612273",
-    logs: [{ date: "2025-07-02", sent: 3, received: 2 }],
-  },
-  {
-    name: "YHCT - PHCN Nhi",
-    phone: "0987623166",
-    logs: [],
-  },
-  {
-    name: "YHCT - PHCN Hô hấp - Tim mạch",
-    phone: "0967817583",
-    logs: [],
-  },
-  {
-    name: "YHCT Lão khoa",
-    phone: "0347515256",
-    logs: [],
-  },
-];
-
-const supportContacts: SupportContact[] = [
-  {
-    label: "An ninh",
-    phone: "0943855357",
-    color: "bg-gray-600",
-    logs: [
-      { date: "2025-07-01", sent: 1, received: 2 },
-      { date: "2025-07-02", sent: 1, received: 1 },
-      { date: "2025-07-03", sent: 1, received: 1 },
-    ],
-  },
-  {
-    label: "Phòng cháy chữa cháy",
-    phone: "0979606063",
-    color: "bg-red-600",
-    logs: [
-      { date: "2025-07-01", sent: 2, received: 2 },
-      { date: "2025-07-02", sent: 2, received: 2 },
-      { date: "2025-07-03", sent: 1, received: 2 },
-    ],
-  },
-  {
-    label: "Thất lạc",
-    phone: "0982170060",
-    color: "bg-yellow-500",
-    logs: [
-      { date: "2025-07-01", sent: 1, received: 0 },
-      { date: "2025-07-02", sent: 1, received: 1 },
-    ],
-  },
-  {
-    label: "Sửa chữa",
-    phone: "0979612345",
-    color: "bg-orange-800",
-    logs: [
-      { date: "2025-07-01", sent: 2, received: 1 },
-      { date: "2025-07-02", sent: 1, received: 1 },
-      { date: "2025-07-03", sent: 1, received: 1 },
-    ],
-  },
-];
 
 const DashboardContext = createContext<DashboardContextType | undefined>(
   undefined
@@ -133,19 +40,104 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [supportContacts, setSupportContacts] = useState<SupportContact[]>([]);
+  const [leaders, setLeaders] = useState<LeaderContact[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const getColorByAlertGroup = (alert_group: string) => {
+    const map: Record<string, string> = {
+      "An ninh": "bg-gray-600",
+      "Phòng cháy chữa cháy": "bg-red-600",
+      "Thất Lạc": "bg-yellow-500",
+      "Sửa Chữa": "bg-orange-800",
+      "Lãnh Đạo": "bg-blue-600",
+      "Y tế": "bg-green-600",
+    };
+    return map[alert_group] || "bg-gray-400";
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      const res = await getDepartments();
+      const allItems = Array.isArray(res.data.data) ? res.data.data : [];
+
+      setDepartments(
+        allItems
+          .filter((d) => d.alert_group === "Y tế")
+          .map((d, idx) => ({
+            id: d.id ?? idx + 1,
+            name: d.name,
+            phone: d.phone || "",
+          }))
+      );
+
+      setSupportContacts(
+        allItems
+          .filter((d) =>
+            [
+              "Sửa Chữa",
+              "Thất Lạc",
+              "Phòng cháy chữa cháy",
+              "An ninh",
+            ].includes(d.alert_group || "")
+          )
+          .map((d, idx) => ({
+            id: d.id ?? idx + 1000,
+            label: d.name,
+            phone: d.phone || "",
+            color: getColorByAlertGroup(d.alert_group || ""),
+            alert_group: d.alert_group || "",
+          }))
+      );
+
+      setLeaders(
+        allItems
+          .filter((d) => d.alert_group === "Lãnh Đạo")
+          .map((d, idx) => ({
+            id: d.id ?? idx + 2000,
+            label: d.name,
+            phone: d.phone || "",
+            color: getColorByAlertGroup("Lãnh Đạo"),
+          }))
+      );
+    } catch (err) {
+      console.error("Lấy dữ liệu thất bại", err);
+      setDepartments([]);
+      setSupportContacts([]);
+      setLeaders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   return (
-    <DashboardContext.Provider value={{ departments, supportContacts }}>
+    <DashboardContext.Provider
+      value={{
+        departments,
+        supportContacts,
+        leaders,
+        loading,
+        setDepartments,
+        setSupportContacts,
+        setLeaders,
+        reloadData: fetchData,
+      }}
+    >
       {children}
     </DashboardContext.Provider>
   );
 };
 
-export const useDashboardContext = () => {
+export const useDashboard = () => {
   const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error(
-      "useDashboardContext must be used within a DashboardProvider"
-    );
-  }
+  if (!context)
+    throw new Error("useDashboard must be used within DashboardProvider");
   return context;
 };

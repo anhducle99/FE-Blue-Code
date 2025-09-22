@@ -37,33 +37,57 @@ export const DepartmentBarChart: React.FC<Props> = ({
         label: "Gửi thông báo",
         data: sentData,
         backgroundColor: "rgba(54,162,235,0.7)",
+        barThickness: 25,
+        maxBarThickness: 30,
       },
       {
         label: "Nhận thông báo",
         data: receivedData,
         backgroundColor: "rgba(255,99,132,0.7)",
+        barThickness: 25,
+        maxBarThickness: 30,
       },
     ],
   };
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: { position: "top" as const },
       title: { display: true, text: "Biểu đồ gửi/nhận thông báo" },
+      tooltip: {
+        callbacks: {
+          label: function (context: any) {
+            const value = context.formattedValue;
+            const datasetLabel = context.dataset.label;
+            return `${datasetLabel}: ${value}`;
+          },
+        },
+      },
     },
     scales: {
       x: {
-        ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 },
-        maxBarThickness: 25,
-        barThickness: 15,
+        ticks: {
+          autoSkip: false,
+          maxRotation: 45,
+          minRotation: 0,
+        },
       },
       y: {
         beginAtZero: true,
       },
     },
-    maintainAspectRatio: false,
   };
 
-  return <Bar data={data} options={options} />;
+  // width chart = labels.length * 60 (ví dụ mỗi cột 60px)
+  const chartWidth = Math.max(labels.length * 60, 500);
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <div style={{ minWidth: chartWidth, height: 400 }}>
+        <Bar data={data} options={options} />
+      </div>
+    </div>
+  );
 };

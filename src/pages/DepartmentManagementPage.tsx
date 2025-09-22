@@ -44,16 +44,6 @@ export const DepartmentManagementPage: React.FC = () => {
     fetchDepartments();
   }, []);
 
-  useEffect(() => {
-    if (editingDept) {
-      setFormData(editingDept);
-      setIsDepartmentAccount(false);
-    } else {
-      setFormData({ name: "", phone: "", alert_group: "" });
-      setIsDepartmentAccount(false);
-    }
-  }, [editingDept, isOpen]);
-
   const handleSave = async () => {
     if (!formData.name || !formData.alert_group) {
       message.error("Tên và nhóm báo động là bắt buộc");
@@ -61,25 +51,16 @@ export const DepartmentManagementPage: React.FC = () => {
     }
     try {
       if (editingDept && editingDept.id) {
-        const res = await updateDepartment(editingDept.id, {
-          name: formData.name,
-          phone: formData.phone,
-          alert_group: formData.alert_group,
-        });
+        const res = await updateDepartment(editingDept.id, formData);
         setDepartments((prev) =>
           prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
         );
         message.success("Cập nhật thành công");
       } else {
-        const res = await createDepartment({
-          name: formData.name,
-          phone: formData.phone,
-          alert_group: formData.alert_group,
-        });
+        const res = await createDepartment(formData);
         setDepartments((prev) => [...prev, res.data.data]);
         message.success("Thêm khoa/phòng thành công");
       }
-
       setIsOpen(false);
       setEditingDept(null);
       setFormData({ name: "", phone: "", alert_group: "" });
@@ -103,6 +84,24 @@ export const DepartmentManagementPage: React.FC = () => {
     }
   };
 
+  const handleAdd = () => {
+    setEditingDept(null);
+    setFormData({ name: "", phone: "", alert_group: "" });
+    setIsDepartmentAccount(false);
+    setIsOpen(true);
+  };
+
+  const handleEdit = (dept: IDepartment) => {
+    setEditingDept(dept);
+    setFormData({
+      name: dept.name,
+      phone: dept.phone || "",
+      alert_group: dept.alert_group || "",
+    });
+    setIsDepartmentAccount(false);
+    setIsOpen(true);
+  };
+
   return (
     <>
       <div className="mx-4">
@@ -113,10 +112,7 @@ export const DepartmentManagementPage: React.FC = () => {
               type="primary"
               shape="circle"
               className="!bg-[#0365af] !border-[#0365af] !text-white"
-              onClick={() => {
-                setEditingDept(null);
-                setIsOpen(true);
-              }}
+              onClick={handleAdd}
             >
               <i className="bi bi-plus text-white" />
             </Button>
@@ -168,8 +164,7 @@ export const DepartmentManagementPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => {
-                            setEditingDept(d);
-                            setIsOpen(true);
+                            handleEdit(d);
                             setDropdownIndex(null);
                           }}
                           className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
