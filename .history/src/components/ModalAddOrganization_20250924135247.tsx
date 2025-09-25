@@ -5,7 +5,6 @@ interface ModalAddOrganizationProps {
   onClose: () => void;
   onSave: (data: { logo: File | null; name: string }) => void;
   initialData?: { name: string; logoUrl?: string } | null;
-  mode?: "edit" | "add";
 }
 
 export const ModalAddOrganization: React.FC<ModalAddOrganizationProps> = ({

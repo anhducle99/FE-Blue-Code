@@ -1,3 +1,4 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;
@@ -21,7 +22,7 @@ export interface IUserForm {
   is_department_account: boolean;
   is_admin_view: boolean;
   role?: "Admin" | "User";
-  departmentName?: string;
+  departmentName?: string; // optional, để dùng nội bộ
 }
 
 function getRoleByDepartmentName(
@@ -52,7 +53,7 @@ export async function createUser(data: IUserForm): Promise<IUser> {
   if (!res.ok) throw new Error("Tạo người dùng thất bại");
 
   const result = await res.json();
-  return result.data;
+  return result.data; // ✅ chỉ trả về object IUser
 }
 
 export async function updateUser(
@@ -71,7 +72,7 @@ export async function updateUser(
   if (!res.ok) throw new Error("Cập nhật người dùng thất bại");
 
   const result = await res.json();
-  return result.data;
+  return result.data; // ✅ chỉ trả về object IUser
 }
 
 export async function deleteUser(id: number) {

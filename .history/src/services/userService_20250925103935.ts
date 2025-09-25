@@ -1,3 +1,4 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;
@@ -21,7 +22,7 @@ export interface IUserForm {
   is_department_account: boolean;
   is_admin_view: boolean;
   role?: "Admin" | "User";
-  departmentName?: string;
+  departmentName?: string; // optional, để dùng nội bộ
 }
 
 function getRoleByDepartmentName(

@@ -1,33 +1,32 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;
   email: string;
   password?: string;
-  phone: string;
-  organization_id: number;
-  department_id: number;
-  is_department_account: boolean;
-  is_admin_view: boolean;
   role: "Admin" | "User";
+  department: string;
+  phone: string;
+  isDepartmentAccount: boolean;
+  isDepartment: boolean;
+  organizationId: number;
+  organization: string;
 }
 
 export interface IUserForm {
   name: string;
   email: string;
   password?: string;
+  department: string;
   phone: string;
-  organization_id: number;
-  department_id: number;
-  is_department_account: boolean;
-  is_admin_view: boolean;
-  role?: "Admin" | "User";
-  departmentName?: string;
+  isDepartmentAccount: boolean;
+  isDepartment: boolean;
+  organizationId: number;
+  organization?: string;
 }
 
-function getRoleByDepartmentName(
-  departmentName: string = ""
-): "Admin" | "User" {
-  return departmentName.toLowerCase().includes("lãnh đạo") ? "Admin" : "User";
+function getRoleByDepartment(department: string): "Admin" | "User" {
+  return department.toLowerCase().includes("lãnh đạo") ? "Admin" : "User";
 }
 
 export async function getUsers(): Promise<{ data: IUser[] }> {
@@ -36,31 +35,28 @@ export async function getUsers(): Promise<{ data: IUser[] }> {
   return res.json();
 }
 
-export async function createUser(data: IUserForm): Promise<IUser> {
-  if (!data.password) throw new Error("Mật khẩu bắt buộc khi tạo người dùng");
-
+export async function createUser(
+  data: IUserForm & { password: string }
+): Promise<IUser> {
   const payload = {
     ...data,
-    role: getRoleByDepartmentName(data.departmentName || ""),
+    role: getRoleByDepartment(data.department),
   };
-
   const res = await fetch("http://localhost:5000/api/users", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Tạo người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
 export async function updateUser(
   id: number,
-  data: Partial<IUserForm>
+  data: Partial<IUserForm> & { password?: string }
 ): Promise<IUser> {
-  const payload = data.departmentName
-    ? { ...data, role: getRoleByDepartmentName(data.departmentName) }
+  const payload = data.department
+    ? { ...data, role: getRoleByDepartment(data.department) }
     : data;
 
   const res = await fetch(`http://localhost:5000/api/users/${id}`, {
@@ -69,9 +65,7 @@ export async function updateUser(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Cập nhật người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
 export async function deleteUser(id: number) {

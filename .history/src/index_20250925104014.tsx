@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { HistoryPage } from "./pages/HistoryPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
@@ -10,8 +11,11 @@ import { UsersPage } from "./pages/UsersPage";
 import { DepartmentProvider } from "./contexts/DepartmentContext";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 import LoginPage from "./pages/LoginPage";
+
 import App from "./App";
+
 import "./styles/index.css";
+
 import { DashboardProvider } from "./layouts/DashboardContext";
 import AudioPermissionWrapper from "./components/AudioPermissionWrapper";
 import { AuthProvider } from "./contexts/AuthContext";
