@@ -1,30 +1,49 @@
 import React, { useState, useEffect, useRef } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
-
-interface Org {
-  id: number;
-  name: string;
-  created_at: string;
-}
+import {
+  getOrganizations,
+  createOrganization,
+  updateOrganization,
+  deleteOrganization,
+  IOrganization,
+} from "../services/organizationService";
 
 export const OrganizationManagementPage: React.FC = () => {
   const [openDropdown, setOpenDropdown] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
     created_at: true,
+    urlLogo: true,
   });
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
-
-  const [data, setData] = useState<Org[]>([
-    { id: 1, name: "Bệnh viện Thái Thượng Hoàng", created_at: "2025-07-17" },
-    // { id: 2, name: "Phòng khám Đa khoa A", created_at: "2025-09-12" },
-  ]);
-
+  const [data, setData] = useState<IOrganization[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
-  const [selectedOrg, setSelectedOrg] = useState<Org | null>(null);
-
+  const [selectedOrg, setSelectedOrg] = useState<IOrganization | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    fetchOrganizations();
+  }, []);
+
+  const fetchOrganizations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getOrganizations();
+
+      const organizations = Array.isArray(response) ? response : [];
+      setData(organizations);
+    } catch (err) {
+      setError("Không thể tải danh sách tổ chức");
+      console.error("Error fetching organizations:", err);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,27 +59,85 @@ export const OrganizationManagementPage: React.FC = () => {
     setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
   };
 
-  const handleEdit = (org: Org, index: number) => {
+  const handleEdit = (org: IOrganization, index: number) => {
     setSelectedOrg(org);
     setOpenModal(true);
     setOpenMenuIndex(null);
   };
 
-  const handleDelete = (id: number) => {
-    setData((prev) => prev.filter((org) => org.id !== id));
-    setOpenMenuIndex(null);
+  const handleDelete = async (id: number) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tổ chức này?")) {
+      return;
+    }
+
+    try {
+      await deleteOrganization(id);
+      setData((prev) => prev.filter((org) => org.id !== id));
+      setOpenMenuIndex(null);
+    } catch (err) {
+      setError("Không thể xóa tổ chức");
+      console.error("Error deleting organization:", err);
+    }
   };
 
-  const handleSave = (updated: { name: string }) => {
-    if (!selectedOrg) return;
-    setData((prev) =>
-      prev.map((org) =>
-        org.id === selectedOrg.id ? { ...org, name: updated.name } : org
-      )
-    );
-    setOpenModal(false);
-    setSelectedOrg(null);
+  const handleSave = async (updated: { logo: File | null; name: string }) => {
+    try {
+      if (selectedOrg && selectedOrg.id) {
+        await updateOrganization(selectedOrg.id, { name: updated.name });
+        setData((prev) =>
+          prev.map((org) =>
+            org.id === selectedOrg.id ? { ...org, name: updated.name } : org
+          )
+        );
+      } else {
+        const response = await createOrganization({ name: updated.name });
+        if (response.data) {
+          setData((prev) => [...prev, response.data]);
+        }
+      }
+
+      setOpenModal(false);
+      setSelectedOrg(null);
+    } catch (err) {
+      setError(
+        selectedOrg ? "Không thể cập nhật tổ chức" : "Không thể thêm tổ chức"
+      );
+      console.error("Error saving organization:", err);
+    }
   };
+
+  const handleAddNew = () => {
+    setSelectedOrg(null);
+    setOpenModal(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="mx-4">
+        <PageHeader title="Quản lý tổ chức" />
+        <div className="bg-white rounded shadow-sm p-4 mt-2 text-center">
+          <div>Đang tải...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-4">
+        <PageHeader title="Quản lý tổ chức" />
+        <div className="bg-white rounded shadow-sm p-4 mt-2">
+          <div className="text-red-600 mb-4">{error}</div>
+          <button
+            onClick={fetchOrganizations}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-4">
@@ -90,7 +167,7 @@ export const OrganizationManagementPage: React.FC = () => {
                     readOnly
                     className="mr-2"
                   />
-                  Name
+                  Tên
                 </button>
                 <button
                   onClick={() => toggleColumn("created_at")}
@@ -102,7 +179,7 @@ export const OrganizationManagementPage: React.FC = () => {
                     readOnly
                     className="mr-2"
                   />
-                  Created_at
+                  Ngày tạo
                 </button>
               </div>
             )}
@@ -131,63 +208,72 @@ export const OrganizationManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {data.map((item, index) => (
-                <tr
-                  key={item.id}
-                  className="border-b hover:bg-gray-50 relative"
-                >
-                  <td
-                    className={`px-4 py-3 ${
-                      !visibleColumns.name ? "invisible" : ""
-                    }`}
+              {Array.isArray(data) &&
+                data.map((item, index) => (
+                  <tr
+                    key={item.id}
+                    className="border-b hover:bg-gray-50 relative"
                   >
-                    {item.name}
-                  </td>
-                  <td
-                    className={`px-4 py-3 ${
-                      !visibleColumns.created_at ? "invisible" : ""
-                    }`}
-                  >
-                    {item.created_at}
-                  </td>
-                  <td className="px-4 py-3 text-right relative">
-                    <button
-                      className="p-2 hover:bg-gray-100 rounded-full"
-                      onClick={() =>
-                        setOpenMenuIndex(openMenuIndex === index ? null : index)
-                      }
+                    <td
+                      className={`px-4 py-3 ${
+                        !visibleColumns.name ? "invisible" : ""
+                      }`}
                     >
-                      <i className="bi bi-three-dots-vertical text-lg"></i>
-                    </button>
-
-                    {openMenuIndex === index && (
-                      <div
-                        ref={menuRef}
-                        className="absolute right-0 mt-2 w-28 bg-white rounded-lg shadow-lg border py-1 z-50"
+                      {item.name}
+                    </td>
+                    <td
+                      className={`px-4 py-3 ${
+                        !visibleColumns.created_at ? "invisible" : ""
+                      }`}
+                    >
+                      {item.created_at || "N/A"}
+                    </td>
+                    <td className="px-4 py-3 text-right relative">
+                      <button
+                        className="p-2 hover:bg-gray-100 rounded-full"
+                        onClick={() =>
+                          setOpenMenuIndex(
+                            openMenuIndex === index ? null : index
+                          )
+                        }
                       >
-                        <button
-                          onClick={() => handleEdit(item, index)}
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                        <i className="bi bi-three-dots-vertical text-lg"></i>
+                      </button>
+
+                      {openMenuIndex === index && (
+                        <div
+                          ref={menuRef}
+                          className="absolute right-0 mt-2 w-28 bg-white rounded-lg shadow-lg border py-1 z-50"
                         >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                          <button
+                            onClick={() => handleEdit(item, index)}
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => item.id && handleDelete(item.id)}
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
 
+        {Array.isArray(data) && data.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            Không có tổ chức nào
+          </div>
+        )}
+
         <div className="flex justify-between items-center text-sm text-zinc-700 pt-5">
-          <div>Tổng: {data.length} mục</div>
+          <div>Tổng: {Array.isArray(data) ? data.length : 0} mục</div>
         </div>
       </div>
 
@@ -198,7 +284,12 @@ export const OrganizationManagementPage: React.FC = () => {
           setSelectedOrg(null);
         }}
         onSave={handleSave}
-        initialData={selectedOrg ? { name: selectedOrg.name } : null}
+        initialData={
+          selectedOrg
+            ? { name: selectedOrg.name, logoUrl: selectedOrg.logoUrl }
+            : null
+        }
+        mode={selectedOrg ? "edit" : "add"}
       />
     </div>
   );

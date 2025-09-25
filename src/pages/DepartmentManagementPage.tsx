@@ -30,7 +30,12 @@ export const DepartmentManagementPage: React.FC = () => {
     try {
       setLoading(true);
       const res = await getDepartments();
-      setDepartments(Array.isArray(res.data.data) ? res.data.data : []);
+      if (res.data.success && Array.isArray(res.data.data)) {
+        setDepartments(res.data.data);
+      } else {
+        setDepartments([]);
+        console.error("Lấy danh sách khoa/phòng thất bại", res.data);
+      }
     } catch (err) {
       console.error(err);
       message.error("Lấy danh sách khoa/phòng thất bại");
@@ -49,18 +54,24 @@ export const DepartmentManagementPage: React.FC = () => {
       message.error("Tên và nhóm báo động là bắt buộc");
       return;
     }
+
     try {
       if (editingDept && editingDept.id) {
         const res = await updateDepartment(editingDept.id, formData);
-        setDepartments((prev) =>
-          prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
-        );
-        message.success("Cập nhật thành công");
+        if (res.data.success) {
+          setDepartments((prev) =>
+            prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
+          );
+          message.success("Cập nhật thành công");
+        }
       } else {
         const res = await createDepartment(formData);
-        setDepartments((prev) => [...prev, res.data.data]);
-        message.success("Thêm khoa/phòng thành công");
+        if (res.data.success) {
+          setDepartments((prev) => [...prev, res.data.data]);
+          message.success("Thêm khoa/phòng thành công");
+        }
       }
+
       setIsOpen(false);
       setEditingDept(null);
       setFormData({ name: "", phone: "", alert_group: "" });
@@ -74,6 +85,7 @@ export const DepartmentManagementPage: React.FC = () => {
   const handleDelete = async (id?: number) => {
     if (!id) return;
     if (!confirm("Bạn có chắc muốn xóa khoa/phòng này?")) return;
+
     try {
       await deleteDepartment(id);
       setDepartments((prev) => prev.filter((d) => d.id !== id));
@@ -243,15 +255,6 @@ export const DepartmentManagementPage: React.FC = () => {
               <Option value="An ninh">An ninh</Option>
               <Option value="Y tế">Y tế</Option>
             </Select>
-          </div>
-          <div className="flex items-center mt-2">
-            <Switch
-              checked={isDepartmentAccount}
-              onChange={(val) => setIsDepartmentAccount(val)}
-            />
-            <span className="ml-2 text-gray-700 font-medium">
-              Tài khoản phòng ban
-            </span>
           </div>
         </div>
       </Modal>

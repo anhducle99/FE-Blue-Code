@@ -1,3 +1,4 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;
@@ -21,7 +22,7 @@ export interface IUserForm {
   is_department_account: boolean;
   is_admin_view: boolean;
   role?: "Admin" | "User";
-  departmentName?: string;
+  departmentName?: string; // optional, để dùng nội bộ
 }
 
 function getRoleByDepartmentName(
@@ -36,9 +37,9 @@ export async function getUsers(): Promise<{ data: IUser[] }> {
   return res.json();
 }
 
+// createUser nhận IUserForm chuẩn, tự bổ sung departmentName & password nếu thiếu
 export async function createUser(data: IUserForm): Promise<IUser> {
   if (!data.password) throw new Error("Mật khẩu bắt buộc khi tạo người dùng");
-
   const payload = {
     ...data,
     role: getRoleByDepartmentName(data.departmentName || ""),
@@ -50,11 +51,10 @@ export async function createUser(data: IUserForm): Promise<IUser> {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Tạo người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
+// updateUser nhận Partial<IUserForm>, nếu có departmentName thì tự set role
 export async function updateUser(
   id: number,
   data: Partial<IUserForm>
@@ -69,9 +69,7 @@ export async function updateUser(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Cập nhật người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
 export async function deleteUser(id: number) {

@@ -1,3 +1,4 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;

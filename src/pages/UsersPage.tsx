@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Input, Select, Switch, Button, message } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { MoreVertical } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDepartments } from "../contexts/DepartmentContext";
+import { useOrganizations } from "../contexts/OrganizationContext";
 import {
   IUser,
   IUserForm,
@@ -16,35 +17,64 @@ import {
 
 const { Option } = Select;
 
+function useClickOutside(
+  ref: React.RefObject<HTMLElement>,
+  callback: () => void
+) {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        callback();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ref, callback]);
+}
+
 export const UsersPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
   const { departments } = useDepartments();
+  const { organizations } = useOrganizations();
+  const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const fetchUsers = async () => {
     try {
       const res = await getUsers();
-      setUsers(res.data);
+      setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
       message.error("Lấy danh sách người dùng thất bại");
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  useClickOutside(
+    {
+      current: {
+        contains: (node: Node) =>
+          dropdownRefs.current.some((el) => el?.contains(node)),
+      },
+    } as any,
+    () => setDropdownIndex(null)
+  );
 
   const userSchema = Yup.object().shape({
-    organization: Yup.string().required("Vui lòng chọn tổ chức"),
+    organization_id: Yup.number()
+      .required("Vui lòng chọn tổ chức")
+      .min(1, "Vui lòng chọn tổ chức"),
+    department_id: Yup.number().required("Vui lòng chọn khoa phòng"),
     name: Yup.string().required("Tên không được để trống"),
     email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
       .required("Số điện thoại không được để trống")
       .matches(/^[0-9]{10}$/, "Số điện thoại phải đúng 10 số"),
-    department: Yup.string().required("Vui lòng chọn khoa phòng"),
     password: Yup.string().when([], {
       is: () => !editingUser,
       then: (schema) =>
@@ -56,35 +86,40 @@ export const UsersPage: React.FC = () => {
           ),
       otherwise: (schema) => schema.notRequired(),
     }),
-    role: Yup.string().oneOf(["Admin", "User"]).required("Vui lòng chọn role"),
   });
 
-  const formik = useFormik<IUserForm>({
+  const formik = useFormik<IUserForm & { departmentName: string }>({
     initialValues: {
-      organization: "",
+      organization_id: 0,
+      department_id: 0,
+      departmentName: "",
       name: "",
       email: "",
-      password: "",
       phone: "",
-      department: "",
-      isDepartmentAccount: false,
-      isDepartment: false,
-      role: "User",
+      password: "",
+      is_department_account: false,
+      is_admin_view: false,
     },
     enableReinitialize: true,
     validationSchema: userSchema,
     onSubmit: async (values) => {
       try {
+        const deptName =
+          departments.find((d) => d.id === values.department_id)?.name || "";
+        const payload: IUserForm & { departmentName: string } = {
+          ...values,
+          departmentName: deptName,
+          password: values.password || "",
+        };
+
         if (editingUser) {
-          const updated = await updateUser(editingUser.id, values);
+          const updated = await updateUser(editingUser.id, payload);
           setUsers((prev) =>
             prev.map((u) => (u.id === updated.id ? updated : u))
           );
           message.success("Cập nhật người dùng thành công");
         } else {
-          const created = await createUser(
-            values as IUserForm & { password: string }
-          );
+          const created = await createUser(payload);
           setUsers((prev) => [...prev, created]);
           message.success("Thêm người dùng thành công");
         }
@@ -105,15 +140,10 @@ export const UsersPage: React.FC = () => {
   const handleOpenEdit = (user: IUser) => {
     setEditingUser(user);
     formik.setValues({
-      organization: user.organization || "",
-      name: user.name,
-      email: user.email,
+      ...user,
+      departmentName:
+        departments.find((d) => d.id === user.department_id)?.name || "",
       password: "",
-      phone: user.phone || "",
-      department: user.department || "",
-      isDepartmentAccount: user.isDepartmentAccount || false,
-      isDepartment: user.isDepartment || false,
-      role: user.role || "User",
     });
     setIsOpen(true);
   };
@@ -171,54 +201,66 @@ export const UsersPage: React.FC = () => {
             <tr>
               <th className="px-4 py-2 text-left">Tên</th>
               <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2"></th>
             </tr>
           </thead>
           <tbody className="text-gray-700 text-sm">
-            {users.map((d, index) => (
-              <tr key={d.id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-2">{d.name}</td>
-                <td className="px-4 py-2">{d.email}</td>
-                <td className="px-4 py-2 text-right relative">
-                  <div className="inline-block">
-                    <button
-                      onClick={() =>
-                        setDropdownIndex(dropdownIndex === index ? null : index)
-                      }
-                      className="p-2 rounded-full hover:bg-gray-100"
+            {users.length > 0 ? (
+              users.map((u, index) => (
+                <tr key={u.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2">{u.name}</td>
+                  <td className="px-4 py-2">{u.email}</td>
+                  <td className="px-4 py-2 text-right relative">
+                    <div
+                      className="inline-block"
+                      ref={(el) => (dropdownRefs.current[index] = el)}
                     >
-                      <MoreVertical className="w-4 h-4 text-gray-500" />
-                    </button>
+                      <button
+                        onClick={() =>
+                          setDropdownIndex(
+                            dropdownIndex === index ? null : index
+                          )
+                        }
+                        className="p-2 rounded-full hover:bg-gray-100"
+                      >
+                        <MoreVertical className="w-4 h-4 text-gray-500" />
+                      </button>
 
-                    {dropdownIndex === index && (
-                      <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
-                        <button
-                          onClick={() => handleResetPassword(d.id, d.name)}
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Cấp lại mật khẩu
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleOpenEdit(d);
-                            setDropdownIndex(null);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Sửa
-                        </button>
-                        <button
-                          onClick={() => handleDelete(d.id, d.name)}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                      {dropdownIndex === index && (
+                        <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
+                          <button
+                            onClick={() => handleResetPassword(u.id, u.name)}
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Cấp lại mật khẩu
+                          </button>
+                          <button
+                            onClick={() => {
+                              handleOpenEdit(u);
+                              setDropdownIndex(null);
+                            }}
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u.id, u.name)}
+                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={5} className="text-center py-6 text-gray-500">
+                  Không có người dùng
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -248,19 +290,18 @@ export const UsersPage: React.FC = () => {
               </label>
               <Select
                 placeholder="Chọn tổ chức"
-                value={formik.values.organization}
-                onChange={(val) => formik.setFieldValue("organization", val)}
-                onBlur={() => formik.setFieldTouched("organization", true)}
+                value={formik.values.organization_id || undefined}
+                onChange={(val) => {
+                  formik.setFieldValue("organization_id", Number(val));
+                }}
                 className="w-full"
               >
-                <Option value="Bệnh viện A">Bệnh viện A</Option>
-                <Option value="Bệnh viện B">Bệnh viện B</Option>
+                {organizations.map((org) => (
+                  <Option key={org.id} value={org.id}>
+                    {org.name}
+                  </Option>
+                ))}
               </Select>
-              {formik.touched.organization && formik.errors.organization && (
-                <div className="text-red-500 text-xs mt-1">
-                  {formik.errors.organization}
-                </div>
-              )}
             </div>
 
             <div>
@@ -272,13 +313,7 @@ export const UsersPage: React.FC = () => {
                 placeholder="Nhập tên"
                 value={formik.values.name}
                 onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
               />
-              {formik.touched.name && formik.errors.name && (
-                <div className="text-red-500 text-xs mt-1">
-                  {formik.errors.name}
-                </div>
-              )}
             </div>
 
             <div>
@@ -290,13 +325,7 @@ export const UsersPage: React.FC = () => {
                 placeholder="example@gmail.com"
                 value={formik.values.email}
                 onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
               />
-              {formik.touched.email && formik.errors.email && (
-                <div className="text-red-500 text-xs mt-1">
-                  {formik.errors.email}
-                </div>
-              )}
             </div>
 
             {!editingUser && (
@@ -309,13 +338,7 @@ export const UsersPage: React.FC = () => {
                   placeholder="Nhập mật khẩu"
                   value={formik.values.password}
                   onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
                 />
-                {formik.touched.password && formik.errors.password && (
-                  <div className="text-red-500 text-xs mt-1">
-                    {formik.errors.password}
-                  </div>
-                )}
               </div>
             )}
 
@@ -328,13 +351,7 @@ export const UsersPage: React.FC = () => {
                 placeholder="Nhập số điện thoại"
                 value={formik.values.phone}
                 onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
               />
-              {formik.touched.phone && formik.errors.phone && (
-                <div className="text-red-500 text-xs mt-1">
-                  {formik.errors.phone}
-                </div>
-              )}
             </div>
 
             <div>
@@ -343,30 +360,30 @@ export const UsersPage: React.FC = () => {
               </label>
               <Select
                 placeholder="Chọn khoa phòng"
-                value={formik.values.department}
-                onChange={(val) => formik.setFieldValue("department", val)}
+                value={formik.values.department_id || undefined}
+                onChange={(val: number) => {
+                  formik.setFieldValue("department_id", val);
+                  const deptName =
+                    departments.find((d) => d.id === val)?.name || "";
+                  formik.setFieldValue("departmentName", deptName);
+                }}
                 className="w-full"
               >
                 {departments.map((dept) => (
-                  <Option key={dept.id} value={dept.name}>
+                  <Option key={dept.id} value={dept.id}>
                     {dept.name}
                   </Option>
                 ))}
               </Select>
-              {formik.touched.department && formik.errors.department && (
-                <div className="text-red-500 text-xs mt-1">
-                  {formik.errors.department}
-                </div>
-              )}
             </div>
           </div>
 
           <div className="mt-6 space-y-4">
             <div className="flex items-center">
               <Switch
-                checked={formik.values.isDepartmentAccount}
+                checked={formik.values.is_department_account}
                 onChange={(val) =>
-                  formik.setFieldValue("isDepartmentAccount", val)
+                  formik.setFieldValue("is_department_account", val)
                 }
               />
               <span className="ml-2 text-gray-700 font-medium">
@@ -375,8 +392,8 @@ export const UsersPage: React.FC = () => {
             </div>
             <div className="flex items-center">
               <Switch
-                checked={formik.values.isDepartment}
-                onChange={(val) => formik.setFieldValue("isDepartment", val)}
+                checked={formik.values.is_admin_view}
+                onChange={(val) => formik.setFieldValue("is_admin_view", val)}
               />
               <span className="ml-2 text-gray-700 font-medium">
                 Có quyền xem toàn bộ dữ liệu

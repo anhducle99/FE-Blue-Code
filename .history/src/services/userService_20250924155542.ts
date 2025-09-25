@@ -1,3 +1,4 @@
+// services/userService.ts
 export interface IUser {
   id: number;
   name: string;
@@ -20,13 +21,10 @@ export interface IUserForm {
   department_id: number;
   is_department_account: boolean;
   is_admin_view: boolean;
-  role?: "Admin" | "User";
-  departmentName?: string;
+  role: "Admin" | "User";
 }
 
-function getRoleByDepartmentName(
-  departmentName: string = ""
-): "Admin" | "User" {
+function getRoleByDepartmentName(departmentName: string): "Admin" | "User" {
   return departmentName.toLowerCase().includes("lãnh đạo") ? "Admin" : "User";
 }
 
@@ -36,12 +34,12 @@ export async function getUsers(): Promise<{ data: IUser[] }> {
   return res.json();
 }
 
-export async function createUser(data: IUserForm): Promise<IUser> {
-  if (!data.password) throw new Error("Mật khẩu bắt buộc khi tạo người dùng");
-
+export async function createUser(
+  data: IUserForm & { departmentName: string; password: string }
+): Promise<IUser> {
   const payload = {
     ...data,
-    role: getRoleByDepartmentName(data.departmentName || ""),
+    role: getRoleByDepartmentName(data.departmentName),
   };
 
   const res = await fetch("http://localhost:5000/api/users", {
@@ -50,14 +48,12 @@ export async function createUser(data: IUserForm): Promise<IUser> {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Tạo người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
 export async function updateUser(
   id: number,
-  data: Partial<IUserForm>
+  data: Partial<IUserForm> & { departmentName?: string; password?: string }
 ): Promise<IUser> {
   const payload = data.departmentName
     ? { ...data, role: getRoleByDepartmentName(data.departmentName) }
@@ -69,9 +65,7 @@ export async function updateUser(
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Cập nhật người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  return res.json();
 }
 
 export async function deleteUser(id: number) {

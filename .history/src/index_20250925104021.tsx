@@ -11,7 +11,9 @@ import { DepartmentProvider } from "./contexts/DepartmentContext";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 import LoginPage from "./pages/LoginPage";
 import App from "./App";
+
 import "./styles/index.css";
+
 import { DashboardProvider } from "./layouts/DashboardContext";
 import AudioPermissionWrapper from "./components/AudioPermissionWrapper";
 import { AuthProvider } from "./contexts/AuthContext";
