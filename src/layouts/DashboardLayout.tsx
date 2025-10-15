@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Button } from "antd";
 
 export const DashboardLayout: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -50,26 +51,26 @@ export const DashboardLayout: React.FC = () => {
       <Sidebar isOpen={open} onClose={() => setOpen(false)} />
       <div className="flex-1 flex flex-col overflow-y-auto">
         <header className="flex items-center justify-between p-4 lg:hidden border-b relative">
-          <button onClick={() => setOpen(true)}>
+          <Button onClick={() => setOpen(true)}>
             <i className="bi bi-list text-xl" />
-          </button>
+          </Button>
 
           <div className="relative" ref={dropdownRef}>
-            <button
+            <Button
               onClick={() => setDropdownOpen(!dropdownOpen)}
               className="bg-[#0365af] text-white rounded-full w-8 h-8 flex items-center justify-center font-normal text-xs focus:outline-none"
             >
               {avatarText}
-            </button>
+            </Button>
 
             {dropdownOpen && (
               <div className="absolute top-full right-0 mt-2 w-40 bg-white border rounded shadow z-50">
-                <button
+                <Button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
                 >
                   <i className="bi bi-box-arrow-right" /> Đăng xuất
-                </button>
+                </Button>
               </div>
             )}
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Button, Input } from "antd";
 
 interface ModalAddOrganizationProps {
   isOpen: boolean;
@@ -63,7 +64,7 @@ export const ModalAddOrganization: React.FC<ModalAddOrganizationProps> = ({
                   className="w-16 h-16 rounded object-cover border"
                 />
               )}
-              <input
+              <Input
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
@@ -72,12 +73,11 @@ export const ModalAddOrganization: React.FC<ModalAddOrganizationProps> = ({
             </div>
           </div>
 
-          {/* Name */}
           <div>
             <label className="block mb-1 font-medium">
               Tên tổ chức <span className="text-red-500">*</span>
             </label>
-            <input
+            <Input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -87,20 +87,19 @@ export const ModalAddOrganization: React.FC<ModalAddOrganizationProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 border-t flex justify-end gap-2 bg-gray-50">
-          <button
+          <Button
             onClick={onClose}
             className="px-4 py-2 rounded border text-gray-700 hover:bg-gray-100"
           >
             Hủy
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleSubmit}
             className="px-4 py-2 rounded bg-red-700 text-white hover:bg-red-800"
           >
             Lưu
-          </button>
+          </Button>
         </div>
       </div>
     </div>

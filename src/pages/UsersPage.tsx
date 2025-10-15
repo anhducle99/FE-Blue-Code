@@ -214,7 +214,7 @@ export const UsersPage: React.FC = () => {
                       className="inline-block"
                       ref={(el) => (dropdownRefs.current[index] = el)}
                     >
-                      <button
+                      <Button
                         onClick={() =>
                           setDropdownIndex(
                             dropdownIndex === index ? null : index
@@ -223,31 +223,58 @@ export const UsersPage: React.FC = () => {
                         className="p-2 rounded-full hover:bg-gray-100"
                       >
                         <MoreVertical className="w-4 h-4 text-gray-500" />
-                      </button>
+                      </Button>
 
                       {dropdownIndex === index && (
-                        <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
-                          <button
+                        <div className="absolute left-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
+                          <Button
                             onClick={() => handleResetPassword(u.id, u.name)}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            style={{
+                              border: "none",
+                              boxShadow: "none",
+                              background: "transparent",
+                              width: "100%",
+                              justifyContent: "flex-start",
+                              padding: "0.5rem 1rem",
+                            }}
+                            className="hover:bg-transparent"
                           >
                             Cấp lại mật khẩu
-                          </button>
-                          <button
+                          </Button>
+
+                          <Button
                             onClick={() => {
                               handleOpenEdit(u);
                               setDropdownIndex(null);
                             }}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            style={{
+                              border: "none",
+                              boxShadow: "none",
+                              background: "transparent",
+                              width: "100%",
+                              justifyContent: "flex-start",
+                              padding: "0.5rem 1rem",
+                            }}
+                            className="hover:bg-transparent"
                           >
                             Sửa
-                          </button>
-                          <button
+                          </Button>
+
+                          <Button
                             onClick={() => handleDelete(u.id, u.name)}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                            style={{
+                              border: "none",
+                              boxShadow: "none",
+                              background: "transparent",
+                              color: "red",
+                              width: "100%",
+                              justifyContent: "flex-start",
+                              padding: "0.5rem 1rem",
+                            }}
+                            className="hover:bg-transparent"
                           >
                             Xóa
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
