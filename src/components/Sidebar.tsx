@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Button } from "antd";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -72,12 +73,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 Bệnh viện <br /> Thái Thượng Hoàng
               </span>
             </Link>
-            <button
+            <Button
               onClick={onClose}
               className="lg:hidden text-gray-500 hover:text-gray-700"
             >
               <i className="bi bi-x-lg text-xl" />
-            </button>
+            </Button>
           </div>
 
           <div
@@ -93,22 +94,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   {user?.name || "Người dùng"}
                 </span>
               </div>
-              <button
+              <Button
                 onClick={() => setShowDropdown((prev) => !prev)}
                 className="text-gray-500 hover:text-gray-700 mt-1"
               >
                 <i className="bi bi-three-dots text-lg" />
-              </button>
+              </Button>
             </div>
 
             {showDropdown && (
               <div className="absolute top-full right-0 mt-2 w-40 bg-white border rounded shadow z-50">
-                <button
+                <Button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
                 >
                   <i className="bi bi-box-arrow-right" /> Đăng xuất
-                </button>
+                </Button>
               </div>
             )}
           </div>

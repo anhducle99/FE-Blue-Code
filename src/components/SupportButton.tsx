@@ -1,5 +1,4 @@
-import React from "react";
-
+import { Button } from "antd";
 interface Props {
   label: string;
   phone: string;
@@ -16,8 +15,8 @@ export default function SupportButton({
   onClick,
 }: Props) {
   return (
-    <button
-      className={`${color} p-2.5 rounded-lg text-white font-bold text-lg flex items-center justify-center gap-8`}
+    <Button
+      className={`${color} p-[35px] rounded-lg text-white font-bold text-lg flex items-center justify-center gap-8`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -39,6 +38,6 @@ export default function SupportButton({
           {phone}
         </h1>
       </div>
-    </button>
+    </Button>
   );
 }

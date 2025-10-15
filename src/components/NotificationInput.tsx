@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-
+import { Button, Input } from "antd";
 interface Props {
   disabled: boolean;
   onSend: (message: string, image: File | null) => void;
@@ -51,14 +51,14 @@ export default function NotificationInput({ disabled, onSend }: Props) {
             alt="Preview"
           />
         </label>
-        <input
-          id="file-input"
+        <Input
+          id="file-Input"
           className="hidden"
           type="file"
           accept="image/*"
           onChange={handleImageChange}
         />
-        <button
+        <Button
           onClick={handleSend}
           disabled={disabled}
           className={`md:w-40 w-28 h-40 rounded-lg flex flex-col justify-center items-center transition ${
@@ -82,7 +82,7 @@ export default function NotificationInput({ disabled, onSend }: Props) {
             ></path>
           </svg>
           <p className="text-white font-bold text-lg mt-2">Gọi ngay</p>
-        </button>
+        </Button>
       </div>
     </>
   );

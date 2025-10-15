@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Button, Input } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
 import {
@@ -128,12 +129,12 @@ export const OrganizationManagementPage: React.FC = () => {
         <PageHeader title="Quản lý tổ chức" />
         <div className="bg-white rounded shadow-sm p-4 mt-2">
           <div className="text-red-600 mb-4">{error}</div>
-          <button
+          <Button
             onClick={fetchOrganizations}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Thử lại
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -148,39 +149,39 @@ export const OrganizationManagementPage: React.FC = () => {
           <div></div>
 
           <div className="relative">
-            <button
+            <Button
               onClick={() => setOpenDropdown(!openDropdown)}
               className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition flex items-center gap-2"
             >
               Hiển thị <i className="bi bi-caret-down-fill text-xs"></i>
-            </button>
+            </Button>
 
             {openDropdown && (
               <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow z-50">
-                <button
+                <Button
                   onClick={() => toggleColumn("name")}
                   className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={visibleColumns.name}
                     readOnly
                     className="mr-2"
                   />
                   Tên
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => toggleColumn("created_at")}
                   className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={visibleColumns.created_at}
                     readOnly
                     className="mr-2"
                   />
                   Ngày tạo
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -229,7 +230,7 @@ export const OrganizationManagementPage: React.FC = () => {
                       {item.created_at || "N/A"}
                     </td>
                     <td className="px-4 py-3 text-right relative">
-                      <button
+                      <Button
                         className="p-2 hover:bg-gray-100 rounded-full"
                         onClick={() =>
                           setOpenMenuIndex(
@@ -238,25 +239,25 @@ export const OrganizationManagementPage: React.FC = () => {
                         }
                       >
                         <i className="bi bi-three-dots-vertical text-lg"></i>
-                      </button>
+                      </Button>
 
                       {openMenuIndex === index && (
                         <div
                           ref={menuRef}
                           className="absolute right-0 mt-2 w-28 bg-white rounded-lg shadow-lg border py-1 z-50"
                         >
-                          <button
+                          <Button
                             onClick={() => handleEdit(item, index)}
                             className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
                           >
                             Sửa
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             onClick={() => item.id && handleDelete(item.id)}
                             className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
                           >
                             Xóa
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </td>

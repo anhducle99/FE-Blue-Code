@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Input } from "antd";
+import { Input, Button } from "antd";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -87,13 +87,14 @@ export default function LoginPage() {
               />
             </div>
 
-            <button
-              type="submit"
+            <Button
+              type="primary"
+              htmlType="submit"
               disabled={loading}
               className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700 disabled:opacity-50"
             >
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

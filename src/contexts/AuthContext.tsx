@@ -5,6 +5,9 @@ export interface User {
   name: string;
   email: string;
   role: "SuperAdmin" | "Admin" | "User";
+  phone: string;
+  department_id?: number; // ✅ thêm dòng này
+  department_name?: string; // ✅ thêm dòng này
 }
 
 interface AuthContextType {
@@ -15,7 +18,9 @@ interface AuthContextType {
   isAuthenticated: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined
+);
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);

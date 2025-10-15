@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "antd";
 
 export const UserDropdown: React.FC = () => {
   const navigate = useNavigate();
@@ -10,17 +11,17 @@ export const UserDropdown: React.FC = () => {
 
   return (
     <div className="absolute top-full right-0 mt-2 w-48 bg-white shadow-lg rounded-md py-2">
-      <button
+      <Button
         onClick={handleNavigateHistory}
         className="w-full text-left px-4 py-2 hover:bg-gray-100 flex gap-2 items-center"
       >
         <i className="bi bi-file-earmark-text" />
         Lịch sử
-      </button>
-      <button className="w-full text-left px-4 py-2 hover:bg-gray-100 flex gap-2 items-center">
+      </Button>
+      <Button className="w-full text-left px-4 py-2 hover:bg-gray-100 flex gap-2 items-center">
         <i className="bi bi-box-arrow-right" />
         Đăng xuất
-      </button>
+      </Button>
     </div>
   );
 };
