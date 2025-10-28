@@ -6,8 +6,8 @@ export interface User {
   email: string;
   role: "SuperAdmin" | "Admin" | "User";
   phone: string;
-  department_id?: number; // ✅ thêm dòng này
-  department_name?: string; // ✅ thêm dòng này
+  department_id?: number;
+  department_name?: string;
 }
 
 interface AuthContextType {

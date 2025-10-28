@@ -5,6 +5,7 @@ interface Props {
   phone: string;
   isSelected?: boolean;
   onClick?: () => void;
+  disabled?: boolean;
 }
 
 export default function DepartmentButton({
