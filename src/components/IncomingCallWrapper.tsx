@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useMemo, useRef, useEffect } from "react";
 import { useSocket } from "../contexts/useSocket";
 import { useAuth } from "../contexts/AuthContext";
 import IncomingCallModal from "./IncomingCallModal";
@@ -18,8 +18,17 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
   }, [user?.name, user?.department_id, user?.department_name]);
 
   const { socket, incomingCall, setIncomingCall } = useSocket(identifier);
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const stopAudio = () => {
+    const audio = audioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  };
 
   useEffect(() => {
     if (!incomingCall || !socket) return;
@@ -33,15 +42,9 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
     const permission = sessionStorage.getItem("audio-permission");
 
     if (permission === "granted") {
-      (async () => {
-        try {
-          await audio.play();
-        } catch (err: any) {
-          if (err.name !== "AbortError") {
-            console.warn("Không thể phát âm thanh:", err);
-          }
-        }
-      })();
+      audio
+        .play()
+        .catch((err) => console.warn("Không thể phát âm thanh:", err));
     }
 
     timeoutRef.current = setTimeout(() => {
@@ -58,20 +61,11 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [incomingCall, socket]);
-
-  const stopAudio = () => {
-    const audio = audioRef.current;
-    if (audio && !audio.paused) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-  };
-
   const handleAccept = () => {
     if (!incomingCall || !socket) return;
     socket.emit("callAccepted", {
       callId: incomingCall.callId,
-      from: user?.department_name,
+      toDept: user?.department_name,
     });
     stopAudio();
     setIncomingCall(null);
@@ -81,7 +75,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
     if (!incomingCall || !socket) return;
     socket.emit("callRejected", {
       callId: incomingCall.callId,
-      from: user?.department_name,
+      toDept: user?.department_name,
     });
     stopAudio();
     setIncomingCall(null);
