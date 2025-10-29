@@ -103,7 +103,6 @@ export default function App() {
 
         setLastCallId(callId);
         setWaitingModalOpen(true);
-
         setSelectedKeys([]);
         setTempMessage("");
         setTempImage(null);

@@ -35,31 +35,25 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
   useEffect(() => {
     if (!socket || !isOpen || !callId) return;
 
-    const handleAccepted = (data: { callId: string; from: string }) => {
-      if (data.callId === callId) {
-        setStatusMap((prev) => ({
-          ...prev,
-          [data.from]: "Đã xác nhận",
-        }));
-      }
+    const handleStatusUpdate = (data: {
+      callId: string;
+      toDept: string;
+      status: string;
+    }) => {
+      if (data.callId !== callId) return;
+      setStatusMap((prev) => ({
+        ...prev,
+        [data.toDept]:
+          data.status === "accepted"
+            ? "Đã xác nhận"
+            : data.status === "rejected"
+            ? "Từ chối"
+            : "Không liên lạc được",
+      }));
     };
 
-    const handleRejected = (data: { callId: string; from: string }) => {
-      if (data.callId === callId) {
-        setStatusMap((prev) => ({
-          ...prev,
-          [data.from]: "Từ chối",
-        }));
-      }
-    };
-
-    socket.on("callAccepted", handleAccepted);
-    socket.on("callRejected", handleRejected);
-
-    return () => {
-      socket.off("callAccepted", handleAccepted);
-      socket.off("callRejected", handleRejected);
-    };
+    socket.on("callStatusUpdate", handleStatusUpdate);
+    return () => socket.off("callStatusUpdate", handleStatusUpdate);
   }, [socket, callId, isOpen]);
 
   useEffect(() => {
@@ -69,7 +63,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-
           setStatusMap((prev) => {
             const updated = { ...prev };
             Object.keys(updated).forEach((k) => {
@@ -128,13 +121,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
         <p className="mt-4 text-gray-600">
           Tự đóng sau <span className="font-bold">{countdown}s</span>
         </p>
-
-        {/* <button
-          onClick={onClose}
-          className="mt-4 px-4 py-2 bg-gray-300 hover:bg-gray-400 rounded-md"
-        >
-          Đóng
-        </button> */}
       </div>
     </div>
   );

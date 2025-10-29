@@ -12,7 +12,6 @@ let globalSocket: Socket | null = null;
 export const useSocket = (user: RegisterData | null) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [incomingCall, setIncomingCall] = useState<any | null>(null);
-
   useEffect(() => {
     if (!user) return;
 
@@ -24,21 +23,22 @@ export const useSocket = (user: RegisterData | null) => {
       console.log("Socket connected");
     }
 
-    const s = io("http://localhost:5000");
-    setSocket(s);
+    setSocket(globalSocket);
 
-    s.emit("register", {
+    globalSocket?.emit("register", {
       name: user.name,
       department_id: user.department_id,
       department_name: user.department_name,
     });
 
-    s.on("incomingCall", (data) => {
+    const handleIncomingCall = (data: any) => {
       setIncomingCall(data);
-    });
+    };
+
+    globalSocket?.on("incomingCall", handleIncomingCall);
 
     return () => {
-      s.disconnect();
+      globalSocket?.off("incomingCall", handleIncomingCall);
     };
   }, [user]);
 
