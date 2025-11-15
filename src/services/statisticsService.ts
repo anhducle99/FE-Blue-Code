@@ -1,4 +1,6 @@
-import API from "./api";
+import axios from "axios";
+
+const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
 
 export interface IDepartmentStats {
   id: number;
@@ -8,7 +10,6 @@ export interface IDepartmentStats {
 }
 
 export interface IGroupStats {
-  alert_group?: string;
   label: string;
   sent: number;
   received: number;
@@ -16,39 +17,21 @@ export interface IGroupStats {
 
 export const getDepartmentStats = async (
   token: string,
-  params?: { startDate?: string; endDate?: string }
+  range: { startDate?: string; endDate?: string }
 ) => {
-  const res = await API.get<{ success: boolean; data: any[] }>(
-    "/statistics/departments",
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    }
+  const res = await axios.get<IDepartmentStats[]>(
+    `${API_BASE}/statistics/departments`,
+    { params: range }
   );
-
-  return res.data.data.map((d) => ({
-    id: d.id,
-    name: d.name,
-    sent: Number(d.sent),
-    received: Number(d.received),
-  })) as IDepartmentStats[];
+  return res.data;
 };
 
 export const getGroupStats = async (
   token: string,
-  params?: { startDate?: string; endDate?: string }
+  range: { startDate?: string; endDate?: string }
 ) => {
-  const res = await API.get<{ success: boolean; data: any[] }>(
-    "/statistics/groups",
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    }
-  );
-
-  return res.data.data.map((g) => ({
-    label: g.label,
-    sent: Number(g.sent),
-    received: Number(g.received),
-  })) as IGroupStats[];
+  const res = await axios.get<IGroupStats[]>(`${API_BASE}/statistics/groups`, {
+    params: range,
+  });
+  return res.data;
 };

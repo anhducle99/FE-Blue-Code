@@ -1,5 +1,4 @@
 import React from "react";
-import { Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,7 +7,10 @@ import {
   Title,
   Tooltip,
   Legend,
+  ChartOptions,
+  ChartData,
 } from "chart.js";
+import { Bar } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
@@ -19,75 +21,50 @@ ChartJS.register(
   Legend
 );
 
-interface Props {
+interface DepartmentBarChartProps {
   labels: string[];
   sentData: number[];
   receivedData: number[];
 }
 
-export const DepartmentBarChart: React.FC<Props> = ({
+export const DepartmentBarChart: React.FC<DepartmentBarChartProps> = ({
   labels,
   sentData,
   receivedData,
 }) => {
-  const data = {
+  const data: ChartData<"bar", number[], string> = {
     labels,
     datasets: [
-      {
-        label: "Gửi thông báo",
-        data: sentData,
-        backgroundColor: "rgba(54,162,235,0.7)",
-        barThickness: 25,
-        maxBarThickness: 30,
-      },
+      { label: "Gửi thông báo", data: sentData, backgroundColor: "#3b82f6" },
       {
         label: "Nhận thông báo",
         data: receivedData,
-        backgroundColor: "rgba(255,99,132,0.7)",
-        barThickness: 25,
-        maxBarThickness: 30,
+        backgroundColor: "#22c55e",
       },
     ],
   };
 
-  const options = {
+  const options: ChartOptions<"bar"> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: "top" as const },
-      title: { display: true, text: "Biểu đồ gửi/nhận thông báo" },
-      tooltip: {
-        callbacks: {
-          label: function (context: any) {
-            const value = context.formattedValue;
-            const datasetLabel = context.dataset.label;
-            return `${datasetLabel}: ${value}`;
-          },
-        },
-      },
+      legend: { position: "top" },
+      tooltip: { mode: "index", intersect: false },
+      title: { display: false },
     },
+    interaction: { mode: "nearest", intersect: false },
     scales: {
       x: {
-        ticks: {
-          autoSkip: false,
-          maxRotation: 45,
-          minRotation: 0,
-        },
+        stacked: false,
+        ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 },
       },
-      y: {
-        beginAtZero: true,
-      },
+      y: { beginAtZero: true },
     },
   };
 
-  // width chart = labels.length * 60 (ví dụ mỗi cột 60px)
-  const chartWidth = Math.max(labels.length * 60, 500);
-
   return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ minWidth: chartWidth, height: 400 }}>
-        <Bar data={data} options={options} />
-      </div>
+    <div style={{ width: "100%", height: "100%" }}>
+      <Bar data={data} options={options} />
     </div>
   );
 };

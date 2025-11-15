@@ -10,7 +10,6 @@ import {
   CategoryScale,
   LinearScale,
 } from "chart.js";
-import { PageHeader } from "../components/PageHeader";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -35,7 +34,6 @@ export const StatisticsPage: React.FC = () => {
 
   const [departments, setDepartments] = useState<IDepartmentStats[]>([]);
   const [groups, setGroups] = useState<IGroupStats[]>([]);
-
   const [startDateDept, setStartDateDept] = useState<Date | null>(startOfMonth);
   const [endDateDept, setEndDateDept] = useState<Date | null>(now);
   const [startDateGroup, setStartDateGroup] = useState<Date | null>(
@@ -44,41 +42,6 @@ export const StatisticsPage: React.FC = () => {
   const [endDateGroup, setEndDateGroup] = useState<Date | null>(now);
 
   const token = localStorage.getItem("token") || "";
-
-  const fetchDepartmentStats = async () => {
-    try {
-      const res = await getDepartmentStats(token, {
-        startDate: startDateDept?.toISOString(),
-        endDate: endDateDept?.toISOString(),
-      });
-      const depts: IDepartmentStats[] = res.map((d: any) => ({
-        id: Number(d.id ?? d.department_id),
-        name: d.name ?? d.department_name,
-        sent: Number(d.sent),
-        received: Number(d.received),
-      }));
-      setDepartments(depts);
-    } catch (err) {
-      console.error("Error fetching department stats:", err);
-    }
-  };
-
-  const fetchGroupStats = async () => {
-    try {
-      const res = await getGroupStats(token, {
-        startDate: startDateGroup?.toISOString(),
-        endDate: endDateGroup?.toISOString(),
-      });
-      const grps: IGroupStats[] = res.map((g: any) => ({
-        label: g.label,
-        sent: Number(g.sent),
-        received: Number(g.received),
-      }));
-      setGroups(grps);
-    } catch (err) {
-      console.error("Error fetching group stats:", err);
-    }
-  };
 
   const alertGroupColors: Record<string, string> = {
     "y tế": "#22c55e",
@@ -89,60 +52,106 @@ export const StatisticsPage: React.FC = () => {
     "an ninh": "#6b7280",
   };
 
-  const getColorByLabel = (label?: string) => {
-    const normalized = label?.trim().toLowerCase() || "default";
-    const color = alertGroupColors[normalized] || "#999";
-    return color;
-  };
+  const getColorByLabel = (label?: string) =>
+    alertGroupColors[label?.toLowerCase().trim() || ""] || "#999";
 
   useEffect(() => {
-    fetchDepartmentStats();
-  }, [startDateDept, endDateDept]);
-
-  useEffect(() => {
-    fetchGroupStats();
-  }, [startDateGroup, endDateGroup]);
-
-  const groupChartData = (label: "Gửi thông báo" | "Nhận thông báo") => {
-    return {
-      labels: groups.map((g) => g.label),
-      datasets: [
-        {
-          label,
-          data: groups.map((g) =>
-            label === "Gửi thông báo" ? g.sent : g.received
-          ),
-          backgroundColor: groups.map((g) => getColorByLabel(g.label)),
-          borderWidth: 1,
-        },
-      ],
+    const fetchDepartment = async () => {
+      try {
+        const res = await getDepartmentStats(token, {
+          startDate: startDateDept?.toISOString(),
+          endDate: endDateDept?.toISOString(),
+        });
+        setDepartments(
+          res.map((d: any) => ({
+            id: Number(d.id),
+            name: d.name,
+            sent: Number(d.sent),
+            received: Number(d.received),
+          }))
+        );
+      } catch (err) {
+        console.error("Error fetching department stats:", err);
+      }
     };
-  };
+    fetchDepartment();
+  }, [startDateDept, endDateDept, token]);
+
+  useEffect(() => {
+    const fetchGroup = async () => {
+      try {
+        const res = await getGroupStats(token, {
+          startDate: startDateGroup?.toISOString(),
+          endDate: endDateGroup?.toISOString(),
+        });
+        setGroups(
+          res.map((g: any) => ({
+            label: g.label,
+            sent: Number(g.sent),
+            received: Number(g.received),
+          }))
+        );
+      } catch (err) {
+        console.error("Error fetching group stats:", err);
+      }
+    };
+    fetchGroup();
+  }, [startDateGroup, endDateGroup, token]);
+
+  const groupChartData = (type: "Gửi thông báo" | "Nhận thông báo") => ({
+    labels: groups.map((g) => g.label),
+    datasets: [
+      {
+        label: type,
+        data: groups.map((g) =>
+          type === "Gửi thông báo" ? g.sent : g.received
+        ),
+        backgroundColor: groups.map((g) => getColorByLabel(g.label)),
+        borderWidth: 1,
+      },
+    ],
+  });
 
   return (
     <div className="mx-2 sm:mx-4">
-      <PageHeader title="Thống kê" />
+      <h2 className="text-xl font-bold my-4">Thống kê</h2>
+
       <div className="mt-6 bg-white p-4 rounded shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
-          <p className="font-medium text-gray-800 max-w-full sm:max-w-[60%] break-words">
+          <p className="font-medium text-gray-800 break-words">
             Biểu đồ số lượng gửi - nhận thông báo của các khoa
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <DatePicker
               selected={startDateDept}
-              onChange={setStartDateDept}
+              onChange={(date) => {
+                if (!date) return;
+                setStartDateDept(date);
+                // Nếu startDate mới > endDate hiện tại → tự cập nhật endDate
+                if (endDateDept && date > endDateDept) {
+                  setEndDateDept(date);
+                }
+              }}
               dateFormat="dd-MM-yyyy"
               className="border border-gray-300 rounded px-3 py-2"
             />
             <DatePicker
               selected={endDateDept}
-              onChange={setEndDateDept}
+              onChange={(date) => {
+                if (!date) return;
+                // Nếu endDate nhỏ hơn startDate → tự đẩy endDate = startDate
+                if (startDateDept && date < startDateDept) {
+                  setEndDateDept(startDateDept);
+                } else {
+                  setEndDateDept(date);
+                }
+              }}
               dateFormat="dd-MM-yyyy"
               className="border border-gray-300 rounded px-3 py-2"
             />
           </div>
         </div>
-        <div className="w-full h-[400px] mt-4 sm:h-[500px]">
+        <div className="w-full h-[400px] sm:h-[500px] mt-4">
           <DepartmentBarChart
             labels={departments.map((d) => d.name)}
             sentData={departments.map((d) => d.sent)}
@@ -153,19 +162,32 @@ export const StatisticsPage: React.FC = () => {
 
       <div className="mt-6 bg-white p-4 rounded shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
-          <p className="font-medium text-gray-800 max-w-full sm:max-w-[60%] break-words">
+          <p className="font-medium text-gray-800 break-words">
             Biểu đồ số lượng gửi - nhận thông báo của các nhóm
           </p>
           <div className="flex flex-col sm:flex-row gap-2">
             <DatePicker
               selected={startDateGroup}
-              onChange={setStartDateGroup}
+              onChange={(date) => {
+                if (!date) return;
+                setStartDateGroup(date);
+                if (endDateGroup && date > endDateGroup) {
+                  setEndDateGroup(date);
+                }
+              }}
               dateFormat="dd-MM-yyyy"
               className="border border-gray-300 rounded px-3 py-2"
             />
             <DatePicker
               selected={endDateGroup}
-              onChange={setEndDateGroup}
+              onChange={(date) => {
+                if (!date) return;
+                if (startDateGroup && date < startDateGroup) {
+                  setEndDateGroup(startDateGroup);
+                } else {
+                  setEndDateGroup(date);
+                }
+              }}
               dateFormat="dd-MM-yyyy"
               className="border border-gray-300 rounded px-3 py-2"
             />
