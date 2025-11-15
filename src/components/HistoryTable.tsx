@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { getHistory, IHistory } from "../services/historyService";
+import { getCallHistory, ICallLog } from "../services/historyService";
 
 interface Props {
   filters: {
@@ -11,19 +11,17 @@ interface Props {
 }
 
 export const HistoryTable: React.FC<Props> = ({ filters }) => {
-  const [data, setData] = useState<IHistory[]>([]);
+  const [data, setData] = useState<ICallLog[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem("token") || "";
-        const res = await getHistory(token, filters);
-        setData(res.data.data);
+        const res = await getCallHistory(filters);
+        setData(res);
       } catch (err) {
-        console.error("Error", err);
+        console.error("Error fetching history:", err);
       }
     };
-
     fetchData();
   }, [filters]);
 
@@ -48,13 +46,13 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
             data.map((row, idx) => (
               <tr key={row.id}>
                 <td className="border px-4 py-2 text-center">{idx + 1}</td>
-                <td className="border px-4 py-2">{row.department_from}</td>
-                <td className="border px-4 py-2">{row.department_to}</td>
-                <td className="border px-4 py-2">{row.content}</td>
+                <td className="border px-4 py-2">{row.sender}</td>
+                <td className="border px-4 py-2">{row.receiver}</td>
+                <td className="border px-4 py-2">{row.message}</td>
                 <td className="border px-4 py-2">
-                  {row.image ? (
+                  {row.image_url ? (
                     <img
-                      src={row.image}
+                      src={row.image_url}
                       alt="img"
                       className="w-32 h-auto mx-auto"
                     />
@@ -65,13 +63,17 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 <td className="border px-4 py-2">{row.receiver}</td>
                 <td className="border px-4 py-2">{row.status}</td>
                 <td className="border px-4 py-2">
-                  {new Date(row.sent_at).toLocaleString("vi-VN", {
+                  {new Date(row.created_at).toLocaleString("vi-VN", {
                     hour12: false,
                   })}
                 </td>
                 <td className="border px-4 py-2">
-                  {row.received_at
-                    ? new Date(row.received_at).toLocaleString("vi-VN", {
+                  {row.accepted_at
+                    ? new Date(row.accepted_at).toLocaleString("vi-VN", {
+                        hour12: false,
+                      })
+                    : row.rejected_at
+                    ? new Date(row.rejected_at).toLocaleString("vi-VN", {
                         hour12: false,
                       })
                     : ""}
