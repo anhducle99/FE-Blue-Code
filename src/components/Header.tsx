@@ -56,7 +56,7 @@ export default function Header() {
 
         {openDropdown && (
           <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg w-48">
-            {(user?.role === "Admin" || user?.role === "SuperAdmin") && (
+            {((user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true) && (
               <a
                 href="/dashboard/history"
                 className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 border-b"

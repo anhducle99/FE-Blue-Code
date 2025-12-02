@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Input, Select, Button, message } from "antd";
+import { Modal, Input, Button, message } from "antd";
 import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -9,10 +9,10 @@ import {
   updateDepartment,
   deleteDepartment,
 } from "../services/departmentService";
-
-const { Option } = Select;
+import { useDashboard } from "../layouts/DashboardContext";
 
 export const DepartmentManagementPage: React.FC = () => {
+  const { reloadData } = useDashboard();
   const [departments, setDepartments] = useState<IDepartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -22,7 +22,6 @@ export const DepartmentManagementPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
     phone: "",
-    alert_group: "",
   });
   const [isDepartmentAccount, setIsDepartmentAccount] = useState(false);
 
@@ -34,11 +33,9 @@ export const DepartmentManagementPage: React.FC = () => {
         setDepartments(res.data.data);
       } else {
         setDepartments([]);
-        console.error("Lấy danh sách khoa/phòng thất bại", res.data);
       }
     } catch (err) {
-      console.error(err);
-      message.error("Lấy danh sách khoa/phòng thất bại");
+      message.error("Lấy danh sách đội phản ứng thất bại");
       setDepartments([]);
     } finally {
       setLoading(false);
@@ -50,8 +47,8 @@ export const DepartmentManagementPage: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
-    if (!formData.name || !formData.alert_group) {
-      message.error("Tên và nhóm báo động là bắt buộc");
+    if (!formData.name) {
+      message.error("Tên là bắt buộc");
       return;
     }
 
@@ -63,42 +60,43 @@ export const DepartmentManagementPage: React.FC = () => {
             prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
           );
           message.success("Cập nhật thành công");
+          reloadData();
         }
       } else {
         const res = await createDepartment(formData);
         if (res.data.success) {
           setDepartments((prev) => [...prev, res.data.data]);
-          message.success("Thêm khoa/phòng thành công");
+          message.success("Thêm đội phản ứng thành công");
+          reloadData();
         }
       }
 
       setIsOpen(false);
       setEditingDept(null);
-      setFormData({ name: "", phone: "", alert_group: "" });
+      setFormData({ name: "", phone: "" });
       setIsDepartmentAccount(false);
     } catch (err) {
-      console.error(err);
-      message.error("Lưu khoa/phòng thất bại");
+      message.error("Lưu đội phản ứng thất bại");
     }
   };
 
   const handleDelete = async (id?: number) => {
     if (!id) return;
-    if (!confirm("Bạn có chắc muốn xóa khoa/phòng này?")) return;
+    if (!confirm("Bạn có chắc muốn xóa đội phản ứng này?")) return;
 
     try {
       await deleteDepartment(id);
       setDepartments((prev) => prev.filter((d) => d.id !== id));
       message.success("Xóa thành công");
+      reloadData();
     } catch (err) {
-      console.error(err);
       message.error("Xóa thất bại");
     }
   };
 
   const handleAdd = () => {
     setEditingDept(null);
-    setFormData({ name: "", phone: "", alert_group: "" });
+    setFormData({ name: "", phone: "" });
     setIsDepartmentAccount(false);
     setIsOpen(true);
   };
@@ -108,7 +106,6 @@ export const DepartmentManagementPage: React.FC = () => {
     setFormData({
       name: dept.name,
       phone: dept.phone || "",
-      alert_group: dept.alert_group || "",
     });
     setIsDepartmentAccount(false);
     setIsOpen(true);
@@ -118,7 +115,7 @@ export const DepartmentManagementPage: React.FC = () => {
     <>
       <div className="mx-4">
         <PageHeader
-          title="Quản lý khoa, phòng"
+          title="Quản lý đội phản ứng"
           createButton={
             <Button
               type="primary"
@@ -137,15 +134,14 @@ export const DepartmentManagementPage: React.FC = () => {
           <div className="text-center py-8">Đang tải...</div>
         ) : departments.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            Chưa có khoa/phòng nào
+            Chưa có đội phản ứng nào
           </div>
         ) : (
           <table className="min-w-full table-auto">
             <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
               <tr>
-                <th className="px-4 py-2 text-left">Khoa, phòng</th>
+                <th className="px-4 py-2 text-left">Đội Phản Ứng</th>
                 <th className="px-4 py-2 text-left">Điện thoại</th>
-                <th className="px-4 py-2 text-left">Nhóm báo động</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -154,7 +150,6 @@ export const DepartmentManagementPage: React.FC = () => {
                 <tr key={d.id} className="border-t">
                   <td className="px-4 py-2">{d.name}</td>
                   <td className="px-4 py-2">{d.phone}</td>
-                  <td className="px-4 py-2">{d.alert_group}</td>
                   <td className="px-4 py-2 text-right relative">
                     <Button
                       type="text"
@@ -204,7 +199,7 @@ export const DepartmentManagementPage: React.FC = () => {
 
       <Modal
         open={isOpen}
-        title={editingDept ? "Sửa khoa/phòng" : "Thêm khoa/phòng"}
+        title={editingDept ? "Sửa đội phản ứng" : "Thêm đội phản ứng"}
         onCancel={() => setIsOpen(false)}
         onOk={handleSave}
         okText="Lưu"
@@ -225,7 +220,7 @@ export const DepartmentManagementPage: React.FC = () => {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              placeholder="Nhập tên khoa/phòng"
+              placeholder="Nhập tên đội phản ứng"
             />
           </div>
           <div>
@@ -237,24 +232,6 @@ export const DepartmentManagementPage: React.FC = () => {
               }
               placeholder="Nhập số điện thoại"
             />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">
-              Nhóm báo động <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={formData.alert_group}
-              onChange={(val) => setFormData({ ...formData, alert_group: val })}
-              className="w-full"
-              placeholder="Chọn nhóm"
-            >
-              <Option value="Lãnh Đạo">Lãnh Đạo</Option>
-              <Option value="Sửa Chữa">Sửa Chữa</Option>
-              <Option value="Thất Lạc">Thất Lạc</Option>
-              <Option value="Phòng cháy chữa cháy">Phòng cháy chữa cháy</Option>
-              <Option value="An ninh">An ninh</Option>
-              <Option value="Y tế">Y tế</Option>
-            </Select>
           </div>
         </div>
       </Modal>
