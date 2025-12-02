@@ -50,7 +50,6 @@ export const UsersPage: React.FC = () => {
       const res = await getUsers();
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error(err);
       message.error("Lấy danh sách người dùng thất bại");
     }
   };
@@ -69,7 +68,13 @@ export const UsersPage: React.FC = () => {
     organization_id: Yup.number()
       .required("Vui lòng chọn tổ chức")
       .min(1, "Vui lòng chọn tổ chức"),
-    department_id: Yup.number().required("Vui lòng chọn khoa phòng"),
+    department_id: Yup.number()
+      .nullable()
+      .when("is_department_account", {
+        is: true,
+        then: (schema) => schema.required("Vui lòng chọn khoa phòng"),
+        otherwise: (schema) => schema.nullable(),
+      }),
     name: Yup.string().required("Tên không được để trống"),
     email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
@@ -91,7 +96,7 @@ export const UsersPage: React.FC = () => {
   const formik = useFormik<IUserForm & { departmentName: string }>({
     initialValues: {
       organization_id: 0,
-      department_id: 0,
+      department_id: null,
       departmentName: "",
       name: "",
       email: "",
@@ -104,8 +109,15 @@ export const UsersPage: React.FC = () => {
     validationSchema: userSchema,
     onSubmit: async (values) => {
       try {
-        const deptName =
-          departments.find((d) => d.id === values.department_id)?.name || "";
+        // Kiểm tra: nếu bật tài khoản phòng ban thì phải có department_id
+        if (values.is_department_account && !values.department_id) {
+          message.error("Vui lòng chọn khoa phòng khi bật tài khoản phòng ban");
+          return;
+        }
+
+        const deptName = values.department_id
+          ? departments.find((d) => d.id === values.department_id)?.name || ""
+          : "";
         const payload: IUserForm & { departmentName: string } = {
           ...values,
           departmentName: deptName,
@@ -125,7 +137,6 @@ export const UsersPage: React.FC = () => {
         }
         handleClose();
       } catch (err) {
-        console.error(err);
         message.error("Lỗi khi lưu người dùng");
       }
     },
@@ -141,8 +152,9 @@ export const UsersPage: React.FC = () => {
     setEditingUser(user);
     formik.setValues({
       ...user,
-      departmentName:
-        departments.find((d) => d.id === user.department_id)?.name || "",
+      departmentName: user.department_id
+        ? departments.find((d) => d.id === user.department_id)?.name || ""
+        : "",
       password: "",
     });
     setIsOpen(true);
@@ -161,7 +173,6 @@ export const UsersPage: React.FC = () => {
       setUsers((prev) => prev.filter((u) => u.id !== id));
       message.success("Xóa người dùng thành công");
     } catch (err) {
-      console.error(err);
       message.error("Xóa người dùng thất bại");
     }
   };
@@ -172,7 +183,6 @@ export const UsersPage: React.FC = () => {
       await updateUser(id, { password: "123456Ab@" });
       message.success(`Cấp lại mật khẩu cho ${name} thành công`);
     } catch (err) {
-      console.error(err);
       message.error("Cấp lại mật khẩu thất bại");
     }
   };
@@ -383,17 +393,32 @@ export const UsersPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Khoa phòng <span className="text-red-500">*</span>
+                Khoa phòng{" "}
+                {formik.values.is_department_account && (
+                  <span className="text-red-500">*</span>
+                )}
               </label>
               <Select
-                placeholder="Chọn khoa phòng"
+                placeholder={
+                  formik.values.is_department_account
+                    ? "Chọn khoa phòng"
+                    : "Chọn khoa phòng (hoặc để trống nếu không thuộc khoa nào)"
+                }
                 value={formik.values.department_id || undefined}
-                onChange={(val: number) => {
-                  formik.setFieldValue("department_id", val);
-                  const deptName =
-                    departments.find((d) => d.id === val)?.name || "";
+                onChange={(val: number | undefined) => {
+                  const departmentId = val || null;
+                  formik.setFieldValue("department_id", departmentId);
+                  const deptName = departmentId
+                    ? departments.find((d) => d.id === departmentId)?.name || ""
+                    : "";
                   formik.setFieldValue("departmentName", deptName);
+                  // Nếu chọn khoa phòng, tự động bật tài khoản phòng ban
+                  if (departmentId && !formik.values.is_department_account) {
+                    formik.setFieldValue("is_department_account", true);
+                  }
                 }}
+                allowClear={!formik.values.is_department_account}
+                disabled={false}
                 className="w-full"
               >
                 {departments.map((dept) => (
@@ -402,6 +427,12 @@ export const UsersPage: React.FC = () => {
                   </Option>
                 ))}
               </Select>
+              {!formik.values.is_department_account && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Để trống nếu user không thuộc khoa nào (giống admin nhưng
+                  không có quyền xem dữ liệu)
+                </p>
+              )}
             </div>
           </div>
 
@@ -409,9 +440,22 @@ export const UsersPage: React.FC = () => {
             <div className="flex items-center">
               <Switch
                 checked={formik.values.is_department_account}
-                onChange={(val) =>
-                  formik.setFieldValue("is_department_account", val)
-                }
+                onChange={(val) => {
+                  formik.setFieldValue("is_department_account", val);
+                  // Nếu bật tài khoản phòng ban, bắt buộc phải chọn khoa phòng
+                  if (val) {
+                    // Nếu chưa có department_id, yêu cầu chọn
+                    if (!formik.values.department_id) {
+                      message.warning(
+                        "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
+                      );
+                    }
+                  } else {
+                    // Nếu bỏ chọn tài khoản phòng ban, đặt department_id về null
+                    formik.setFieldValue("department_id", null);
+                    formik.setFieldValue("departmentName", "");
+                  }
+                }}
               />
               <span className="ml-2 text-gray-700 font-medium">
                 Tài khoản phòng ban

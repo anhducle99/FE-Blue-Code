@@ -39,7 +39,6 @@ export const OrganizationManagementPage: React.FC = () => {
       setData(organizations);
     } catch (err) {
       setError("Không thể tải danh sách tổ chức");
-      console.error("Error fetching organizations:", err);
       setData([]);
     } finally {
       setLoading(false);
@@ -77,7 +76,6 @@ export const OrganizationManagementPage: React.FC = () => {
       setOpenMenuIndex(null);
     } catch (err) {
       setError("Không thể xóa tổ chức");
-      console.error("Error deleting organization:", err);
     }
   };
 
@@ -103,7 +101,6 @@ export const OrganizationManagementPage: React.FC = () => {
       setError(
         selectedOrg ? "Không thể cập nhật tổ chức" : "Không thể thêm tổ chức"
       );
-      console.error("Error saving organization:", err);
     }
   };
 

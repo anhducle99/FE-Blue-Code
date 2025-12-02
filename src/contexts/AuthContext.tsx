@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { legacyStorage } from "../utils/storage";
 
 export interface User {
   id: number;
@@ -6,8 +7,9 @@ export interface User {
   email: string;
   role: "SuperAdmin" | "Admin" | "User";
   phone: string;
-  department_id?: number;
+  department_id?: number | null;
   department_name?: string;
+  is_admin_view?: boolean;
 }
 
 interface AuthContextType {
@@ -34,28 +36,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem("user");
-    return storedUser ? JSON.parse(storedUser) : null;
+    return legacyStorage.get<User>("user");
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem("token") || null;
+    return legacyStorage.get<string>("token");
   });
 
-  const login = (userData: User, token: string) => {
+  const login = useCallback((userData: User, tokenValue: string) => {
     setUser(userData);
-    setToken(token);
-    localStorage.setItem("user", JSON.stringify(userData));
-    localStorage.setItem("token", token);
+    setToken(tokenValue);
+    legacyStorage.set("user", userData);
+    legacyStorage.set("token", tokenValue);
     localStorage.removeItem("audioConfirmed");
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-  };
+    legacyStorage.remove("user");
+    legacyStorage.remove("token");
+  }, []);
+
+  const isAuthenticated = !!user && !!token;
 
   return (
     <AuthContext.Provider
@@ -64,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         token,
         login,
         logout,
-        isAuthenticated: !!user && !!token,
+        isAuthenticated,
       }}
     >
       {children}

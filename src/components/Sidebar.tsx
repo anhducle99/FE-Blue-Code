@@ -14,6 +14,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -144,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 </Link>
               </li>
 
-              {(user?.role === "Admin" || user?.role === "SuperAdmin") && (
+              {((user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true) && (
                 <>
                   <li>
                     <Link
