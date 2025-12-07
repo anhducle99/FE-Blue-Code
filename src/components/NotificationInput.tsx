@@ -52,7 +52,7 @@ export default function NotificationInput({ disabled, onSend }: Props) {
           />
         </label>
         <Input
-          id="file-Input"
+          id="file-input"
           className="hidden"
           type="file"
           accept="image/*"

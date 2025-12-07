@@ -79,7 +79,7 @@ export const UsersPage: React.FC = () => {
     email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
       .required("Số điện thoại không được để trống")
-      .matches(/^[0-9]{10}$/, "Số điện thoại phải đúng 10 số"),
+      .matches(/^[0-9]{10,11}$/, "Số điện thoại phải có 10-11 chữ số"),
     password: Yup.string().when([], {
       is: () => !editingUser,
       then: (schema) =>
@@ -109,7 +109,6 @@ export const UsersPage: React.FC = () => {
     validationSchema: userSchema,
     onSubmit: async (values) => {
       try {
-        // Kiểm tra: nếu bật tài khoản phòng ban thì phải có department_id
         if (values.is_department_account && !values.department_id) {
           message.error("Vui lòng chọn khoa phòng khi bật tài khoản phòng ban");
           return;
@@ -332,6 +331,12 @@ export const UsersPage: React.FC = () => {
                   formik.setFieldValue("organization_id", Number(val));
                 }}
                 className="w-full"
+                status={
+                  formik.touched.organization_id &&
+                  formik.errors.organization_id
+                    ? "error"
+                    : ""
+                }
               >
                 {organizations.map((org) => (
                   <Option key={org.id} value={org.id}>
@@ -339,6 +344,12 @@ export const UsersPage: React.FC = () => {
                   </Option>
                 ))}
               </Select>
+              {formik.touched.organization_id &&
+                formik.errors.organization_id && (
+                  <div className="text-red-500 text-xs mt-1">
+                    {formik.errors.organization_id}
+                  </div>
+                )}
             </div>
 
             <div>
@@ -350,7 +361,16 @@ export const UsersPage: React.FC = () => {
                 placeholder="Nhập tên"
                 value={formik.values.name}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                status={
+                  formik.touched.name && formik.errors.name ? "error" : ""
+                }
               />
+              {formik.touched.name && formik.errors.name && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.name}
+                </div>
+              )}
             </div>
 
             <div>
@@ -362,7 +382,16 @@ export const UsersPage: React.FC = () => {
                 placeholder="example@gmail.com"
                 value={formik.values.email}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                status={
+                  formik.touched.email && formik.errors.email ? "error" : ""
+                }
               />
+              {formik.touched.email && formik.errors.email && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.email}
+                </div>
+              )}
             </div>
 
             {!editingUser && (
@@ -375,7 +404,22 @@ export const UsersPage: React.FC = () => {
                   placeholder="Nhập mật khẩu"
                   value={formik.values.password}
                   onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  status={
+                    formik.touched.password && formik.errors.password
+                      ? "error"
+                      : ""
+                  }
                 />
+                {formik.touched.password && formik.errors.password && (
+                  <div className="text-red-500 text-xs mt-1">
+                    {formik.errors.password}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Tối thiểu 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc
+                  biệt
+                </p>
               </div>
             )}
 
@@ -388,7 +432,16 @@ export const UsersPage: React.FC = () => {
                 placeholder="Nhập số điện thoại"
                 value={formik.values.phone}
                 onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                status={
+                  formik.touched.phone && formik.errors.phone ? "error" : ""
+                }
               />
+              {formik.touched.phone && formik.errors.phone && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.phone}
+                </div>
+              )}
             </div>
 
             <div>
@@ -412,7 +465,6 @@ export const UsersPage: React.FC = () => {
                     ? departments.find((d) => d.id === departmentId)?.name || ""
                     : "";
                   formik.setFieldValue("departmentName", deptName);
-                  // Nếu chọn khoa phòng, tự động bật tài khoản phòng ban
                   if (departmentId && !formik.values.is_department_account) {
                     formik.setFieldValue("is_department_account", true);
                   }
@@ -420,6 +472,11 @@ export const UsersPage: React.FC = () => {
                 allowClear={!formik.values.is_department_account}
                 disabled={false}
                 className="w-full"
+                status={
+                  formik.touched.department_id && formik.errors.department_id
+                    ? "error"
+                    : ""
+                }
               >
                 {departments.map((dept) => (
                   <Option key={dept.id} value={dept.id}>
@@ -427,6 +484,11 @@ export const UsersPage: React.FC = () => {
                   </Option>
                 ))}
               </Select>
+              {formik.touched.department_id && formik.errors.department_id && (
+                <div className="text-red-500 text-xs mt-1">
+                  {formik.errors.department_id}
+                </div>
+              )}
               {!formik.values.is_department_account && (
                 <p className="text-xs text-gray-500 mt-1">
                   Để trống nếu user không thuộc khoa nào (giống admin nhưng
@@ -442,16 +504,13 @@ export const UsersPage: React.FC = () => {
                 checked={formik.values.is_department_account}
                 onChange={(val) => {
                   formik.setFieldValue("is_department_account", val);
-                  // Nếu bật tài khoản phòng ban, bắt buộc phải chọn khoa phòng
                   if (val) {
-                    // Nếu chưa có department_id, yêu cầu chọn
                     if (!formik.values.department_id) {
                       message.warning(
                         "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
                       );
                     }
                   } else {
-                    // Nếu bỏ chọn tài khoản phòng ban, đặt department_id về null
                     formik.setFieldValue("department_id", null);
                     formik.setFieldValue("departmentName", "");
                   }

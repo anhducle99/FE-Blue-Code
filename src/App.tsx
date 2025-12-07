@@ -17,6 +17,10 @@ import { ApiError } from "./services/api";
 import IncidentTrendChart from "./components/IncidentTrendChart";
 import IncidentStatusWidget from "./components/IncidentStatusWidget";
 import IncidentSidebar from "./components/IncidentSidebar";
+import { useNetworkStatus } from "./hooks/useNetworkStatus";
+import { appService } from "./services/nativeService";
+import { apiWithRetry } from "./services/api";
+import { useOfflineQueue } from "./hooks/useOfflineQueue";
 
 export default function App() {
   const location = useLocation();
@@ -29,7 +33,6 @@ export default function App() {
 
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [tempMessage, setTempMessage] = useState("");
-  const [tempImage, setTempImage] = useState<File | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
 
@@ -49,12 +52,29 @@ export default function App() {
   const [lastCallId, setLastCallId] = useState<string | null>(null);
 
   const [callTargets, setCallTargets] = useState<string[]>([]);
+  const networkStatus = useNetworkStatus();
+  const { pendingCount, processQueue } = useOfflineQueue();
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
     if (!sessionStorage.getItem("audio-permission") && !isLoginPage) {
       setAudioModalOpen(true);
     }
   }, [isLoginPage]);
+
+  useEffect(() => {
+    const removeListener = appService.addStateListener((state) => {
+      if (state.isActive) {
+        console.log("App is in foreground");
+      } else {
+        console.log("App is in background");
+      }
+    });
+
+    return () => {
+      removeListener();
+    };
+  }, []);
 
   const handleConfirmAudioPermission = () => {
     sessionStorage.setItem("audio-permission", "granted");
@@ -78,7 +98,6 @@ export default function App() {
       return;
     }
     setTempMessage("");
-    setTempImage(null);
     setShowConfirm(true);
   }, [selectedKeys, showError]);
 
@@ -99,11 +118,13 @@ export default function App() {
     try {
       const fromDept = currentUser.department_name || currentUser.name;
 
-      const res = await axios.post(`${config.apiBaseUrl}/call`, {
-        fromDept: fromDept,
-        message: tempMessage,
-        targetKeys: selectedKeys,
-      });
+      const res = await apiWithRetry(() =>
+        axios.post(`${config.apiBaseUrl}/call`, {
+          fromDept: fromDept,
+          message: tempMessage,
+          targetKeys: selectedKeys,
+        })
+      );
 
       if (res.data.success) {
         const { callId } = res.data;
@@ -133,7 +154,6 @@ export default function App() {
         setWaitingModalOpen(true);
         setSelectedKeys([]);
         setTempMessage("");
-        setTempImage(null);
         setShowConfirm(false);
         showSuccess("Cuộc gọi đã được khởi tạo thành công!");
       } else {
@@ -156,6 +176,19 @@ export default function App() {
 
   return (
     <div className="min-h-screen h-screen overflow-hidden bg-white flex flex-col">
+      {!networkStatus.isOnline && (
+        <div className="bg-yellow-500 text-white text-center py-2 px-4 text-sm font-semibold">
+          ⚠️ Không có kết nối mạng. Ứng dụng đang hoạt động ở chế độ offline.
+          {pendingCount > 0 && (
+            <span className="ml-2">({pendingCount} hành động đang chờ)</span>
+          )}
+        </div>
+      )}
+      {uploadProgress !== null && (
+        <div className="bg-blue-500 text-white text-center py-2 px-4 text-sm font-semibold">
+          📤 Đang upload ảnh... {uploadProgress}%
+        </div>
+      )}
       <div className="flex-shrink-0">
         <Header />
       </div>
@@ -163,7 +196,7 @@ export default function App() {
       <div className="flex-1 overflow-y-auto px-4 pb-6">
         <div className="grid gap-4 grid-cols-1 md:h-full md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:grid-rows-[auto,minmax(0,1fr)]">
           <section className="flex flex-col min-h-0 overflow-hidden md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2">
-            <div className="flex justify-start pt-4 pb-3">
+            <div className="flex justify-start items-center gap-3 pt-4 pb-3 flex-wrap">
               <button
                 onClick={handleRequestCall}
                 className="bg-blue-600 px-4 py-2 rounded-lg text-white font-semibold flex items-center gap-2"
@@ -226,7 +259,6 @@ export default function App() {
               title="Xác nhận cuộc gọi"
               selectedPhones={selectedNames}
               message={tempMessage}
-              image={tempImage}
               onClose={handleCloseConfirm}
               onConfirm={handleConfirmCall}
             />

@@ -6,6 +6,13 @@ import React, {
   useCallback,
 } from "react";
 import { getDepartments } from "../services/departmentService";
+import {
+  cacheDepartments,
+  getCachedDepartments,
+  cacheSupportContacts,
+  getCachedSupportContacts,
+} from "../utils/offlineStorage";
+import { networkService } from "../services/nativeService";
 
 export interface Department {
   id: number;
@@ -67,22 +74,58 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setLoading(true);
 
+      const networkStatus = await networkService.getStatus();
+
+      if (!networkStatus.connected) {
+        const cachedDepartments = await getCachedDepartments();
+        const cachedContacts = await getCachedSupportContacts();
+
+        if (cachedDepartments) {
+          setDepartments(cachedDepartments);
+        }
+        if (cachedContacts) {
+          setSupportContacts(cachedContacts);
+        }
+
+        if (cachedDepartments || cachedContacts) {
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await getDepartments();
       const allItems = Array.isArray(res.data.data) ? res.data.data : [];
 
-      setDepartments(
-        allItems.map((d, idx) => ({
-          id: d.id ?? idx + 1,
-          name: d.name,
-          phone: d.phone || "",
-        }))
-      );
+      const departmentsData = allItems.map((d, idx) => ({
+        id: d.id ?? idx + 1,
+        name: d.name,
+        phone: d.phone || "",
+      }));
 
+      setDepartments(departmentsData);
       setSupportContacts([]);
       setLeaders([]);
-    } catch {
-      setDepartments([]);
-      setSupportContacts([]);
+
+      if (networkStatus.connected) {
+        await cacheDepartments(departmentsData);
+        await cacheSupportContacts([]);
+      }
+    } catch (error) {
+      const cachedDepartments = await getCachedDepartments();
+      const cachedContacts = await getCachedSupportContacts();
+
+      if (cachedDepartments) {
+        setDepartments(cachedDepartments);
+      } else {
+        setDepartments([]);
+      }
+
+      if (cachedContacts) {
+        setSupportContacts(cachedContacts);
+      } else {
+        setSupportContacts([]);
+      }
+
       setLeaders([]);
     } finally {
       setLoading(false);

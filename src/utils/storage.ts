@@ -1,14 +1,6 @@
-/**
- * Secure storage utilities
- * Provides a wrapper around localStorage with better error handling
- */
-
 const STORAGE_PREFIX = "bluecode_";
 
 export const storage = {
-  /**
-   * Get item from localStorage
-   */
   get: <T>(key: string): T | null => {
     try {
       const item = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
@@ -19,9 +11,6 @@ export const storage = {
     }
   },
 
-  /**
-   * Set item to localStorage
-   */
   set: <T>(key: string, value: T): boolean => {
     try {
       localStorage.setItem(`${STORAGE_PREFIX}${key}`, JSON.stringify(value));
