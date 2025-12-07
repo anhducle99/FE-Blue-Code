@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Input } from "antd";
+import { Button, Input, message } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
 import {
@@ -72,35 +72,35 @@ export const OrganizationManagementPage: React.FC = () => {
 
     try {
       await deleteOrganization(id);
-      setData((prev) => prev.filter((org) => org.id !== id));
+      message.success("Xóa tổ chức thành công!");
+      await fetchOrganizations();
       setOpenMenuIndex(null);
     } catch (err) {
+      message.error("Không thể xóa tổ chức");
       setError("Không thể xóa tổ chức");
     }
   };
 
-  const handleSave = async (updated: { logo: File | null; name: string }) => {
+  const handleSave = async (updated: { name: string }) => {
     try {
       if (selectedOrg && selectedOrg.id) {
         await updateOrganization(selectedOrg.id, { name: updated.name });
-        setData((prev) =>
-          prev.map((org) =>
-            org.id === selectedOrg.id ? { ...org, name: updated.name } : org
-          )
-        );
+        message.success("Cập nhật tổ chức thành công!");
       } else {
-        const response = await createOrganization({ name: updated.name });
-        if (response.data) {
-          setData((prev) => [...prev, response.data]);
-        }
+        await createOrganization({ name: updated.name });
+        message.success("Thêm tổ chức thành công!");
       }
+
+      await fetchOrganizations();
 
       setOpenModal(false);
       setSelectedOrg(null);
     } catch (err) {
-      setError(
-        selectedOrg ? "Không thể cập nhật tổ chức" : "Không thể thêm tổ chức"
-      );
+      const errorMsg = selectedOrg
+        ? "Không thể cập nhật tổ chức"
+        : "Không thể thêm tổ chức";
+      message.error(errorMsg);
+      setError(errorMsg);
     }
   };
 
@@ -112,7 +112,19 @@ export const OrganizationManagementPage: React.FC = () => {
   if (loading) {
     return (
       <div className="mx-4">
-        <PageHeader title="Quản lý tổ chức" />
+        <PageHeader
+          title="Quản lý tổ chức"
+          createButton={
+            <Button
+              type="primary"
+              shape="circle"
+              className="!bg-[#0365af] !border-[#0365af] !text-white"
+              onClick={handleAddNew}
+            >
+              <i className="bi bi-plus text-white" />
+            </Button>
+          }
+        />
         <div className="bg-white rounded shadow-sm p-4 mt-2 text-center">
           <div>Đang tải...</div>
         </div>
@@ -123,7 +135,19 @@ export const OrganizationManagementPage: React.FC = () => {
   if (error) {
     return (
       <div className="mx-4">
-        <PageHeader title="Quản lý tổ chức" />
+        <PageHeader
+          title="Quản lý tổ chức"
+          createButton={
+            <Button
+              type="primary"
+              shape="circle"
+              className="!bg-[#0365af] !border-[#0365af] !text-white"
+              onClick={handleAddNew}
+            >
+              <i className="bi bi-plus text-white" />
+            </Button>
+          }
+        />
         <div className="bg-white rounded shadow-sm p-4 mt-2">
           <div className="text-red-600 mb-4">{error}</div>
           <Button
@@ -139,7 +163,19 @@ export const OrganizationManagementPage: React.FC = () => {
 
   return (
     <div className="mx-4">
-      <PageHeader title="Quản lý tổ chức" />
+      <PageHeader
+        title="Quản lý tổ chức"
+        createButton={
+          <Button
+            type="primary"
+            shape="circle"
+            className="!bg-[#0365af] !border-[#0365af] !text-white"
+            onClick={handleAddNew}
+          >
+            <i className="bi bi-plus text-white" />
+          </Button>
+        }
+      />
 
       <div className="bg-white rounded shadow-sm p-4 mt-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
@@ -224,7 +260,18 @@ export const OrganizationManagementPage: React.FC = () => {
                         !visibleColumns.created_at ? "invisible" : ""
                       }`}
                     >
-                      {item.created_at || "N/A"}
+                      {item.created_at
+                        ? new Date(item.created_at).toLocaleDateString(
+                            "vi-VN",
+                            {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )
+                        : "N/A"}
                     </td>
                     <td className="px-4 py-3 text-right relative">
                       <Button
@@ -282,11 +329,7 @@ export const OrganizationManagementPage: React.FC = () => {
           setSelectedOrg(null);
         }}
         onSave={handleSave}
-        initialData={
-          selectedOrg
-            ? { name: selectedOrg.name, logoUrl: selectedOrg.logoUrl }
-            : null
-        }
+        initialData={selectedOrg ? { name: selectedOrg.name } : null}
         mode={selectedOrg ? "edit" : "add"}
       />
     </div>

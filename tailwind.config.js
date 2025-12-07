@@ -9,6 +9,6 @@ module.exports = {
   },
   plugins: [require("@tailwindcss/typography"), require("daisyui")],
   daisyui: {
-    themes: false, // Disable DaisyUI themes if you're using custom styling
+    themes: false,
   },
 };

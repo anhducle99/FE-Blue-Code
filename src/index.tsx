@@ -20,6 +20,22 @@ import { IncidentProvider } from "./contexts/IncidentContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import PrivateRoute from "./components/PrivateRoute";
 import IncomingCallWrapper from "./components/IncomingCallWrapper";
+import { registerServiceWorker } from "./utils/serviceWorkerRegistration";
+import { Capacitor } from "@capacitor/core";
+import { statusBarService } from "./services/nativeService";
+import { App as CapacitorApp } from "@capacitor/app";
+import DeepLinkHandler from "./components/DeepLinkHandler";
+
+if (typeof window !== "undefined") {
+  if (Capacitor.isNativePlatform()) {
+    statusBarService.setStyle("light").catch(console.error);
+    statusBarService.setBackgroundColor("#2563eb").catch(console.error);
+  }
+
+  if (!Capacitor.isNativePlatform()) {
+    registerServiceWorker();
+  }
+}
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -35,6 +51,7 @@ root.render(
               <DepartmentProvider>
                 <OrganizationProvider>
                   <BrowserRouter>
+                    <DeepLinkHandler />
                     <IncomingCallWrapper>
                       <Routes>
                         <Route

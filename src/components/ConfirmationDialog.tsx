@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { fileToDataURL } from "../utils/imageConverter";
 
 interface ConfirmationDialogProps {
   visible: boolean;
@@ -19,6 +20,16 @@ export default function ConfirmationDialog({
   message,
   image,
 }: ConfirmationDialogProps) {
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (image) {
+      fileToDataURL(image).then(setImagePreview).catch(console.error);
+    } else {
+      setImagePreview(null);
+    }
+  }, [image]);
+
   if (!visible) return null;
 
   return (
@@ -56,6 +67,19 @@ export default function ConfirmationDialog({
         {message && (
           <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
             <p className="text-sm text-gray-700">{message}</p>
+          </div>
+        )}
+
+        {imagePreview && (
+          <div className="mb-4">
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Ảnh đính kèm:
+            </p>
+            <img
+              src={imagePreview}
+              alt="Preview"
+              className="w-full h-48 object-cover rounded-lg border border-gray-300"
+            />
           </div>
         )}
 
