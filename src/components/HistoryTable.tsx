@@ -181,134 +181,218 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
         : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
     }`;
 
+  const renderCardView = () => (
+    <div className="md:hidden space-y-3">
+      {currentData.map((row, idx) => (
+        <div
+          key={row.id}
+          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+        >
+          <div className="flex justify-between items-start mb-3">
+            <div className="text-sm font-semibold text-gray-500">
+              #{startIndex + idx + 1}
+            </div>
+            <div>{renderStatus(row.status)}</div>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Khoa gửi:
+              </span>
+              <span className="text-gray-800 flex-1">{row.sender}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Khoa nhận:
+              </span>
+              <span className="text-gray-800 flex-1">{row.receiver}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Người nhận:
+              </span>
+              <span className="text-gray-800 flex-1">{row.receiver}</span>
+            </div>
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Thời gian gửi:
+              </span>
+              <span className="text-gray-800 flex-1">
+                {formatDate(row.created_at)}
+              </span>
+            </div>
+            {getConfirmationTime(row) && (
+              <div className="flex items-start">
+                <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                  Xác nhận:
+                </span>
+                <span className="text-gray-800 flex-1">
+                  {getConfirmationTime(row)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div>
-      <table className="w-full border" style={{ tableLayout: "fixed" }}>
-        <thead>
-          <tr className="bg-gray-100">
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.STT }}
-            >
-              STT
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.KhoaGui }}
-            >
-              Khoa gửi
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.KhoaNhan }}
-            >
-              Khoa nhận
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.NguoiNhan }}
-            >
-              Người nhận
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.TrangThai }}
-            >
-              Trạng thái
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.ThoiGianGui }}
-            >
-              Thời gian gửi
-            </th>
-            <th
-              className="border px-4 py-2"
-              style={{ width: COLUMN_WIDTHS.ThoiGianXacNhan }}
-            >
-              Thời gian xác nhận
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {currentData.length > 0 ? (
-            currentData.map((row, idx) => (
-              <tr key={row.id}>
-                <td
-                  className="border px-4 py-2 text-center"
-                  style={getCellStyle(COLUMN_WIDTHS.STT)}
+      {/* Card view cho mobile */}
+      {currentData.length > 0 ? (
+        renderCardView()
+      ) : (
+        <div className="md:hidden text-center py-8 text-gray-500">
+          Không có dữ liệu
+        </div>
+      )}
+
+      <div className="hidden md:block overflow-x-auto -mx-2 sm:mx-0">
+        <div className="inline-block min-w-full align-middle">
+          <table className="w-full border" style={{ tableLayout: "fixed" }}>
+            <thead>
+              <tr className="bg-gray-100">
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.STT }}
                 >
-                  {startIndex + idx + 1}
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.KhoaGui, true)}
-                  title={row.sender}
+                  STT
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.KhoaGui }}
                 >
-                  {row.sender}
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.KhoaNhan, true)}
-                  title={row.receiver}
+                  Khoa gửi
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.KhoaNhan }}
                 >
-                  {row.receiver}
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.NguoiNhan, true)}
-                  title={row.receiver}
+                  Khoa nhận
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.NguoiNhan }}
                 >
-                  {row.receiver}
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.TrangThai)}
+                  Người nhận
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.TrangThai }}
                 >
-                  <div className="flex justify-center">
-                    {renderStatus(row.status)}
-                  </div>
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.ThoiGianGui)}
+                  Trạng thái
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.ThoiGianGui }}
                 >
-                  {formatDate(row.created_at)}
-                </td>
-                <td
-                  className="border px-4 py-2"
-                  style={getCellStyle(COLUMN_WIDTHS.ThoiGianXacNhan)}
+                  Thời gian gửi
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.ThoiGianXacNhan }}
                 >
-                  {getConfirmationTime(row)}
-                </td>
+                  Thời gian xác nhận
+                </th>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={7} className="text-center py-4 text-gray-500">
-                Không có dữ liệu
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {currentData.length > 0 ? (
+                currentData.map((row, idx) => (
+                  <tr key={row.id} className="hover:bg-gray-50">
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-center text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.STT)}
+                    >
+                      {startIndex + idx + 1}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.KhoaGui, true)}
+                      title={row.sender}
+                    >
+                      {row.sender}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.KhoaNhan, true)}
+                      title={row.receiver}
+                    >
+                      {row.receiver}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.NguoiNhan, true)}
+                      title={row.receiver}
+                    >
+                      {row.receiver}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.TrangThai)}
+                    >
+                      <div className="flex justify-center">
+                        {renderStatus(row.status)}
+                      </div>
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.ThoiGianGui)}
+                    >
+                      {formatDate(row.created_at)}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.ThoiGianXacNhan)}
+                    >
+                      {getConfirmationTime(row)}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center py-4 text-gray-500">
+                    Không có dữ liệu
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pagination */}
       {data.length > 0 && (
-        <div className="mt-4 flex justify-between items-center">
-          <div className="text-gray-700">Tổng: {data.length} mục</div>
-          <div className="flex gap-2">
+        <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
+          <div className="text-sm text-gray-700 order-2 sm:order-1">
+            Tổng: <span className="font-semibold">{data.length}</span> mục
+            {totalPages > 1 && (
+              <span className="ml-2">
+                (Trang {currentPage}/{totalPages})
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 order-1 sm:order-2">
             <button
               onClick={handlePreviousPage}
               disabled={currentPage === 1}
-              className={getButtonClass(currentPage === 1)}
+              className={`${getButtonClass(
+                currentPage === 1
+              )} text-xs sm:text-sm`}
             >
-              Trang trước
+              <span className="hidden sm:inline">Trang trước</span>
+              <span className="sm:hidden">Trước</span>
             </button>
             <button
               onClick={handleNextPage}
               disabled={currentPage >= totalPages}
-              className={getButtonClass(currentPage >= totalPages)}
+              className={`${getButtonClass(
+                currentPage >= totalPages
+              )} text-xs sm:text-sm`}
             >
-              Trang sau
+              <span className="hidden sm:inline">Trang sau</span>
+              <span className="sm:hidden">Sau</span>
             </button>
           </div>
         </div>

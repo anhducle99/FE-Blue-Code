@@ -32,6 +32,12 @@ const getSocketUrl = () => {
   if (process.env.REACT_APP_SOCKET_URL) {
     return process.env.REACT_APP_SOCKET_URL;
   }
+
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
+    return apiUrl;
+  }
+
   return "/socket.io";
 };
 
@@ -40,9 +46,20 @@ const socketUrl = getSocketUrl();
 
 const normalizedApiUrl = apiUrl.replace(/\/+$/, "");
 
-const apiBaseUrl = normalizedApiUrl.endsWith("/api")
-  ? normalizedApiUrl
-  : `${normalizedApiUrl}/api`;
+let apiBaseUrl: string;
+if (normalizedApiUrl.endsWith("/api")) {
+  apiBaseUrl = normalizedApiUrl;
+} else {
+  const urlWithoutProtocol = normalizedApiUrl.replace(/^https?:\/\//, "");
+  const pathParts = urlWithoutProtocol.split("/").filter(Boolean);
+  const hasApiInPath = pathParts.includes("api");
+
+  if (hasApiInPath) {
+    apiBaseUrl = normalizedApiUrl;
+  } else {
+    apiBaseUrl = `${normalizedApiUrl}/api`;
+  }
+}
 
 export const config = {
   apiUrl,
@@ -53,12 +70,6 @@ export const config = {
 } as const;
 
 if (process.env.NODE_ENV === "development") {
-  console.log("=== Environment Config (Development) ===");
-  console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
-  console.log("API Base URL:", apiBaseUrl);
-  console.log("Socket URL:", socketUrl);
-  console.log("Platform:", getPlatform());
-  console.log("Is Native:", isNative());
 } else {
   console.log("=== Environment Config (Production) ===");
   console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);

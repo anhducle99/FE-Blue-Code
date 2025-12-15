@@ -24,6 +24,25 @@ const IncidentStatusWidget: React.FC = () => {
       return isToday(incident);
     });
 
+    const outgoingIncidents = todayIncidents.filter(
+      (inc) => (inc as any).callType === "outgoing"
+    );
+
+    const online = outgoingIncidents.length;
+
+    const callIncidents = todayIncidents.filter(
+      (inc) => (inc as any).callType !== undefined
+    );
+    const callLogIds = new Set<string>();
+    callIncidents.forEach((inc) => {
+      const id = inc.id;
+      const match = id.match(/call-(?:outgoing|receiver)-(\d+)/);
+      if (match && match[1]) {
+        callLogIds.add(match[1]);
+      }
+    });
+    const totalCalls = callLogIds.size;
+
     const total = todayIncidents.length;
     const resolved = todayIncidents.filter(
       (i) => i.status === "resolved"
@@ -33,12 +52,10 @@ const IncidentStatusWidget: React.FC = () => {
       (i) => i.status === "warning"
     ).length;
 
-    const online = total - errors;
-
     const resolvedPercentage =
-      total > 0 ? ((resolved / total) * 100).toFixed(1) : "0.0";
+      online > 0 ? ((resolved / online) * 100).toFixed(1) : "0.0";
     const totalPercentage =
-      total > 0 ? ((online / total) * 100).toFixed(1) : "100.0";
+      online > 0 ? ((online / online) * 100).toFixed(1) : "100.0";
 
     const avg = resolvedPercentage;
     const max = totalPercentage;
@@ -53,7 +70,8 @@ const IncidentStatusWidget: React.FC = () => {
 
     return {
       online,
-      total,
+      total: totalCalls,
+      totalCalls,
       avg,
       max,
       status,
@@ -61,8 +79,7 @@ const IncidentStatusWidget: React.FC = () => {
     };
   }, [incidents]);
 
-  const gaugePercentage =
-    stats.total > 0 ? (stats.online / stats.total) * 100 : 100;
+  const gaugePercentage = 100;
 
   const getGaugeColor = () => {
     if (stats.status === "OK") return "#22c55e";

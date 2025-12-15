@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { config } from "../config/env";
 
@@ -16,6 +16,83 @@ export interface IncomingCallData {
 }
 
 let globalSocket: Socket | null = null;
+let socketReferenceCount = 0;
+
+const SOCKET_CONFIG = {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelayMax: 5000,
+  reconnectionDelay: 1000,
+  timeout: 20000,
+  forceNew: false,
+  autoConnect: true,
+
+  upgrade: true,
+  rememberUpgrade: false,
+};
+
+export const getGlobalSocket = (): Socket | null => {
+  return globalSocket;
+};
+
+const initializeSocket = (): Socket => {
+  if (globalSocket) {
+    return globalSocket;
+  }
+
+  globalSocket = io(config.socketUrl, SOCKET_CONFIG);
+
+  globalSocket.on("connect_error", (error) => {
+    if (
+      error.message &&
+      !error.message.includes("WebSocket is closed") &&
+      !error.message.includes("websocket")
+    ) {
+      console.warn("Socket connection error:", error.message);
+    }
+  });
+
+  globalSocket.io.on("error", (error: Error) => {
+    if (
+      error.message &&
+      (error.message.includes("WebSocket is closed") ||
+        error.message.includes("websocket"))
+    ) {
+      return;
+    }
+  });
+
+  return globalSocket;
+};
+
+const cleanupSocket = (): void => {
+  if (socketReferenceCount <= 0 && globalSocket) {
+    try {
+      if (globalSocket.connected) {
+        globalSocket.disconnect();
+      } else {
+        globalSocket.removeAllListeners();
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        !errorMessage.includes("WebSocket is closed") &&
+        !errorMessage.includes("websocket") &&
+        !errorMessage.includes("Transport closed") &&
+        !errorMessage.includes("Socket is closed")
+      ) {
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Error during socket cleanup:", errorMessage);
+        }
+      }
+    } finally {
+      globalSocket = null;
+      socketReferenceCount = 0;
+    }
+  }
+};
 
 export const useSocket = (user: RegisterData | null) => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -23,73 +100,102 @@ export const useSocket = (user: RegisterData | null) => {
     null
   );
   const [isConnected, setIsConnected] = useState(false);
+  const handlersRef = useRef<{
+    incomingCall?: (data: IncomingCallData) => void;
+  }>({});
 
   useEffect(() => {
     if (!user) {
-      if (globalSocket) {
-        globalSocket.disconnect();
-        globalSocket = null;
-        setSocket(null);
-        setIsConnected(false);
-      }
+      setSocket(null);
+      setIsConnected(false);
       return;
     }
 
-    if (!globalSocket) {
-      globalSocket = io(config.socketUrl, {
-        transports: ["websocket", "polling"],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-        forceNew: false,
-        autoConnect: true,
-      });
+    socketReferenceCount++;
+    const socketInstance = initializeSocket();
 
-      globalSocket.on("connect", () => {
+    if (socketReferenceCount === 1) {
+      socketInstance.on("connect", () => {
         setIsConnected(true);
       });
 
-      globalSocket.on("disconnect", (reason) => {
+      socketInstance.on("disconnect", (reason) => {
         setIsConnected(false);
-
         if (reason === "io server disconnect") {
-          globalSocket?.connect();
+          socketInstance.connect();
         }
       });
 
-      globalSocket.on("connect_error", () => {
+      socketInstance.on("connect_error", (error) => {
         setIsConnected(false);
+        if (
+          error.message &&
+          (error.message.includes("WebSocket is closed") ||
+            error.message.includes("websocket"))
+        ) {
+          return;
+        }
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Socket connection error:", error.message);
+        }
       });
 
-      globalSocket.on("reconnect", () => {
+      socketInstance.on("reconnect", (attemptNumber) => {
         setIsConnected(true);
+        if (process.env.NODE_ENV === "development") {
+          console.log(`Socket reconnected after ${attemptNumber} attempts`);
+        }
       });
 
-      globalSocket.on("reconnect_failed", () => {
+      socketInstance.on("reconnect_attempt", () => {});
+
+      socketInstance.on("reconnect_failed", () => {
         setIsConnected(false);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Socket reconnection failed, will retry...");
+        }
+      });
+
+      socketInstance.on("reconnect_error", (error) => {
+        if (
+          error.message &&
+          (error.message.includes("WebSocket is closed") ||
+            error.message.includes("websocket"))
+        ) {
+          return;
+        }
       });
     }
 
-    setSocket(globalSocket);
-    setIsConnected(globalSocket.connected);
-
-    globalSocket.emit("register", {
-      name: user.name,
-      department_id: user.department_id,
-      department_name: user.department_name,
-    });
+    setSocket(socketInstance);
+    setIsConnected(socketInstance.connected);
 
     const handleIncomingCall = (data: IncomingCallData) => {
       setIncomingCall(data);
     };
-
-    globalSocket.on("incomingCall", handleIncomingCall);
+    handlersRef.current.incomingCall = handleIncomingCall;
+    socketInstance.on("incomingCall", handleIncomingCall);
 
     return () => {
-      globalSocket?.off("incomingCall", handleIncomingCall);
+      if (handlersRef.current.incomingCall) {
+        socketInstance.off("incomingCall", handlersRef.current.incomingCall);
+      }
+      socketReferenceCount--;
+      if (socketReferenceCount <= 0) {
+        cleanupSocket();
+      }
     };
-  }, [user]);
+  }, []);
+
+  useEffect(() => {
+    if (!user || !socket) return;
+
+    socket.emit("register", {
+      name: user.name,
+      department_id: user.department_id,
+      department_name: user.department_name,
+    });
+  }, [user, socket]);
 
   const clearIncomingCall = useCallback(() => {
     setIncomingCall(null);
