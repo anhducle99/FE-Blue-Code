@@ -14,7 +14,7 @@ import CallStatusModal from "./components/CallStatusModal";
 import { useSocket, RegisterData } from "./contexts/useSocket";
 import { config } from "./config/env";
 import { ApiError } from "./services/api";
-import IncidentTrendChart from "./components/IncidentTrendChart";
+// import IncidentTrendChart from "./components/IncidentTrendChart";
 import IncidentStatusWidget from "./components/IncidentStatusWidget";
 import IncidentSidebar from "./components/IncidentSidebar";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
@@ -31,7 +31,7 @@ export default function App() {
   const { addIncident } = useIncidents();
   const currentUser = user!;
 
-  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tempMessage, setTempMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
@@ -87,24 +87,22 @@ export default function App() {
   );
 
   const toggleSelect = useCallback((key: string) => {
-    setSelectedKeys((prev) =>
-      prev.includes(key) ? prev.filter((p) => p !== key) : [...prev, key]
-    );
+    setSelectedKey((prev) => (prev === key ? null : key));
   }, []);
 
   const handleRequestCall = useCallback(() => {
-    if (selectedKeys.length === 0) {
+    if (!selectedKey) {
       showError("Vui lòng chọn đội cần gọi");
       return;
     }
     setTempMessage("");
     setShowConfirm(true);
-  }, [selectedKeys, showError]);
+  }, [selectedKey, showError]);
 
-  const selectedNames = useMemo(
-    () => selectedKeys.map((k) => k.split("_")[0]),
-    [selectedKeys]
-  );
+  const selectedNames = useMemo(() => {
+    if (!selectedKey) return [];
+    return [selectedKey.split("_")[0]];
+  }, [selectedKey]);
 
   const handleCloseConfirm = useCallback(() => {
     setShowConfirm(false);
@@ -115,6 +113,11 @@ export default function App() {
   }, []);
 
   const handleConfirmCall = useCallback(async () => {
+    if (!selectedKey) {
+      showError("Vui lòng chọn đội cần gọi");
+      return;
+    }
+
     try {
       const fromDept = currentUser.department_name || currentUser.name;
 
@@ -122,37 +125,33 @@ export default function App() {
         axios.post(`${config.apiBaseUrl}/call`, {
           fromDept: fromDept,
           message: tempMessage,
-          targetKeys: selectedKeys,
+          targetKeys: [selectedKey],
         })
       );
 
       if (res.data.success) {
         const { callId } = res.data;
 
-        const names = selectedKeys.map((k) => k.split("_")[0]);
-        setCallTargets(names);
+        const name = selectedKey.split("_")[0];
+        setCallTargets([name]);
 
         socket?.emit("startCall", {
           callId,
           from: fromDept,
-          targets: names,
+          targets: [name],
         });
 
-        names.forEach((target) => {
-          addIncident({
-            source: fromDept.toUpperCase(),
-            type: "call_outgoing",
-            status: "info",
-            message: `Đang gọi ${target}${
-              tempMessage ? ` - ${tempMessage}` : ""
-            }`,
-            callType: "outgoing",
-          });
+        addIncident({
+          source: fromDept.toUpperCase(),
+          type: "call_outgoing",
+          status: "info",
+          message: `Đang gọi ${name}${tempMessage ? ` - ${tempMessage}` : ""}`,
+          callType: "outgoing",
         });
 
         setLastCallId(callId);
         setWaitingModalOpen(true);
-        setSelectedKeys([]);
+        setSelectedKey(null);
         setTempMessage("");
         setShowConfirm(false);
         showSuccess("Cuộc gọi đã được khởi tạo thành công!");
@@ -167,7 +166,7 @@ export default function App() {
     currentUser.department_name,
     currentUser.name,
     tempMessage,
-    selectedKeys,
+    selectedKey,
     socket,
     showError,
     showSuccess,
@@ -227,7 +226,7 @@ export default function App() {
                       key={d.id}
                       name={d.name}
                       phone={d.phone}
-                      isSelected={selectedKeys.includes(key)}
+                      isSelected={selectedKey === key}
                       onClick={() => !isCurrentDept && toggleSelect(key)}
                       disabled={isCurrentDept}
                     />
@@ -245,7 +244,7 @@ export default function App() {
                       label={s.label}
                       phone={s.phone}
                       color={s.color}
-                      isSelected={selectedKeys.includes(key)}
+                      isSelected={selectedKey === key}
                       onClick={() => !isCurrentSupport && toggleSelect(key)}
                       disabled={isCurrentSupport}
                     />
@@ -268,9 +267,9 @@ export default function App() {
             <IncidentStatusWidget />
           </div>
 
-          <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
+          {/* <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
             <IncidentTrendChart />
-          </div>
+          </div> */}
 
           <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
             <IncidentSidebar isOpen={true} onClose={() => {}} />

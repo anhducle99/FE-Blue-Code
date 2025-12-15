@@ -8,6 +8,7 @@ import React, {
 import { Incident, IncidentFilter } from "../types/incident";
 import { getCallHistory, ICallLog } from "../services/historyService";
 import { useAuth } from "./AuthContext";
+import { getGlobalSocket } from "./useSocket";
 
 interface IncidentContextType {
   incidents: Incident[];
@@ -96,17 +97,31 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
+  const [socket, setSocket] =
+    React.useState<ReturnType<typeof getGlobalSocket>>(null);
+
+  useEffect(() => {
+    const globalSocketInstance = getGlobalSocket();
+    const hasValidUser = user && user.department_id;
+
+    setSocket(
+      hasValidUser && globalSocketInstance ? globalSocketInstance : null
+    );
+  }, [user?.id, user?.department_id]);
+
   const addIncident = useCallback(
     (incidentData: Omit<Incident, "id" | "timestamp">) => {
       const newIncident: Incident = {
         ...incidentData,
-        id: Math.random().toString(36).substring(2, 9) + Date.now(),
+        id: `${Math.random().toString(36).substring(2, 9)}-${Date.now()}`,
         timestamp: new Date(),
       };
 
       setIncidents((prev) => {
-        const exists = prev.some((inc) => {
-          if ((inc as any).callType && (newIncident as any).callType) {
+        const isDuplicate = prev.some((inc) => {
+          const hasCallType =
+            (inc as any).callType && (newIncident as any).callType;
+          if (hasCallType) {
             const timeDiff = Math.abs(
               inc.timestamp.getTime() - newIncident.timestamp.getTime()
             );
@@ -119,7 +134,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
           return inc.id === newIncident.id;
         });
 
-        if (exists) {
+        if (isDuplicate) {
           return prev;
         }
 
@@ -146,61 +161,135 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
   const hasLoadedRef = React.useRef(false);
   const loadedUserIdRef = React.useRef<number | null>(null);
   const isLoadingRef = React.useRef(false);
+  const lastCallStatusUpdateRef = React.useRef<number>(0);
 
-  const loadCallHistory = useCallback(async () => {
-    if (!user || isLoadingRef.current) return;
+  const loadCallHistory = useCallback(
+    async (isCallStatusUpdate = false) => {
+      if (!user || isLoadingRef.current) return;
 
-    isLoadingRef.current = true;
-    setIsLoading(true);
-    try {
-      let callLogs = await getCallHistory({});
+      isLoadingRef.current = true;
+      setIsLoading(true);
+      try {
+        let callLogs = await getCallHistory({});
 
-      if (!Array.isArray(callLogs)) {
-        callLogs = [];
-      }
-
-      const convertedIncidents: Incident[] = [];
-
-      callLogs.forEach((callLog) => {
-        try {
-          const converted = convertCallLogToIncidents(callLog);
-          convertedIncidents.push(...converted);
-        } catch (err) {}
-      });
-
-      setIncidents((prevIncidents) => {
-        const isDifferentUser = loadedUserIdRef.current !== (user.id || null);
-        const isInitialLoad =
-          !hasLoadedRef.current ||
-          isDifferentUser ||
-          prevIncidents.length === 0;
-
-        if (isInitialLoad) {
-          hasLoadedRef.current = true;
-          loadedUserIdRef.current = user.id || null;
-          const sorted = [...convertedIncidents].sort(
-            (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
-          );
-          return sorted;
+        if (!Array.isArray(callLogs)) {
+          callLogs = [];
         }
 
-        const existingIds = new Set(prevIncidents.map((i) => i.id));
-        const newCallLogIncidents = convertedIncidents.filter(
-          (i) => !existingIds.has(i.id)
-        );
+        const convertedIncidents: Incident[] = [];
 
-        const merged = [...prevIncidents, ...newCallLogIncidents];
+        callLogs.forEach((callLog) => {
+          try {
+            const converted = convertCallLogToIncidents(callLog);
+            convertedIncidents.push(...converted);
+          } catch (err) {}
+        });
 
-        merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+        setIncidents((prevIncidents) => {
+          const isDifferentUser = loadedUserIdRef.current !== (user.id || null);
+          const isInitialLoad =
+            !hasLoadedRef.current ||
+            isDifferentUser ||
+            prevIncidents.length === 0;
 
-        return merged;
-      });
-    } catch (err) {
-    } finally {
-      isLoadingRef.current = false;
-      setIsLoading(false);
-    }
-  }, [user?.id]);
+          if (isInitialLoad) {
+            hasLoadedRef.current = true;
+            loadedUserIdRef.current = user.id || null;
+            const sorted = [...convertedIncidents].sort(
+              (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            );
+            return sorted;
+          }
+
+          if (isCallStatusUpdate) {
+            const apiIncidentKeys = new Set<string>();
+            convertedIncidents.forEach((inc) => {
+              const callType = (inc as any).callType || "";
+              const key = `${inc.message}|${inc.source}|${callType}`;
+              apiIncidentKeys.add(key);
+            });
+
+            const filteredPrev = prevIncidents.filter((prev) => {
+              const callType = (prev as any).callType || "";
+              const key = `${prev.message}|${prev.source}|${callType}`;
+
+              if (apiIncidentKeys.has(key)) {
+                const timeSinceLastUpdate =
+                  Date.now() - lastCallStatusUpdateRef.current;
+                if (timeSinceLastUpdate < 30000) {
+                  return false;
+                }
+              }
+              return true;
+            });
+
+            const merged = [...convertedIncidents, ...filteredPrev];
+            merged.sort(
+              (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            );
+            return merged;
+          }
+
+          const existingIds = new Set(prevIncidents.map((i) => i.id));
+
+          const existingKeys = new Set<string>();
+          prevIncidents.forEach((inc) => {
+            const callType = (inc as any).callType || "";
+            const key = `${inc.message}|${inc.source}|${callType}|${Math.floor(
+              inc.timestamp.getTime() / 10000
+            )}`;
+            existingKeys.add(key);
+          });
+
+          const newCallLogIncidents = convertedIncidents.filter((i) => {
+            if (existingIds.has(i.id)) {
+              return false;
+            }
+
+            const callType = (i as any).callType || "";
+            const key = `${i.message}|${i.source}|${callType}|${Math.floor(
+              i.timestamp.getTime() / 10000
+            )}`;
+
+            if (existingKeys.has(key)) {
+              return false;
+            }
+
+            if (!callType) {
+              const timeWindow = 5000;
+              const isDuplicate = prevIncidents.some((prev) => {
+                const timeDiff = Math.abs(
+                  prev.timestamp.getTime() - i.timestamp.getTime()
+                );
+                return (
+                  prev.message === i.message &&
+                  prev.source === i.source &&
+                  timeDiff < timeWindow
+                );
+              });
+              if (isDuplicate) {
+                return false;
+              }
+            }
+
+            return true;
+          });
+
+          const merged = [...prevIncidents, ...newCallLogIncidents];
+
+          merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+          return merged;
+        });
+      } catch (err) {
+        console.error("Error loading call history:", err);
+      } finally {
+        isLoadingRef.current = false;
+        setIsLoading(false);
+      }
+    },
+    [user?.id]
+  );
 
   useEffect(() => {
     if (user) {
@@ -224,6 +313,130 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
       setIncidents([]);
     }
   }, [user?.id, loadCallHistory]);
+
+  useEffect(() => {
+    if (!user || !socket) return;
+
+    const syncInterval = setInterval(() => {
+      if (!isLoadingRef.current) {
+        loadCallHistory();
+      }
+    }, 20000);
+
+    return () => {
+      clearInterval(syncInterval);
+    };
+  }, [user, socket, loadCallHistory]);
+
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    let debounceTimer: NodeJS.Timeout | null = null;
+    let lastSyncTime = Date.now();
+
+    const handleCallStatusUpdate = () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+
+      if (!isLoadingRef.current) {
+        lastCallStatusUpdateRef.current = Date.now();
+        loadCallHistory(true);
+        lastSyncTime = Date.now();
+      }
+    };
+
+    const handleSocketEvent = (data?: any) => {
+      const now = Date.now();
+      let hasRealTimeUpdate = false;
+
+      if (data && data.callLog) {
+        try {
+          const callLog = data.callLog as ICallLog;
+          const converted = convertCallLogToIncidents(callLog);
+
+          setIncidents((prev) => {
+            const existingIds = new Set(prev.map((i) => i.id));
+            const newIncidents = converted.filter(
+              (i) => !existingIds.has(i.id)
+            );
+
+            if (newIncidents.length > 0) {
+              const merged = [...newIncidents, ...prev];
+              merged.sort(
+                (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+              );
+              hasRealTimeUpdate = true;
+              lastSyncTime = now;
+              return merged;
+            }
+            return prev;
+          });
+        } catch (err) {
+          console.error("Error processing socket data:", err);
+        }
+      }
+
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      const debounceDelay = hasRealTimeUpdate ? 500 : 100;
+
+      debounceTimer = setTimeout(() => {
+        if (!isLoadingRef.current && now - lastSyncTime > 500) {
+          loadCallHistory();
+          lastSyncTime = Date.now();
+        }
+      }, debounceDelay);
+    };
+
+    socket.on("callStatusUpdate", handleCallStatusUpdate);
+
+    const events = ["callLogCreated", "callLogUpdated"] as const;
+
+    events.forEach((event) => {
+      socket.on(event, handleSocketEvent);
+    });
+
+    const handleIncidentsSync = (data: { incidents?: ICallLog[] }) => {
+      if (data && Array.isArray(data.incidents)) {
+        try {
+          const convertedIncidents: Incident[] = [];
+          data.incidents.forEach((callLog) => {
+            try {
+              const converted = convertCallLogToIncidents(callLog);
+              convertedIncidents.push(...converted);
+            } catch (err) {}
+          });
+
+          setIncidents((prev) => {
+            const sorted = [...convertedIncidents].sort(
+              (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
+            );
+            return sorted;
+          });
+          lastSyncTime = Date.now();
+        } catch (err) {
+          console.error("Error syncing incidents:", err);
+        }
+      }
+    };
+
+    socket.on("incidentsSync", handleIncidentsSync);
+
+    return () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+      socket.off("callStatusUpdate", handleCallStatusUpdate);
+      events.forEach((event) => {
+        socket.off(event, handleSocketEvent);
+      });
+      socket.off("incidentsSync", handleIncidentsSync);
+    };
+  }, [socket, user, loadCallHistory]);
 
   return (
     <IncidentContext.Provider
