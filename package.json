@@ -34,7 +34,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "4.11.0",
     "react-router-dom": "7.6.3",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "react-use": "17.4.0",
     "socket.io-client": "^4.8.1",
     "tailwind-styled-components": "2.2.0",
