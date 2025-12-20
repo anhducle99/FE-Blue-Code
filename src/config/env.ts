@@ -77,6 +77,10 @@ if (!apiUrl) {
   }
 }
 
+if (process.env.NODE_ENV === "development") {
+  console.log("");
+}
+
 export const config = {
   apiUrl,
   socketUrl,
@@ -85,10 +89,6 @@ export const config = {
   isNative: isNative(),
 } as const;
 
-if (process.env.NODE_ENV === "development") {
-} else {
-  console.log("=== Environment Config (Production) ===");
-  console.log("REACT_APP_API_URL:", process.env.REACT_APP_API_URL);
-  console.log("API Base URL:", apiBaseUrl);
-  console.log("Socket URL:", socketUrl);
+if (process.env.NODE_ENV !== "development") {
+  console.log("");
 }
