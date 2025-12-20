@@ -18,13 +18,18 @@ const getApiUrl = () => {
     return process.env.REACT_APP_NATIVE_API_URL || "https://api.bluecode.com";
   }
 
-  const hostname =
-    typeof window !== "undefined" ? window.location.hostname : "localhost";
+  if (process.env.NODE_ENV === "development") {
+    const hostname =
+      typeof window !== "undefined" ? window.location.hostname : "localhost";
 
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return `http://${hostname}:5000`;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return `http://${hostname}:5000`;
+    }
   }
 
+  console.error(
+    "REACT_APP_API_URL is not defined! Please create .env.production file with REACT_APP_API_URL"
+  );
   return "";
 };
 
@@ -38,26 +43,37 @@ const getSocketUrl = () => {
     return apiUrl;
   }
 
-  return "/socket.io";
+  if (process.env.NODE_ENV === "development") {
+    return "/socket.io";
+  }
+
+  console.error(
+    "REACT_APP_SOCKET_URL is not defined! Please create .env.production file with REACT_APP_SOCKET_URL"
+  );
+  return "";
 };
 
 const apiUrl = getApiUrl();
 const socketUrl = getSocketUrl();
 
-const normalizedApiUrl = apiUrl.replace(/\/+$/, "");
-
 let apiBaseUrl: string;
-if (normalizedApiUrl.endsWith("/api")) {
-  apiBaseUrl = normalizedApiUrl;
+if (!apiUrl) {
+  apiBaseUrl = "";
 } else {
-  const urlWithoutProtocol = normalizedApiUrl.replace(/^https?:\/\//, "");
-  const pathParts = urlWithoutProtocol.split("/").filter(Boolean);
-  const hasApiInPath = pathParts.includes("api");
+  const normalizedApiUrl = apiUrl.replace(/\/+$/, "");
 
-  if (hasApiInPath) {
+  if (normalizedApiUrl.endsWith("/api")) {
     apiBaseUrl = normalizedApiUrl;
   } else {
-    apiBaseUrl = `${normalizedApiUrl}/api`;
+    const urlWithoutProtocol = normalizedApiUrl.replace(/^https?:\/\//, "");
+    const pathParts = urlWithoutProtocol.split("/").filter(Boolean);
+    const hasApiInPath = pathParts.includes("api");
+
+    if (hasApiInPath) {
+      apiBaseUrl = normalizedApiUrl;
+    } else {
+      apiBaseUrl = `${normalizedApiUrl}/api`;
+    }
   }
 }
 
