@@ -10,7 +10,7 @@ export interface ApiError {
 }
 
 const API = axios.create({
-  baseURL: config.apiUrl,
+  baseURL: config.apiUrl || "",
   withCredentials: false,
   timeout: 30000,
 });
