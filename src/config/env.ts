@@ -27,6 +27,13 @@ const getApiUrl = () => {
       console.log("🔍 Development mode: Using local API URL:", localUrl);
       return localUrl;
     }
+
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (ipPattern.test(hostname)) {
+      const apiUrl = `http://${hostname}:5000`;
+      console.log("🔍 Development mode: Using network API URL:", apiUrl);
+      return apiUrl;
+    }
   }
 
   console.error(
