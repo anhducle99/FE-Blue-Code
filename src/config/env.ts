@@ -23,7 +23,9 @@ const getApiUrl = () => {
       typeof window !== "undefined" ? window.location.hostname : "localhost";
 
     if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return `http://${hostname}:5000`;
+      const localUrl = `http://${hostname}:5000`;
+      console.log("🔍 Development mode: Using local API URL:", localUrl);
+      return localUrl;
     }
   }
 

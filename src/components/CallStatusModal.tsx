@@ -34,7 +34,7 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
   const { addIncident } = useIncidents();
   const [statusMap, setStatusMap] = useState<Record<string, CallStatus>>({});
   const [countdown, setCountdown] = useState<number>(20);
-  const loggedStatuses = useRef<Set<string>>(new Set()); // Track đã log chưa để tránh duplicate
+  const loggedStatuses = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) return;

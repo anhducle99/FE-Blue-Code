@@ -179,7 +179,7 @@ class OfflineQueueService {
     const formData = new FormData();
     formData.append("image", fileToUpload);
 
-    const response = await API.post("/upload/image", formData, {
+    const response = await API.post("/api/upload/image", formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },

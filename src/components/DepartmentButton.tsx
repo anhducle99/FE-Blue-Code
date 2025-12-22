@@ -13,12 +13,18 @@ export default function DepartmentButton({
   phone,
   isSelected = false,
   onClick,
+  disabled = false,
 }: Props) {
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`p-3 rounded-lg text-white font-semibold text-base w-full shadow-md transition-colors duration-200 ${
-        isSelected ? "bg-green-600" : "bg-blue-500 hover:bg-blue-600"
+        disabled
+          ? "bg-blue-500 cursor-not-allowed"
+          : isSelected
+          ? "bg-green-600"
+          : "bg-blue-500 hover:bg-blue-600"
       }`}
     >
       <div className="text-center">{name}</div>

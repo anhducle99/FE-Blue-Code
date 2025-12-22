@@ -10,7 +10,7 @@ export interface ApiError {
 }
 
 const API = axios.create({
-  baseURL: config.apiBaseUrl,
+  baseURL: config.apiUrl,
   withCredentials: false,
   timeout: 30000,
 });
@@ -52,7 +52,7 @@ API.interceptors.response.use(
               (typeof window !== "undefined"
                 ? window.location.origin
                 : "unknown"),
-            apiUrl: config.apiBaseUrl,
+            apiUrl: config.apiUrl,
           },
         };
         console.error("CORS Error:", corsError);

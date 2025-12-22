@@ -18,23 +18,19 @@ export async function uploadImage(
   try {
     const response = await apiWithRetry(
       () =>
-        API.post<ImageUploadResponse>(
-          `${config.apiBaseUrl}/upload/image`,
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-            onUploadProgress: (progressEvent) => {
-              if (onProgress && progressEvent.total) {
-                const percentCompleted = Math.round(
-                  (progressEvent.loaded * 100) / progressEvent.total
-                );
-                onProgress(percentCompleted);
-              }
-            },
-          }
-        ),
+        API.post<ImageUploadResponse>("/api/upload/image", formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            if (onProgress && progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              onProgress(percentCompleted);
+            }
+          },
+        }),
       {
         maxRetries: 2,
         retryDelay: 1000,

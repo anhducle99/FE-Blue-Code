@@ -4,16 +4,19 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
 } from "react";
 import {
   IOrganization,
   getOrganizations,
 } from "../services/organizationService";
+import { useAuth } from "./AuthContext";
 
 interface OrganizationContextType {
   organizations: IOrganization[];
   loading: boolean;
   error: string | null;
+  refreshOrganizations: () => Promise<void>;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(
@@ -24,25 +27,50 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
   const [organizations, setOrganizations] = useState<IOrganization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
+
+  const fetchOrganizations = useCallback(async () => {
+    if (!isAuthenticated) {
+      setOrganizations([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getOrganizations();
+      const organizationsArray = Array.isArray(data) ? data : [];
+      setOrganizations(organizationsArray);
+      if (organizationsArray.length === 0) {
+        console.warn("No organizations found");
+      }
+    } catch (err: any) {
+      console.error("Error fetching organizations:", err);
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Lỗi khi tải danh sách tổ chức";
+      setError(errorMessage);
+      setOrganizations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    const fetchOrganizations = async () => {
-      try {
-        setLoading(true);
-        const data = await getOrganizations();
-        setOrganizations(data);
-        setError(null);
-      } catch (err: any) {
-        setError(err.message || "Lỗi khi fetch organizations");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchOrganizations();
-  }, []);
+  }, [fetchOrganizations]);
 
   return (
-    <OrganizationContext.Provider value={{ organizations, loading, error }}>
+    <OrganizationContext.Provider
+      value={{
+        organizations,
+        loading,
+        error,
+        refreshOrganizations: fetchOrganizations,
+      }}
+    >
       {children}
     </OrganizationContext.Provider>
   );

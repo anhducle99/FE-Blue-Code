@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth, User } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { Input, Button } from "antd";
-import { config } from "../config/env";
+import { login as loginApi } from "../services/authService";
 import { ApiError } from "../services/api";
 
 export default function LoginPage() {
@@ -19,38 +19,42 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${config.apiBaseUrl}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await loginApi(email, password);
+      const data = res.data;
 
-      const data = await res.json();
       if (data.success) {
-        const isAdminView =
-          data.data.user.is_admin_view === true ||
-          data.data.user.is_admin_view === "true" ||
-          data.data.user.is_admin_view === 1;
+        const apiUser = data.data.user as any;
 
-        const userData = {
-          id: data.data.user.id,
-          name: data.data.user.name,
-          email: data.data.user.email,
-          role: data.data.user.role || "User",
-          phone: data.data.user.phone,
-          department_id: data.data.user.department_id ?? null,
-          department_name: data.data.user.department_name || null,
+        const isAdminView =
+          apiUser.is_admin_view === true ||
+          apiUser.is_admin_view === "true" ||
+          apiUser.is_admin_view === 1;
+
+        const userData: User = {
+          id: apiUser.id || 0,
+          name: apiUser.name || "",
+          email: apiUser.email || "",
+          role: (apiUser.role || "User") as "SuperAdmin" | "Admin" | "User",
+          phone: apiUser.phone || "",
+          department_id: apiUser.department_id ?? null,
+          department_name: apiUser.department_name || null,
           is_admin_view: Boolean(isAdminView),
         };
+
         login(userData, data.data.token);
         showSuccess("Đăng nhập thành công!");
         navigate("/main", { replace: true });
       } else {
         showError(data.message || "Sai email hoặc mật khẩu!");
       }
-    } catch (err) {
-      const apiError = err as ApiError;
-      showError(apiError.message || "Không thể kết nối đến server!");
+    } catch (err: any) {
+      console.error("Login error:", err);
+
+      const errorData = err?.response?.data;
+      const errorMessage =
+        errorData?.message || err?.message || "Không thể kết nối đến server!";
+
+      showError(errorMessage);
     } finally {
       setLoading(false);
     }

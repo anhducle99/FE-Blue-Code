@@ -2,8 +2,7 @@ import { fileSystem } from "./fileSystem";
 import { isNative } from "../services/nativeService";
 
 const STORAGE_KEY_PREFIX = "offline_cache_";
-const CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
-
+const CACHE_EXPIRY = 24 * 60 * 60 * 1000;
 interface CachedData<T> {
   data: T;
   timestamp: number;

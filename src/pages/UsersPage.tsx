@@ -6,6 +6,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDepartments } from "../contexts/DepartmentContext";
 import { useOrganizations } from "../contexts/OrganizationContext";
+import { useAuth } from "../contexts/AuthContext";
 import {
   IUser,
   IUserForm,
@@ -37,8 +38,18 @@ export const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
-  const { departments } = useDepartments();
-  const { organizations } = useOrganizations();
+  const { departments, refreshDepartments } = useDepartments();
+  const {
+    organizations,
+    loading: organizationsLoading,
+    error: organizationsError,
+    refreshOrganizations,
+  } = useOrganizations();
+  const {
+    user: currentUser,
+    updateUser: updateCurrentUser,
+    refreshUser,
+  } = useAuth();
   const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
@@ -117,17 +128,42 @@ export const UsersPage: React.FC = () => {
         const deptName = values.department_id
           ? departments.find((d) => d.id === values.department_id)?.name || ""
           : "";
+
         const payload: IUserForm & { departmentName: string } = {
           ...values,
           departmentName: deptName,
-          password: values.password || "",
         };
+
+        if (!editingUser || values.password) {
+          payload.password = values.password || "";
+        } else {
+          delete payload.password;
+        }
 
         if (editingUser) {
           const updated = await updateUser(editingUser.id, payload);
+
           setUsers((prev) =>
             prev.map((u) => (u.id === updated.id ? updated : u))
           );
+
+          if (currentUser && updated.id === currentUser.id) {
+            const departmentName = updated.department_name
+              ? updated.department_name.trim() || undefined
+              : undefined;
+
+            updateCurrentUser({
+              id: updated.id,
+              name: updated.name,
+              email: updated.email,
+              role: updated.role as "SuperAdmin" | "Admin" | "User",
+              phone: updated.phone,
+              department_id: updated.department_id ?? null,
+              department_name: departmentName,
+              is_admin_view: updated.is_admin_view,
+            });
+          }
+
           message.success("Cập nhật người dùng thành công");
         } else {
           const created = await createUser(payload);
@@ -135,20 +171,33 @@ export const UsersPage: React.FC = () => {
           message.success("Thêm người dùng thành công");
         }
         handleClose();
-      } catch (err) {
-        message.error("Lỗi khi lưu người dùng");
+      } catch (err: any) {
+        console.error("Error saving user:", err);
+        const errorMessage =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Lỗi khi lưu người dùng";
+        message.error(errorMessage);
       }
     },
   });
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     setEditingUser(null);
     formik.resetForm();
+    await Promise.all([
+      refreshOrganizations().catch(console.error),
+      refreshDepartments().catch(console.error),
+    ]);
     setIsOpen(true);
   };
 
-  const handleOpenEdit = (user: IUser) => {
+  const handleOpenEdit = async (user: IUser) => {
     setEditingUser(user);
+    await Promise.all([
+      refreshOrganizations().catch(console.error),
+      refreshDepartments().catch(console.error),
+    ]);
     formik.setValues({
       ...user,
       departmentName: user.department_id
@@ -309,12 +358,26 @@ export const UsersPage: React.FC = () => {
         }
         open={isOpen}
         onCancel={handleClose}
-        onOk={formik.submitForm}
+        onOk={async () => {
+          const errors = await formik.validateForm();
+          if (Object.keys(errors).length > 0) {
+            formik.setTouched(
+              Object.keys(errors).reduce((acc, key) => {
+                acc[key] = true;
+                return acc;
+              }, {} as any)
+            );
+            message.error("Vui lòng điền đầy đủ thông tin");
+            return;
+          }
+          formik.submitForm();
+        }}
         okText="Lưu"
         cancelText="Hủy"
         width={700}
         okButtonProps={{
           className: "!bg-[#0365af] !border-[#0365af] !text-white",
+          loading: formik.isSubmitting,
         }}
         cancelButtonProps={{ className: "!bg-gray-100 !text-gray-700" }}
       >
@@ -331,6 +394,16 @@ export const UsersPage: React.FC = () => {
                   formik.setFieldValue("organization_id", Number(val));
                 }}
                 className="w-full"
+                loading={organizationsLoading}
+                notFoundContent={
+                  organizationsLoading
+                    ? "Đang tải..."
+                    : organizationsError
+                    ? `Lỗi: ${organizationsError}`
+                    : organizations.length === 0
+                    ? "Không có tổ chức nào"
+                    : "Không tìm thấy"
+                }
                 status={
                   formik.touched.organization_id &&
                   formik.errors.organization_id
@@ -446,7 +519,7 @@ export const UsersPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Khoa phòng{" "}
+                Khoa phòng
                 {formik.values.is_department_account && (
                   <span className="text-red-500">*</span>
                 )}

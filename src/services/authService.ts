@@ -6,6 +6,10 @@ export interface IUser {
   email: string;
   role: "Admin" | "User";
   password?: string;
+  phone?: string;
+  department_id?: number | null;
+  department_name?: string | null;
+  is_admin_view?: boolean;
 }
 
 export interface IAuthResponse {
@@ -18,7 +22,7 @@ export interface IAuthResponse {
 }
 
 export const login = (email: string, password: string) =>
-  API.post<IAuthResponse>("/auth/login", { email, password });
+  API.post<IAuthResponse>("/api/auth/login", { email, password });
 
 export const register = (user: IUser) =>
-  API.post<IAuthResponse>("/auth/register", user);
+  API.post<IAuthResponse>("/api/auth/register", user);
