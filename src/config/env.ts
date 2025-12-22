@@ -24,15 +24,33 @@ const getApiUrl = () => {
 
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       const localUrl = `http://${hostname}:5000`;
-      console.log("🔍 Development mode: Using local API URL:", localUrl);
+      if (typeof window !== "undefined") {
+        console.log(
+          "🔍 Development: Frontend on localhost, using API:",
+          localUrl
+        );
+      }
       return localUrl;
     }
 
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (ipPattern.test(hostname)) {
       const apiUrl = `http://${hostname}:5000`;
-      console.log("🔍 Development mode: Using network API URL:", apiUrl);
+      if (typeof window !== "undefined") {
+        console.log(
+          "🔍 Development: Frontend on network IP, using API:",
+          apiUrl,
+          "(to avoid CORS Private Network Access error)"
+        );
+      }
       return apiUrl;
+    }
+
+    if (typeof window !== "undefined") {
+      console.warn(
+        `⚠️ Development: Unknown hostname format "${hostname}". Using http://${hostname}:5000 for API.`
+      );
+      return `http://${hostname}:5000`;
     }
   }
 
