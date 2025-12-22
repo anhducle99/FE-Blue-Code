@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { legacyStorage } from "../utils/storage";
+import { getUsers } from "../services/userService";
 
 export interface User {
   id: number;
@@ -17,6 +25,8 @@ interface AuthContextType {
   token: string | null;
   login: (user: User, token: string) => void;
   logout: () => void;
+  updateUser: (userData: Partial<User>) => void;
+  refreshUser: () => Promise<void>;
   isAuthenticated: boolean;
 }
 
@@ -43,6 +53,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return legacyStorage.get<string>("token");
   });
 
+  const hasRefreshedRef = useRef(false);
+  const userRef = useRef(user);
+  const tokenRef = useRef(token);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
   const login = useCallback((userData: User, tokenValue: string) => {
     setUser(userData);
     setToken(tokenValue);
@@ -58,19 +80,140 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     legacyStorage.remove("token");
   }, []);
 
+  const updateUser = useCallback((userData: Partial<User>) => {
+    setUser((prevUser) => {
+      if (!prevUser) {
+        console.warn("⚠️ [AuthContext] Cannot update: user is null");
+        return prevUser;
+      }
+
+      const updatedUser: User = {
+        id: userData.id ?? prevUser.id,
+        name: userData.name ?? prevUser.name,
+        email: userData.email ?? prevUser.email,
+        role: userData.role ?? prevUser.role,
+        phone: userData.phone ?? prevUser.phone,
+        department_id:
+          userData.department_id !== undefined
+            ? userData.department_id
+            : prevUser.department_id,
+        department_name:
+          userData.department_name !== undefined
+            ? userData.department_name
+            : prevUser.department_name,
+        is_admin_view:
+          userData.is_admin_view !== undefined
+            ? userData.is_admin_view
+            : prevUser.is_admin_view,
+      };
+
+      legacyStorage.set("user", updatedUser);
+      return updatedUser;
+    });
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const currentUser = userRef.current;
+    const currentToken = tokenRef.current;
+
+    if (!currentUser || !currentToken) {
+      console.warn("⚠️ [AuthContext] Cannot refresh: user or token is missing");
+      return;
+    }
+
+    try {
+      console.log("🔄 [AuthContext] Refreshing user data from backend...", {
+        userId: currentUser.id,
+        currentDepartmentName: currentUser.department_name,
+      });
+      const response = await getUsers();
+      const users = Array.isArray(response.data) ? response.data : [];
+      const currentUserFromBackend = users.find((u) => u.id === currentUser.id);
+
+      if (currentUserFromBackend) {
+        const newUser: User = {
+          id: currentUserFromBackend.id,
+          name: currentUserFromBackend.name,
+          email: currentUserFromBackend.email,
+          role: (currentUserFromBackend.role || "User") as
+            | "SuperAdmin"
+            | "Admin"
+            | "User",
+          phone: currentUserFromBackend.phone,
+          department_id: currentUserFromBackend.department_id ?? null,
+          department_name: currentUserFromBackend.department_name || undefined,
+          is_admin_view: currentUserFromBackend.is_admin_view,
+        };
+
+        setUser(newUser);
+        legacyStorage.set("user", newUser);
+      } else {
+        console.warn(
+          "⚠️ [AuthContext] Current user not found in backend response"
+        );
+      }
+    } catch (error) {
+      console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
+      throw error;
+    }
+  }, []);
+
   const isAuthenticated = !!user && !!token;
 
+  const contextValue = {
+    user,
+    token,
+    login,
+    logout,
+    updateUser,
+    refreshUser,
+    isAuthenticated,
+  };
+
+  useEffect(() => {
+    if (hasRefreshedRef.current) return;
+    if (!user || !token) return;
+
+    const refreshUserData = async () => {
+      hasRefreshedRef.current = true;
+
+      try {
+        const response = await getUsers();
+        const users = Array.isArray(response.data) ? response.data : [];
+        const currentUserFromBackend = users.find((u) => u.id === user.id);
+
+        if (currentUserFromBackend) {
+          const updatedUser: User = {
+            id: currentUserFromBackend.id,
+            name: currentUserFromBackend.name,
+            email: currentUserFromBackend.email,
+            role: (currentUserFromBackend.role || "User") as
+              | "SuperAdmin"
+              | "Admin"
+              | "User",
+            phone: currentUserFromBackend.phone,
+            department_id: currentUserFromBackend.department_id ?? null,
+            department_name:
+              currentUserFromBackend.department_name || undefined,
+            is_admin_view: currentUserFromBackend.is_admin_view,
+          };
+
+          setUser(updatedUser);
+          legacyStorage.set("user", updatedUser);
+        } else {
+          console.warn(
+            "⚠️ [AuthContext] Current user not found in backend response"
+          );
+        }
+      } catch (error) {
+        console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
+      }
+    };
+
+    refreshUserData();
+  }, [user, token]);
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        logout,
-        isAuthenticated,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };

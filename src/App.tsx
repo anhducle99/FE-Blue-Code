@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
-import axios from "axios";
+import API from "./services/api";
 import { useDashboard } from "./layouts/DashboardContext";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./contexts/ToastContext";
@@ -29,7 +29,14 @@ export default function App() {
   const { user } = useAuth();
   const { error: showError, success: showSuccess } = useToast();
   const { addIncident } = useIncidents();
-  const currentUser = user!;
+
+  useEffect(() => {
+    if (user && !user.department_name) {
+      console.warn(
+        "⚠️ User không có department_name. Vui lòng logout và login lại sau khi được assign vào department."
+      );
+    }
+  }, [user?.id, user?.department_name, user?.department_id]);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tempMessage, setTempMessage] = useState("");
@@ -47,10 +54,8 @@ export default function App() {
   }, [user?.name, user?.department_id, user?.department_name]);
 
   const { socket } = useSocket(identifier);
-
   const [waitingModalOpen, setWaitingModalOpen] = useState(false);
   const [lastCallId, setLastCallId] = useState<string | null>(null);
-
   const [callTargets, setCallTargets] = useState<string[]>([]);
   const networkStatus = useNetworkStatus();
   const { pendingCount, processQueue } = useOfflineQueue();
@@ -63,13 +68,7 @@ export default function App() {
   }, [isLoginPage]);
 
   useEffect(() => {
-    const removeListener = appService.addStateListener((state) => {
-      if (state.isActive) {
-        console.log("App is in foreground");
-      } else {
-        console.log("App is in background");
-      }
-    });
+    const removeListener = appService.addStateListener(() => {});
 
     return () => {
       removeListener();
@@ -118,11 +117,16 @@ export default function App() {
       return;
     }
 
+    if (!user) {
+      showError("Không tìm thấy thông tin người dùng");
+      return;
+    }
+
     try {
-      const fromDept = currentUser.department_name || currentUser.name;
+      const fromDept = user.department_name || user.name;
 
       const res = await apiWithRetry(() =>
-        axios.post(`${config.apiBaseUrl}/call`, {
+        API.post("/api/call", {
           fromDept: fromDept,
           message: tempMessage,
           targetKeys: [selectedKey],
@@ -163,8 +167,8 @@ export default function App() {
       showError(apiError.message || "Không thể kết nối server!");
     }
   }, [
-    currentUser.department_name,
-    currentUser.name,
+    user?.department_name,
+    user?.name,
     tempMessage,
     selectedKey,
     socket,
@@ -220,10 +224,13 @@ export default function App() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
                 {departments.map((d) => {
                   const key = makeKey(d.name, d.name);
-                  const isCurrentDept = d.name === currentUser.department_name;
+                  const userDeptName = user?.department_name?.trim();
+                  const deptName = d.name.trim();
+                  const isCurrentDept = userDeptName === deptName;
+
                   return (
                     <DepartmentButton
-                      key={d.id}
+                      key={`${d.id}-${user?.department_name || "none"}`}
                       name={d.name}
                       phone={d.phone}
                       isSelected={selectedKey === key}
@@ -236,8 +243,7 @@ export default function App() {
                 {supportContacts.map((s) => {
                   const key = makeKey(s.label, s.label);
                   const isCurrentSupport =
-                    s.label === currentUser.department_name ||
-                    s.label === currentUser.name;
+                    s.label === user?.department_name || s.label === user?.name;
                   return (
                     <SupportButton
                       key={s.id}
@@ -288,7 +294,7 @@ export default function App() {
         onClose={handleCloseWaitingModal}
         socket={socket}
         callId={lastCallId || undefined}
-        fromDept={currentUser.department_name || currentUser.name}
+        fromDept={user?.department_name || user?.name || ""}
       />
     </div>
   );

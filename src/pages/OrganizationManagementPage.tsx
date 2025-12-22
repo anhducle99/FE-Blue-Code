@@ -9,8 +9,10 @@ import {
   deleteOrganization,
   IOrganization,
 } from "../services/organizationService";
+import { useOrganizations } from "../contexts/OrganizationContext";
 
 export const OrganizationManagementPage: React.FC = () => {
+  const { refreshOrganizations } = useOrganizations();
   const [openDropdown, setOpenDropdown] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
@@ -74,6 +76,7 @@ export const OrganizationManagementPage: React.FC = () => {
       await deleteOrganization(id);
       message.success("Xóa tổ chức thành công!");
       await fetchOrganizations();
+      await refreshOrganizations();
       setOpenMenuIndex(null);
     } catch (err) {
       message.error("Không thể xóa tổ chức");
@@ -92,6 +95,7 @@ export const OrganizationManagementPage: React.FC = () => {
       }
 
       await fetchOrganizations();
+      await refreshOrganizations();
 
       setOpenModal(false);
       setSelectedOrg(null);

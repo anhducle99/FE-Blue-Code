@@ -8,14 +8,17 @@ export interface IDepartment {
 }
 
 export const getDepartments = () =>
-  API.get<{ success: boolean; data: IDepartment[] }>("/departments");
+  API.get<{ success: boolean; data: IDepartment[] }>("/api/departments");
 export const getDepartment = (id: number) =>
-  API.get<{ success: boolean; data: IDepartment }>(`/departments/${id}`);
+  API.get<{ success: boolean; data: IDepartment }>(`/api/departments/${id}`);
 export const createDepartment = (data: Partial<IDepartment>) =>
-  API.post<{ success: boolean; data: IDepartment }>("/departments", data);
+  API.post<{ success: boolean; data: IDepartment }>("/api/departments", data);
 export const updateDepartment = (id: number, data: Partial<IDepartment>) =>
-  API.put<{ success: boolean; data: IDepartment }>(`/departments/${id}`, data);
+  API.put<{ success: boolean; data: IDepartment }>(
+    `/api/departments/${id}`,
+    data
+  );
 export const deleteDepartment = (id?: number) => {
   if (!id) throw new Error("Department ID is required");
-  return API.delete<{ success: boolean; data: null }>(`/departments/${id}`);
+  return API.delete<{ success: boolean; data: null }>(`/api/departments/${id}`);
 };

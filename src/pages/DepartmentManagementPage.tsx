@@ -10,9 +10,11 @@ import {
   deleteDepartment,
 } from "../services/departmentService";
 import { useDashboard } from "../layouts/DashboardContext";
+import { useDepartments } from "../contexts/DepartmentContext";
 
 export const DepartmentManagementPage: React.FC = () => {
   const { reloadData } = useDashboard();
+  const { refreshDepartments } = useDepartments();
   const [departments, setDepartments] = useState<IDepartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -61,6 +63,7 @@ export const DepartmentManagementPage: React.FC = () => {
           );
           message.success("Cập nhật thành công");
           reloadData();
+          await refreshDepartments();
         }
       } else {
         const res = await createDepartment(formData);
@@ -68,6 +71,7 @@ export const DepartmentManagementPage: React.FC = () => {
           setDepartments((prev) => [...prev, res.data.data]);
           message.success("Thêm đội phản ứng thành công");
           reloadData();
+          await refreshDepartments();
         }
       }
 
@@ -89,6 +93,7 @@ export const DepartmentManagementPage: React.FC = () => {
       setDepartments((prev) => prev.filter((d) => d.id !== id));
       message.success("Xóa thành công");
       reloadData();
+      await refreshDepartments();
     } catch (err) {
       message.error("Xóa thất bại");
     }

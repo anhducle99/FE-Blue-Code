@@ -6,12 +6,13 @@ export interface IUser {
   phone: string;
   organization_id: number;
   department_id: number | null;
+  department_name?: string | null;
   is_department_account: boolean;
   is_admin_view: boolean;
   role: "Admin" | "User";
 }
 
-import { config } from "../config/env";
+import API from "./api";
 
 export interface IUserForm {
   name: string;
@@ -33,9 +34,8 @@ function getRoleByDepartmentName(
 }
 
 export async function getUsers(): Promise<{ data: IUser[] }> {
-  const res = await fetch(`${config.apiBaseUrl}/users`);
-  if (!res.ok) throw new Error("Lấy người dùng thất bại");
-  return res.json();
+  const res = await API.get<{ data: IUser[] }>("/api/users");
+  return res.data;
 }
 
 export async function createUser(data: IUserForm): Promise<IUser> {
@@ -46,15 +46,8 @@ export async function createUser(data: IUserForm): Promise<IUser> {
     role: getRoleByDepartmentName(data.departmentName || ""),
   };
 
-  const res = await fetch(`${config.apiBaseUrl}/users`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("Tạo người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  const res = await API.post<{ data: IUser }>("/api/users", payload);
+  return res.data.data;
 }
 
 export async function updateUser(
@@ -65,20 +58,10 @@ export async function updateUser(
     ? { ...data, role: getRoleByDepartmentName(data.departmentName) }
     : data;
 
-  const res = await fetch(`${config.apiBaseUrl}/users/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error("Cập nhật người dùng thất bại");
-
-  const result = await res.json();
-  return result.data;
+  const res = await API.put<{ data: IUser }>(`/api/users/${id}`, payload);
+  return res.data.data;
 }
 
 export async function deleteUser(id: number) {
-  const res = await fetch(`${config.apiBaseUrl}/users/${id}`, {
-    method: "DELETE",
-  });
-  if (!res.ok) throw new Error("Xóa người dùng thất bại");
+  await API.delete(`/api/users/${id}`);
 }

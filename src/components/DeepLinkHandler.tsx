@@ -21,7 +21,6 @@ export default function DeepLinkHandler() {
         const url = new URL(data.url);
         const path = url.pathname;
 
-        // Handle different deep link patterns
         if (path.startsWith("/login")) {
           navigate("/login", { replace: true });
         } else if (path.startsWith("/main")) {
@@ -30,7 +29,6 @@ export default function DeepLinkHandler() {
           const dashboardPath = path.replace("/dashboard", "") || "/dashboard";
           navigate(dashboardPath, { replace: true });
         } else if (path.startsWith("/")) {
-          // Default route
           navigate(path, { replace: true });
         }
       } catch (error) {

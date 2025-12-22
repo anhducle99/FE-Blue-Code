@@ -1,5 +1,4 @@
 import API, { apiWithRetry } from "./api";
-import { config } from "../config/env";
 import { getPlatform } from "../services/nativeService";
 
 export interface PushTokenRegistration {
@@ -23,7 +22,7 @@ export async function registerPushToken(
   try {
     const platform = getPlatform();
     const response = await apiWithRetry(() =>
-      API.post(`${config.apiBaseUrl}/push/register`, {
+      API.post("/api/push/register", {
         ...registration,
         platform: registration.platform || platform,
       })
@@ -41,7 +40,7 @@ export async function unregisterPushToken(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const response = await apiWithRetry(() =>
-      API.post(`${config.apiBaseUrl}/push/unregister`, {
+      API.post("/api/push/unregister", {
         token,
       })
     );
@@ -61,7 +60,7 @@ export async function updatePushPreferences(preferences: {
 }): Promise<{ success: boolean; message?: string }> {
   try {
     const response = await apiWithRetry(() =>
-      API.post(`${config.apiBaseUrl}/push/preferences`, preferences)
+      API.post("/api/push/preferences", preferences)
     );
 
     return response.data;

@@ -25,7 +25,7 @@ export const getCallHistory = async (filters: {
   if (filters.bat_dau) params.append("startDate", filters.bat_dau);
   if (filters.ket_thuc) params.append("endDate", filters.ket_thuc);
 
-  const res = await API.get(`/history?${params.toString()}`);
+  const res = await API.get(`/api/history?${params.toString()}`);
 
   const responseData = res.data;
   if (Array.isArray(responseData)) {

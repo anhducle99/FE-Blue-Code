@@ -8,14 +8,14 @@ export interface IOrganization {
 }
 
 export const getOrganizations = async () => {
-  const res = await API.get("/organizations");
+  const res = await API.get("/api/organizations");
   return res.data.data;
 };
 export const getOrganization = (id: number) =>
-  API.get<IOrganization>(`/organizations/${id}`);
+  API.get<IOrganization>(`/api/organizations/${id}`);
 export const createOrganization = (data: Partial<IOrganization>) =>
-  API.post("/organizations", data);
+  API.post("/api/organizations", data);
 export const updateOrganization = (id: number, data: Partial<IOrganization>) =>
-  API.put(`/organizations/${id}`, data);
+  API.put(`/api/organizations/${id}`, data);
 export const deleteOrganization = (id: number) =>
-  API.delete(`/organizations/${id}`);
+  API.delete(`/api/organizations/${id}`);

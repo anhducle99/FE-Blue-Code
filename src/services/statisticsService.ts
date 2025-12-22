@@ -1,7 +1,4 @@
-import axios from "axios";
-import { config } from "../config/env";
-
-const API_BASE = config.apiBaseUrl;
+import API from "./api";
 
 export interface IDepartmentStats {
   id: number;
@@ -20,10 +17,9 @@ export const getDepartmentStats = async (
   token: string,
   range: { startDate?: string; endDate?: string }
 ) => {
-  const res = await axios.get<IDepartmentStats[]>(
-    `${API_BASE}/statistics/departments`,
-    { params: range }
-  );
+  const res = await API.get<IDepartmentStats[]>("/api/statistics/departments", {
+    params: range,
+  });
   return res.data;
 };
 
@@ -31,7 +27,7 @@ export const getGroupStats = async (
   token: string,
   range: { startDate?: string; endDate?: string }
 ) => {
-  const res = await axios.get<IGroupStats[]>(`${API_BASE}/statistics/groups`, {
+  const res = await API.get<IGroupStats[]>("/api/statistics/groups", {
     params: range,
   });
   return res.data;
