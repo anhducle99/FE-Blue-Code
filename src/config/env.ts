@@ -11,12 +11,6 @@ const getPlatform = (): "ios" | "android" | "web" => {
 
 const getApiUrl = () => {
   if (process.env.REACT_APP_API_URL) {
-    if (typeof window !== "undefined") {
-      console.log(
-        "🔍 Using REACT_APP_API_URL from env:",
-        process.env.REACT_APP_API_URL
-      );
-    }
     return process.env.REACT_APP_API_URL;
   }
 
@@ -25,42 +19,16 @@ const getApiUrl = () => {
   }
 
   if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    const nodeEnv = process.env.NODE_ENV || "development";
-
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      const localUrl = `http://${hostname}:5000`;
-      if (nodeEnv === "development") {
-        console.log("🔍 Frontend on localhost, using API:", localUrl);
-      }
-      return localUrl;
-    }
-
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
-    if (ipPattern.test(hostname)) {
-      const apiUrl = `http://${hostname}:5000`;
+    if (process.env.NODE_ENV === "development") {
       console.log(
-        "🔍 Frontend on network IP:",
-        hostname,
-        "→ Using API:",
-        apiUrl,
-        "(to avoid CORS Private Network Access error)"
+        "🔍 Using relative path for API (FE & BE cùng domain). API calls will use: /api/..."
       );
-      return apiUrl;
     }
-
-    console.warn(
-      `⚠️ Unknown hostname format "${hostname}". Using http://${hostname}:5000 for API.`
-    );
-    return `http://${hostname}:5000`;
-  }
-
-  if (process.env.NODE_ENV === "development") {
-    return "http://localhost:5000";
+    return "";
   }
 
   console.error(
-    "REACT_APP_API_URL is not defined! Please create .env.production file with REACT_APP_API_URL"
+    "REACT_APP_API_URL is not defined and window is undefined! Please set REACT_APP_API_URL in .env file"
   );
   return "";
 };
