@@ -11,6 +11,12 @@ const getPlatform = (): "ios" | "android" | "web" => {
 
 const getApiUrl = () => {
   if (process.env.REACT_APP_API_URL) {
+    if (typeof window !== "undefined") {
+      console.log(
+        "🔍 Using REACT_APP_API_URL from env:",
+        process.env.REACT_APP_API_URL
+      );
+    }
     return process.env.REACT_APP_API_URL;
   }
 
@@ -18,17 +24,14 @@ const getApiUrl = () => {
     return process.env.REACT_APP_NATIVE_API_URL || "https://api.bluecode.com";
   }
 
-  if (process.env.NODE_ENV === "development") {
-    const hostname =
-      typeof window !== "undefined" ? window.location.hostname : "localhost";
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    const nodeEnv = process.env.NODE_ENV || "development";
 
     if (hostname === "localhost" || hostname === "127.0.0.1") {
       const localUrl = `http://${hostname}:5000`;
-      if (typeof window !== "undefined") {
-        console.log(
-          "🔍 Development: Frontend on localhost, using API:",
-          localUrl
-        );
+      if (nodeEnv === "development") {
+        console.log("🔍 Frontend on localhost, using API:", localUrl);
       }
       return localUrl;
     }
@@ -36,22 +39,24 @@ const getApiUrl = () => {
     const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
     if (ipPattern.test(hostname)) {
       const apiUrl = `http://${hostname}:5000`;
-      if (typeof window !== "undefined") {
-        console.log(
-          "🔍 Development: Frontend on network IP, using API:",
-          apiUrl,
-          "(to avoid CORS Private Network Access error)"
-        );
-      }
+      console.log(
+        "🔍 Frontend on network IP:",
+        hostname,
+        "→ Using API:",
+        apiUrl,
+        "(to avoid CORS Private Network Access error)"
+      );
       return apiUrl;
     }
 
-    if (typeof window !== "undefined") {
-      console.warn(
-        `⚠️ Development: Unknown hostname format "${hostname}". Using http://${hostname}:5000 for API.`
-      );
-      return `http://${hostname}:5000`;
-    }
+    console.warn(
+      `⚠️ Unknown hostname format "${hostname}". Using http://${hostname}:5000 for API.`
+    );
+    return `http://${hostname}:5000`;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:5000";
   }
 
   console.error(
@@ -104,10 +109,6 @@ if (!apiUrl) {
   }
 }
 
-if (process.env.NODE_ENV === "development") {
-  console.log("");
-}
-
 export const config = {
   apiUrl,
   socketUrl,
@@ -115,6 +116,20 @@ export const config = {
   platform: getPlatform(),
   isNative: isNative(),
 } as const;
+
+if (process.env.NODE_ENV === "development") {
+  if (typeof window !== "undefined") {
+    console.log("🔍 API Config:", {
+      apiUrl: config.apiUrl,
+      apiBaseUrl: config.apiBaseUrl,
+      socketUrl: config.socketUrl,
+      frontendOrigin: window.location.origin,
+      frontendHostname: window.location.hostname,
+      nodeEnv: process.env.NODE_ENV,
+      reactAppApiUrl: process.env.REACT_APP_API_URL || "(not set)",
+    });
+  }
+}
 
 if (process.env.NODE_ENV !== "development") {
   console.log("");
