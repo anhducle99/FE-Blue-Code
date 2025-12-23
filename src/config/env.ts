@@ -100,5 +100,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 if (process.env.NODE_ENV !== "development") {
-  console.log("");
+  if (typeof window !== "undefined") {
+    console.log("");
+  }
 }
