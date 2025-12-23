@@ -9,8 +9,41 @@ export interface ApiError {
   data?: unknown;
 }
 
+let baseURL = config.apiUrl || "";
+
+if (baseURL && typeof window !== "undefined") {
+  try {
+    const url = new URL(baseURL, window.location.origin);
+    const baseURLProtocol = url.protocol;
+    const baseURLHost = url.hostname;
+    const currentProtocol = window.location.protocol;
+    const currentHostname = window.location.hostname;
+
+    if (baseURLHost === "localhost" && !currentHostname.includes("localhost")) {
+      console.warn(
+        "⚠️ [API] Detected localhost in baseURL but not on localhost. Forcing relative path."
+      );
+      baseURL = "";
+    } else if (
+      baseURLProtocol !== currentProtocol &&
+      baseURLHost === currentHostname
+    ) {
+      console.warn(
+        `⚠️ [API] Protocol mismatch: baseURL uses ${baseURLProtocol} but frontend uses ${currentProtocol}. Forcing relative path.`
+      );
+      baseURL = "";
+    }
+  } catch (e) {
+    baseURL = "";
+  }
+}
+
+if (typeof window !== "undefined") {
+  console.log("");
+}
+
 const API = axios.create({
-  baseURL: config.apiUrl || "",
+  baseURL: baseURL,
   withCredentials: false,
   timeout: 30000,
 });
