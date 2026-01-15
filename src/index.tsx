@@ -32,8 +32,43 @@ if (typeof window !== "undefined") {
     statusBarService.setBackgroundColor("#2563eb").catch(console.error);
   }
 
+  if (process.env.NODE_ENV === "development") {
+    try {
+      const hasToken = localStorage.getItem("token");
+      const hasUser = localStorage.getItem("user");
+      
+     
+      
+      if (!hasToken || !hasUser) {
+        localStorage.clear();
+      } else {
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+
   if (!Capacitor.isNativePlatform()) {
-    registerServiceWorker();
+    if (process.env.NODE_ENV === "production") {
+      registerServiceWorker();
+    } else {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          registrations.forEach((registration) => {
+            registration.unregister();
+          });
+        });
+        
+        caches.keys().then((cacheNames) => {
+          cacheNames.forEach((cacheName) => {
+            caches.delete(cacheName);
+           
+          });
+        });
+        
+      }
+    }
   }
 }
 

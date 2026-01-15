@@ -87,20 +87,12 @@ export const config = {
 
 if (process.env.NODE_ENV === "development") {
   if (typeof window !== "undefined") {
-    console.log("🔍 API Config:", {
-      apiUrl: config.apiUrl,
-      apiBaseUrl: config.apiBaseUrl,
-      socketUrl: config.socketUrl,
-      frontendOrigin: window.location.origin,
-      frontendHostname: window.location.hostname,
-      nodeEnv: process.env.NODE_ENV,
-      reactAppApiUrl: process.env.REACT_APP_API_URL || "(not set)",
-    });
+  
   }
 }
 
 if (process.env.NODE_ENV !== "development") {
   if (typeof window !== "undefined") {
-    console.log("");
+  
   }
 }

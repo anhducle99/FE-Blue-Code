@@ -164,33 +164,27 @@ export const DepartmentManagementPage: React.FC = () => {
                       }
                     />
                     {dropdownIndex === index && (
-                      <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-md z-50">
-                        <button
-                          onClick={() => {
-                            alert("Cấp lại mật khẩu cho " + d.name);
-                            setDropdownIndex(null);
-                          }}
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                        >
-                          Cấp lại mật khẩu
-                        </button>
+                      <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden">
                         <button
                           onClick={() => {
                             handleEdit(d);
                             setDropdownIndex(null);
                           }}
-                          className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
                         >
-                          Sửa
+                          <i className="bi bi-pencil mr-3 text-base"></i>
+                          <span className="font-medium">Sửa</span>
                         </button>
+                        <div className="border-t border-gray-100 my-1"></div>
                         <button
                           onClick={() => {
                             handleDelete(d.id);
                             setDropdownIndex(null);
                           }}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                          className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
                         >
-                          Xóa
+                          <i className="bi bi-trash mr-3 text-base"></i>
+                          <span className="font-medium">Xóa</span>
                         </button>
                       </div>
                     )}

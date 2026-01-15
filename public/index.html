@@ -40,6 +40,78 @@
 
   <body>
     <noscript> You need to enable JavaScript to run this app. </noscript>
+    
+    <script>
+      (function() {
+        'use strict';
+    
+        try {
+          var hasToken = localStorage.getItem('token');
+          var hasUser = localStorage.getItem('user');
+          
+          if (!hasToken || !hasUser) {
+            localStorage.clear();
+          } else {
+          }
+        } catch(e) {
+        }
+        
+        var pauseReload = false;
+        
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('pause') === '1' || urlParams.get('pause') === 'true') {
+          pauseReload = true;
+        }
+        
+        try {
+          var storedPause = localStorage.getItem('__reloadPaused');
+          if (storedPause === 'true') {
+            pauseReload = true;
+          }
+        } catch(e) {}
+        
+        if (pauseReload) {
+          
+          var originalReload = window.location.reload;
+          window.location.reload = function() {
+            return false;
+          };
+          
+          window.addEventListener('beforeunload', function(e) {
+            e.preventDefault();
+            e.returnValue = '';
+            console.warn('🛑 [HTML] Blocked beforeunload - reload prevented');
+            return '';
+          }, { capture: true });
+        }
+        
+        window.__htmlReloadCount = (window.__htmlReloadCount || 0) + 1;
+      
+        
+        window.addEventListener('beforeunload', function(e) {
+          if (pauseReload) {
+            e.preventDefault();
+            return;
+          }
+          console.error('⚠️⚠️⚠️ [HTML] BEFOREUNLOAD FIRED - PAGE IS RELOADING! ⚠️⚠️⚠️');
+          console.trace('Stack trace:');
+        }, { capture: true });
+      
+        document.addEventListener('keydown', function(e) {
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+            e.preventDefault();
+            pauseReload = !pauseReload;
+            try {
+              localStorage.setItem('__reloadPaused', String(pauseReload));
+            } catch(e) {}
+          }
+        });
+        
+        if (!pauseReload) {
+        }
+      })();
+    </script>
+    
     <div id="root"></div>
     <!--
       This HTML file is a template.
