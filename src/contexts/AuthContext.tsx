@@ -18,6 +18,7 @@ export interface User {
   department_id?: number | null;
   department_name?: string;
   is_admin_view?: boolean;
+  is_floor_account?: boolean;
 }
 
 interface AuthContextType {
@@ -48,6 +49,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [user, setUser] = useState<User | null>(() => {
     const loadedUser = legacyStorage.get<User>("user");
+    if (process.env.NODE_ENV === "development" && loadedUser) {
+      console.log("🔍 [AuthContext] Loaded user from localStorage:", {
+        id: loadedUser.id,
+        name: loadedUser.name,
+        is_floor_account: loadedUser.is_floor_account,
+        fullUser: loadedUser,
+      });
+    }
     return loadedUser;
   });
 
@@ -100,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateUser = useCallback((userData: Partial<User>) => {
     setUser((prevUser) => {
       if (!prevUser) {
-        console.warn("⚠️ [AuthContext] Cannot update: user is null");
+       
         return prevUser;
       }
 
@@ -122,6 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           userData.is_admin_view !== undefined
             ? userData.is_admin_view
             : prevUser.is_admin_view,
+        is_floor_account:
+          userData.is_floor_account !== undefined
+            ? userData.is_floor_account
+            : prevUser.is_floor_account,
       };
 
       legacyStorage.set("user", updatedUser);
@@ -134,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const currentToken = tokenRef.current;
 
     if (!currentUser || !currentToken) {
-      console.warn("⚠️ [AuthContext] Cannot refresh: user or token is missing");
+  
       return;
     }
 
@@ -156,17 +169,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           department_id: currentUserFromBackend.department_id ?? null,
           department_name: currentUserFromBackend.department_name || undefined,
           is_admin_view: currentUserFromBackend.is_admin_view,
+          is_floor_account: currentUserFromBackend.is_floor_account || false,
         };
 
         setUser(newUser);
         legacyStorage.set("user", newUser);
       } else {
-        console.warn(
-          "⚠️ [AuthContext] Current user not found in backend response"
-        );
+       
       }
     } catch (error) {
-      console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
+    
       throw error;
     }
   }, []);
@@ -183,49 +195,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAuthenticated,
   };
 
-  // DISABLE REFRESH USER để tránh API call loop gây reload
-  // useEffect(() => {
-  //   if (hasRefreshedRef.current) return;
-  //   if (!user || !token) return;
-
-  //   const refreshUserData = async () => {
-  //     hasRefreshedRef.current = true;
-
-  //     try {
-  //       const response = await getUsers();
-  //       const users = Array.isArray(response.data) ? response.data : [];
-  //       const currentUserFromBackend = users.find((u) => u.id === user.id);
-
-  //       if (currentUserFromBackend) {
-  //         const updatedUser: User = {
-  //           id: currentUserFromBackend.id,
-  //           name: currentUserFromBackend.name,
-  //           email: currentUserFromBackend.email,
-  //           role: (currentUserFromBackend.role || "User") as
-  //             | "SuperAdmin"
-  //             | "Admin"
-  //             | "User",
-  //           phone: currentUserFromBackend.phone,
-  //           department_id: currentUserFromBackend.department_id ?? null,
-  //           department_name:
-  //             currentUserFromBackend.department_name || undefined,
-  //           is_admin_view: currentUserFromBackend.is_admin_view,
-  //         };
-
-  //         setUser(updatedUser);
-  //         legacyStorage.set("user", updatedUser);
-  //       } else {
-  //         console.warn(
-  //           "⚠️ [AuthContext] Current user not found in backend response"
-  //         );
-  //       }
-  //     } catch (error) {
-  //       console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
-  //     }
-  //   };
-
-  //   refreshUserData();
-  // }, [user, token]);
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

@@ -9,6 +9,7 @@ export interface IUser {
   department_name?: string | null;
   is_department_account: boolean;
   is_admin_view: boolean;
+  is_floor_account?: boolean;
   role: "Admin" | "User";
 }
 
@@ -23,6 +24,7 @@ export interface IUserForm {
   department_id: number | null;
   is_department_account: boolean;
   is_admin_view: boolean;
+  is_floor_account?: boolean;
   role?: "Admin" | "User";
   departmentName?: string;
 }
@@ -44,7 +46,11 @@ export async function createUser(data: IUserForm): Promise<IUser> {
   const payload = {
     ...data,
     role: getRoleByDepartmentName(data.departmentName || ""),
+    is_floor_account: data.is_floor_account || false,
   };
+
+  if (process.env.NODE_ENV === "development") {
+  }
 
   const res = await API.post<{ data: IUser }>("/api/users", payload);
   return res.data.data;
@@ -57,6 +63,13 @@ export async function updateUser(
   const payload = data.departmentName
     ? { ...data, role: getRoleByDepartmentName(data.departmentName) }
     : data;
+
+  if (payload.is_floor_account === undefined) {
+    payload.is_floor_account = false;
+  }
+
+  if (process.env.NODE_ENV === "development") {
+  }
 
   const res = await API.put<{ data: IUser }>(`/api/users/${id}`, payload);
   return res.data.data;

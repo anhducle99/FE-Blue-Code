@@ -115,6 +115,7 @@ export const UsersPage: React.FC = () => {
       password: "",
       is_department_account: false,
       is_admin_view: false,
+      is_floor_account: false,
     },
     enableReinitialize: true,
     validationSchema: userSchema,
@@ -132,12 +133,18 @@ export const UsersPage: React.FC = () => {
         const payload: IUserForm & { departmentName: string } = {
           ...values,
           departmentName: deptName,
+          is_floor_account: values.is_floor_account || false,
         };
 
         if (!editingUser || values.password) {
           payload.password = values.password || "";
         } else {
           delete payload.password;
+        }
+
+
+        if (process.env.NODE_ENV === "development") {
+
         }
 
         if (editingUser) {
@@ -161,6 +168,7 @@ export const UsersPage: React.FC = () => {
               department_id: updated.department_id ?? null,
               department_name: departmentName,
               is_admin_view: updated.is_admin_view,
+              is_floor_account: updated.is_floor_account || false,
             });
           }
 
@@ -172,7 +180,6 @@ export const UsersPage: React.FC = () => {
         }
         handleClose();
       } catch (err: any) {
-        console.error("Error saving user:", err);
         const errorMessage =
           err?.response?.data?.message ||
           err?.message ||
@@ -399,14 +406,14 @@ export const UsersPage: React.FC = () => {
                   organizationsLoading
                     ? "Đang tải..."
                     : organizationsError
-                    ? `Lỗi: ${organizationsError}`
-                    : organizations.length === 0
-                    ? "Không có tổ chức nào"
-                    : "Không tìm thấy"
+                      ? `Lỗi: ${organizationsError}`
+                      : organizations.length === 0
+                        ? "Không có tổ chức nào"
+                        : "Không tìm thấy"
                 }
                 status={
                   formik.touched.organization_id &&
-                  formik.errors.organization_id
+                    formik.errors.organization_id
                     ? "error"
                     : ""
                 }
@@ -578,6 +585,7 @@ export const UsersPage: React.FC = () => {
                 onChange={(val) => {
                   formik.setFieldValue("is_department_account", val);
                   if (val) {
+                    formik.setFieldValue("is_floor_account", false);
                     if (!formik.values.department_id) {
                       message.warning(
                         "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
@@ -588,9 +596,27 @@ export const UsersPage: React.FC = () => {
                     formik.setFieldValue("departmentName", "");
                   }
                 }}
+                disabled={formik.values.is_floor_account}
               />
               <span className="ml-2 text-gray-700 font-medium">
-                Tài khoản phòng ban
+                Tài khoản xử lý sự cố
+              </span>
+            </div>
+            <div className="flex items-center">
+              <Switch
+                checked={formik.values.is_floor_account || false}
+                onChange={(val) => {
+                  formik.setFieldValue("is_floor_account", val);
+                  if (val) {
+                    formik.setFieldValue("is_department_account", false);
+                    formik.setFieldValue("department_id", null);
+                    formik.setFieldValue("departmentName", "");
+                  }
+                }}
+                disabled={formik.values.is_department_account}
+              />
+              <span className="ml-2 text-gray-700 font-medium">
+                Tài khoản tầng phòng
               </span>
             </div>
             <div className="flex items-center">

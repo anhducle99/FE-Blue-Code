@@ -10,6 +10,7 @@ export interface IUser {
   department_id?: number | null;
   department_name?: string | null;
   is_admin_view?: boolean;
+  is_floor_account?: boolean;
 }
 
 export interface IAuthResponse {
