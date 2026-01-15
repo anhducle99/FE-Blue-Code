@@ -45,12 +45,15 @@ export const useAuth = (): AuthContextType => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+
   const [user, setUser] = useState<User | null>(() => {
-    return legacyStorage.get<User>("user");
+    const loadedUser = legacyStorage.get<User>("user");
+    return loadedUser;
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return legacyStorage.get<string>("token");
+    const loadedToken = legacyStorage.get<string>("token");
+    return loadedToken;
   });
 
   const hasRefreshedRef = useRef(false);
@@ -59,10 +62,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     userRef.current = user;
+   
   }, [user]);
 
   useEffect(() => {
     tokenRef.current = token;
+  
   }, [token]);
 
   const login = useCallback((userData: User, tokenValue: string) => {
@@ -79,6 +84,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     legacyStorage.remove("user");
     legacyStorage.remove("token");
   }, []);
+
+  
+  useEffect(() => {
+    const handleLogout = () => {
+      logout();
+    };
+
+    window.addEventListener("auth:logout", handleLogout);
+    return () => {
+      window.removeEventListener("auth:logout", handleLogout);
+    };
+  }, [logout]);
 
   const updateUser = useCallback((userData: Partial<User>) => {
     setUser((prevUser) => {
@@ -121,11 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
-    try {
-      console.log("🔄 [AuthContext] Refreshing user data from backend...", {
-        userId: currentUser.id,
-        currentDepartmentName: currentUser.department_name,
-      });
+    try {     
       const response = await getUsers();
       const users = Array.isArray(response.data) ? response.data : [];
       const currentUserFromBackend = users.find((u) => u.id === currentUser.id);
@@ -170,48 +183,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     isAuthenticated,
   };
 
-  useEffect(() => {
-    if (hasRefreshedRef.current) return;
-    if (!user || !token) return;
+  // DISABLE REFRESH USER để tránh API call loop gây reload
+  // useEffect(() => {
+  //   if (hasRefreshedRef.current) return;
+  //   if (!user || !token) return;
 
-    const refreshUserData = async () => {
-      hasRefreshedRef.current = true;
+  //   const refreshUserData = async () => {
+  //     hasRefreshedRef.current = true;
 
-      try {
-        const response = await getUsers();
-        const users = Array.isArray(response.data) ? response.data : [];
-        const currentUserFromBackend = users.find((u) => u.id === user.id);
+  //     try {
+  //       const response = await getUsers();
+  //       const users = Array.isArray(response.data) ? response.data : [];
+  //       const currentUserFromBackend = users.find((u) => u.id === user.id);
 
-        if (currentUserFromBackend) {
-          const updatedUser: User = {
-            id: currentUserFromBackend.id,
-            name: currentUserFromBackend.name,
-            email: currentUserFromBackend.email,
-            role: (currentUserFromBackend.role || "User") as
-              | "SuperAdmin"
-              | "Admin"
-              | "User",
-            phone: currentUserFromBackend.phone,
-            department_id: currentUserFromBackend.department_id ?? null,
-            department_name:
-              currentUserFromBackend.department_name || undefined,
-            is_admin_view: currentUserFromBackend.is_admin_view,
-          };
+  //       if (currentUserFromBackend) {
+  //         const updatedUser: User = {
+  //           id: currentUserFromBackend.id,
+  //           name: currentUserFromBackend.name,
+  //           email: currentUserFromBackend.email,
+  //           role: (currentUserFromBackend.role || "User") as
+  //             | "SuperAdmin"
+  //             | "Admin"
+  //             | "User",
+  //           phone: currentUserFromBackend.phone,
+  //           department_id: currentUserFromBackend.department_id ?? null,
+  //           department_name:
+  //             currentUserFromBackend.department_name || undefined,
+  //           is_admin_view: currentUserFromBackend.is_admin_view,
+  //         };
 
-          setUser(updatedUser);
-          legacyStorage.set("user", updatedUser);
-        } else {
-          console.warn(
-            "⚠️ [AuthContext] Current user not found in backend response"
-          );
-        }
-      } catch (error) {
-        console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
-      }
-    };
+  //         setUser(updatedUser);
+  //         legacyStorage.set("user", updatedUser);
+  //       } else {
+  //         console.warn(
+  //           "⚠️ [AuthContext] Current user not found in backend response"
+  //         );
+  //       }
+  //     } catch (error) {
+  //       console.error("⚠️ [AuthContext] Failed to refresh user data:", error);
+  //     }
+  //   };
 
-    refreshUserData();
-  }, [user, token]);
+  //   refreshUserData();
+  // }, [user, token]);
 
   return (
     <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>

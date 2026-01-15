@@ -67,11 +67,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             >
               <img
                 className="sm:h-12 sm:w-12 w-10 object-contain"
-                src="/app/assets/logophanmem.png"
+                src="/img/logophanmem.png"
                 alt="logo"
               />
               <span className="text-sm leading-tight text-[#0365af]">
-                Bệnh viện <br /> Thái Thượng Hoàng
+                Tập Đoàn Y Khoa <br /> TTH Group 
               </span>
             </Link>
             <Button
@@ -95,12 +95,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                   {user?.name || "Người dùng"}
                 </span>
               </div>
-              <Button
+              <button
                 onClick={() => setShowDropdown((prev) => !prev)}
                 className="text-gray-500 hover:text-gray-700 mt-1"
               >
                 <i className="bi bi-three-dots text-lg" />
-              </Button>
+              </button>
             </div>
 
             {showDropdown && (

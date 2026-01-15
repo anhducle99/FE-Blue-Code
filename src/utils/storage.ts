@@ -45,17 +45,33 @@ export const legacyStorage = {
   get: <T>(key: string): T | null => {
     try {
       const item = localStorage.getItem(key);
-      if (!item) return null;
-
-      try {
-        return JSON.parse(item) as T;
-      } catch {
-        if (typeof item === "string") {
-          return item as T;
+      if (!item) {
+        if (process.env.NODE_ENV === "development") {
         }
         return null;
       }
-    } catch {
+
+      if (key === "token") {
+        if (process.env.NODE_ENV === "development") {
+         
+        }
+        return item as T;
+      }
+
+      try {
+        const parsed = JSON.parse(item) as T;
+        if (process.env.NODE_ENV === "development") {
+         
+        }
+        return parsed;
+      } catch (parseError) {
+        if (process.env.NODE_ENV === "development") {
+        
+        }
+        return item as T;
+      }
+    } catch (error) {
+      console.error(`Error getting "${key}" from localStorage:`, error);
       return null;
     }
   },

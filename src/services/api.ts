@@ -39,7 +39,6 @@ if (baseURL && typeof window !== "undefined") {
 }
 
 if (typeof window !== "undefined") {
-  console.log("");
 }
 
 const API = axios.create({
@@ -63,6 +62,8 @@ API.interceptors.request.use(
 
 API.interceptors.response.use(
   (response: AxiosResponse) => {
+    if (process.env.NODE_ENV === "development") {
+    }
     return response;
   },
   (error: AxiosError) => {
@@ -106,16 +107,29 @@ API.interceptors.response.use(
     switch (status) {
       case 401:
         message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+        console.error("❌ [API] 401 Unauthorized - Logging out", {
+          url: error.config?.url,
+          method: error.config?.method,
+          pathname: window.location.pathname,
+          timestamp: new Date().toISOString(),
+          stack: new Error().stack,
+        });
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        if (
-          typeof window !== "undefined" &&
-          window.location.pathname !== "/login"
-        ) {
-          if (Capacitor.isNativePlatform()) {
-            window.location.href = "/login";
-          } else {
-            window.location.href = "/login";
+   
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth:logout"));
+          
+          if (window.location.pathname !== "/login") {
+            console.log({
+              currentPath: window.location.pathname,
+              isNative: Capacitor.isNativePlatform(),
+            });
+            if (Capacitor.isNativePlatform()) {
+              window.location.href = "/login";
+            } else {
+              window.history.replaceState(null, "", "/login");
+            }
           }
         }
         break;

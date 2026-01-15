@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Input, message } from "antd";
+import { Button, Input, message, Checkbox } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
 import {
@@ -194,31 +194,29 @@ export const OrganizationManagementPage: React.FC = () => {
             </Button>
 
             {openDropdown && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow z-50">
-                <Button
+              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                <button
                   onClick={() => toggleColumn("name")}
-                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
+                  className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150 border-b border-gray-100 last:border-b-0"
                 >
-                  <Input
-                    type="checkbox"
+                  <Checkbox
                     checked={visibleColumns.name}
-                    readOnly
-                    className="mr-2"
+                    onChange={() => toggleColumn("name")}
+                    className="mr-3"
                   />
-                  Tên
-                </Button>
-                <Button
+                  <span className="font-medium">Tên</span>
+                </button>
+                <button
                   onClick={() => toggleColumn("created_at")}
-                  className="flex items-center w-full px-4 py-2 text-sm hover:bg-gray-100"
+                  className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
                 >
-                  <Input
-                    type="checkbox"
+                  <Checkbox
                     checked={visibleColumns.created_at}
-                    readOnly
-                    className="mr-2"
+                    onChange={() => toggleColumn("created_at")}
+                    className="mr-3"
                   />
-                  Ngày tạo
-                </Button>
+                  <span className="font-medium">Ngày tạo</span>
+                </button>
               </div>
             )}
           </div>
@@ -292,20 +290,23 @@ export const OrganizationManagementPage: React.FC = () => {
                       {openMenuIndex === index && (
                         <div
                           ref={menuRef}
-                          className="absolute right-0 mt-2 w-28 bg-white rounded-lg shadow-lg border py-1 z-50"
+                          className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden"
                         >
-                          <Button
+                          <button
                             onClick={() => handleEdit(item, index)}
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
                           >
-                            Sửa
-                          </Button>
-                          <Button
+                            <i className="bi bi-pencil mr-3 text-base"></i>
+                            <span className="font-medium">Sửa</span>
+                          </button>
+                          <div className="border-t border-gray-100 my-1"></div>
+                          <button
                             onClick={() => item.id && handleDelete(item.id)}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
                           >
-                            Xóa
-                          </Button>
+                            <i className="bi bi-trash mr-3 text-base"></i>
+                            <span className="font-medium">Xóa</span>
+                          </button>
                         </div>
                       )}
                     </td>
