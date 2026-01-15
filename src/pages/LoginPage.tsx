@@ -30,6 +30,11 @@ export default function LoginPage() {
           apiUser.is_admin_view === "true" ||
           apiUser.is_admin_view === 1;
 
+        const isFloorAccount =
+          apiUser.is_floor_account === true ||
+          apiUser.is_floor_account === "true" ||
+          apiUser.is_floor_account === 1;
+
         const userData: User = {
           id: apiUser.id || 0,
           name: apiUser.name || "",
@@ -39,7 +44,16 @@ export default function LoginPage() {
           department_id: apiUser.department_id ?? null,
           department_name: apiUser.department_name || null,
           is_admin_view: Boolean(isAdminView),
+          is_floor_account: Boolean(isFloorAccount),
         };
+
+        // Debug: Log để kiểm tra
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔍 [LoginPage] API User data:", apiUser);
+          console.log("🔍 [LoginPage] is_floor_account from API:", apiUser.is_floor_account);
+          console.log("🔍 [LoginPage] Parsed is_floor_account:", Boolean(isFloorAccount));
+          console.log("🔍 [LoginPage] Final userData:", userData);
+        }
 
         login(userData, data.data.token);
         showSuccess("Đăng nhập thành công!");

@@ -17,6 +17,7 @@ import { ApiError } from "./services/api";
 // import IncidentTrendChart from "./components/IncidentTrendChart";
 import IncidentStatusWidget from "./components/IncidentStatusWidget";
 import IncidentSidebar from "./components/IncidentSidebar";
+import { FloorAccountPanel } from "./components/FloorAccountPanel";
 import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { appService } from "./services/nativeService";
 import { apiWithRetry } from "./services/api";
@@ -26,9 +27,21 @@ export default function App() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/login";
   const { departments, supportContacts } = useDashboard();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { error: showError, success: showSuccess } = useToast();
   const { addIncident } = useIncidents();
+
+  // Debug: Log user data để kiểm tra
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development" && user) {
+      console.log("🔍 [App] Current user:", {
+        id: user.id,
+        name: user.name,
+        is_floor_account: user.is_floor_account,
+        fullUser: user,
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user && !user.department_name) {
@@ -37,6 +50,15 @@ export default function App() {
       );
     }
   }, [user?.id, user?.department_name, user?.department_id]);
+
+  // Tự động refresh user data từ backend khi app load để đảm bảo có data mới nhất (bao gồm is_floor_account)
+  useEffect(() => {
+    if (user && user.id && refreshUser) {
+      refreshUser().catch((err) => {
+        console.error("⚠️ [App] Failed to refresh user data:", err);
+      });
+    }
+  }, []); // Chỉ chạy 1 lần khi component mount
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tempMessage, setTempMessage] = useState("");
@@ -68,7 +90,7 @@ export default function App() {
   }, [isLoginPage]);
 
   useEffect(() => {
-    const removeListener = appService.addStateListener(() => {});
+    const removeListener = appService.addStateListener(() => { });
 
     return () => {
       removeListener();
@@ -273,12 +295,14 @@ export default function App() {
             <IncidentStatusWidget />
           </div>
 
-          {/* <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
-            <IncidentTrendChart />
-          </div> */}
+
+          {/* Vùng dưới bên trái - Hiển thị cho TẤT CẢ users cùng organization */}
+          <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
+            <FloorAccountPanel />
+          </div>
 
           <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
-            <IncidentSidebar isOpen={true} onClose={() => {}} />
+            <IncidentSidebar isOpen={true} onClose={() => { }} />
           </div>
         </div>
       </div>
