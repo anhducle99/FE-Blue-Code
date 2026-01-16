@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useDashboard } from "../layouts/DashboardContext";
+import { useIncidents } from "../contexts/IncidentContext";
 import { getUsers, IUser } from "../services/userService";
 import { getDepartments } from "../services/departmentService";
 import DepartmentButton from "./DepartmentButton";
@@ -9,10 +10,12 @@ import SupportButton from "./SupportButton";
 export const FloorAccountPanel: React.FC = () => {
   const { user } = useAuth();
   const { supportContacts } = useDashboard();
+  const { incidents } = useIncidents();
   const [floorAccountUsers, setFloorAccountUsers] = useState<IUser[]>([]);
   const [departments, setDepartments] = useState<Array<{ id: number; name: string; phone: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [currentOrganizationId, setCurrentOrganizationId] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -39,9 +42,6 @@ export const FloorAccountPanel: React.FC = () => {
         
       
         if (process.env.NODE_ENV === "development") {
-          console.log("🔍 [FloorAccountPanel] Organization ID:", orgId);
-          console.log("🔍 [FloorAccountPanel] Floor account users found:", floorUsers.length);
-          console.log("🔍 [FloorAccountPanel] Floor users:", floorUsers.map(u => ({ id: u.id, name: u.name })));
         }
         
      
@@ -66,10 +66,120 @@ export const FloorAccountPanel: React.FC = () => {
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    const hasActiveCalls = incidents.some((incident) => {
+      if (incident.type === "call_outgoing") {
+        const age = Date.now() - incident.timestamp.getTime();
+        return age <= 20 * 1000;
+      }
+      return false;
+    });
+
+    if (!hasActiveCalls) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [incidents]);
+
+  const normalizeName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") 
+      .replace(/\s+/g, "") 
+      .trim();
+  };
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    
+    const now = Date.now();
+    const ACTIVE_CALL_THRESHOLD = 20 * 1000;
+    
+    const latestIncidentsBySource = new Map<string, typeof incidents[0]>();
+    
+    incidents.forEach((incident) => {
+      if (incident.type === "call_outgoing") {
+        const incidentAge = now - incident.timestamp.getTime();
+        if (incidentAge > ACTIVE_CALL_THRESHOLD) {
+          return;
+        }
+        const source = normalizeName(incident.source || "");
+        
+        const existing = latestIncidentsBySource.get(source);
+        if (!existing || incident.timestamp.getTime() > existing.timestamp.getTime()) {
+          latestIncidentsBySource.set(source, incident);
+        }
+      }
+    });
+
+    if (latestIncidentsBySource.size > 0) {
+      
+    }
+  }, [incidents]);
+
+  const callingUsers = useMemo(() => {
+    const callingSet = new Set<number>();
+    
+    if (!floorAccountUsers.length) return callingSet;
+    
+    const now = Date.now();
+    const ACTIVE_CALL_THRESHOLD = 20 * 1000;
+    
+    const latestIncidentsByUser = new Map<string, typeof incidents[0]>();
+    
+    incidents.forEach((incident) => {
+      if (incident.type === "call_outgoing") {
+        const incidentAge = now - incident.timestamp.getTime();
+        if (incidentAge > ACTIVE_CALL_THRESHOLD) {
+          return;
+        }
+        const source = normalizeName(incident.source || "");
+        
+        const existing = latestIncidentsByUser.get(source);
+        if (!existing || incident.timestamp.getTime() > existing.timestamp.getTime()) {
+          latestIncidentsByUser.set(source, incident);
+        }
+      }
+    });
+    
+    latestIncidentsByUser.forEach((incident) => {
+      const source = normalizeName(incident.source || "");
+      
+      floorAccountUsers.forEach((u) => {
+        const userName = normalizeName(u.name);
+        if (source === userName) {
+          callingSet.add(u.id);
+        }
+      });
+    });
+    
+    if (process.env.NODE_ENV === "development" && callingSet.size > 0) {
+     
+    }
+    
+    
+    return callingSet;
+  }, [incidents, floorAccountUsers, currentTime]);
+
+  const sortedUsers = useMemo(() => {
+    const calling = floorAccountUsers.filter((u) => callingUsers.has(u.id));
+    const notCalling = floorAccountUsers.filter((u) => !callingUsers.has(u.id));
+    
+    if (process.env.NODE_ENV === "development") {
+    }
+    
+    return [...calling, ...notCalling];
+  }, [floorAccountUsers, callingUsers]);
+
   return (
     <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col min-h-0">
       <h2 className="text-xl font-semibold text-gray-800 mb-4 flex-shrink-0">
-        Tài khoản Tầng phòng
+        Tầng phòng
       </h2>
       
       <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -79,18 +189,25 @@ export const FloorAccountPanel: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
-            {floorAccountUsers.map((u) => {
+            {sortedUsers.map((u) => {
               const isCurrentUser = u.id === user?.id;
+              const isBeingCalled = callingUsers.has(u.id);
+              
+              if (process.env.NODE_ENV === "development" && isBeingCalled) {
+              }
               
               return (
-                <DepartmentButton
+                <button
                   key={`floor-user-${u.id}`}
-                  name={u.name}
-                  phone={u.phone || "N/A"}
-                  isSelected={false}
-                  onClick={() => {}}
-                  disabled={isCurrentUser}
-                />
+                  disabled={isCurrentUser && !isBeingCalled}
+                  className={`p-3 rounded-lg text-white font-semibold text-base w-full shadow-md transition-colors duration-200 ${
+                    isBeingCalled
+                      ? "bg-red-600 hover:bg-red-700 animate-pulse"
+                      : "bg-blue-500 hover:bg-blue-600"
+                  } ${isCurrentUser && !isBeingCalled ? "cursor-not-allowed" : ""}`}
+                >
+                  <div className="text-center">{u.name}</div>
+                </button>
               );
             })}
           </div>

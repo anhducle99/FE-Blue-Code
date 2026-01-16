@@ -616,7 +616,7 @@ export const UsersPage: React.FC = () => {
                 disabled={formik.values.is_department_account}
               />
               <span className="ml-2 text-gray-700 font-medium">
-                Tài khoản tầng phòng
+                Tầng phòng
               </span>
             </div>
             <div className="flex items-center">

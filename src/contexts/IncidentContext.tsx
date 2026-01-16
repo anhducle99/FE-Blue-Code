@@ -117,6 +117,8 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         timestamp: new Date(),
       };
 
+   
+
       setIncidents((prev) => {
         const isDuplicate = prev.some((inc) => {
           const hasCallType =
@@ -138,7 +140,11 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
           return prev;
         }
 
-        return [newIncident, ...prev];
+        const updated = [newIncident, ...prev];
+        
+      
+
+        return updated;
       });
     },
     []
@@ -282,7 +288,6 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
           return merged;
         });
       } catch (err) {
-        console.error("Error loading call history:", err);
       } finally {
         isLoadingRef.current = false;
         setIsLoading(false);
@@ -351,10 +356,13 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
       const now = Date.now();
       let hasRealTimeUpdate = false;
 
+    
+
       if (data && data.callLog) {
         try {
           const callLog = data.callLog as ICallLog;
           const converted = convertCallLogToIncidents(callLog);
+
 
           setIncidents((prev) => {
             const existingIds = new Set(prev.map((i) => i.id));
@@ -369,12 +377,19 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
               );
               hasRealTimeUpdate = true;
               lastSyncTime = now;
+              
+             
+              if (process.env.NODE_ENV === "development" && newIncidents.length > 0) {
+               
+              }
+              
               return merged;
             }
+            
             return prev;
           });
         } catch (err) {
-          console.error("Error processing socket data:", err);
+        
         }
       }
 
@@ -419,7 +434,6 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
           });
           lastSyncTime = Date.now();
         } catch (err) {
-          console.error("Error syncing incidents:", err);
         }
       }
     };
