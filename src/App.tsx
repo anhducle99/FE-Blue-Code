@@ -186,7 +186,7 @@ export default function App() {
       }
     } catch (err) {
       const apiError = err as ApiError;
-      showError(apiError.message || "Không thể kết nối server!");
+        showError(apiError.message || "Không thể kết nối server!");
     }
   }, [
     user?.department_name,
@@ -211,7 +211,7 @@ export default function App() {
       )}
       {uploadProgress !== null && (
         <div className="bg-blue-500 text-white text-center py-2 px-4 text-sm font-semibold">
-          📤 Đang upload ảnh... {uploadProgress}%
+          Đang upload ảnh... {uploadProgress}%
         </div>
       )}
       <div className="flex-shrink-0">
@@ -290,17 +290,12 @@ export default function App() {
               onConfirm={handleConfirmCall}
             />
           </section>
-
           <div className="md:row-start-1 md:row-end-2 md:col-start-2 md:col-end-3 min-h-0">
             <IncidentStatusWidget />
           </div>
-
-
-          {/* Vùng dưới bên trái - Hiển thị cho TẤT CẢ users cùng organization */}
           <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
             <FloorAccountPanel />
           </div>
-
           <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
             <IncidentSidebar isOpen={true} onClose={() => { }} />
           </div>
