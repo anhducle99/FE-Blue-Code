@@ -1,6 +1,8 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useIncidents } from "../contexts/IncidentContext";
+import { useAuth } from "../contexts/AuthContext";
 import { Incident } from "../types/incident";
+import { getUsers, IUser } from "../services/userService";
 
 const isToday = (incident: Incident): boolean => {
   const incidentDate =
@@ -16,11 +18,59 @@ const isToday = (incident: Incident): boolean => {
   );
 };
 
+const normalizeName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+};
+
 const IncidentStatusWidget: React.FC = () => {
   const { incidents } = useIncidents();
+  const { user } = useAuth();
+  const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user) return;
+
+      try {
+        const usersResponse = await getUsers();
+        const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        const currentUserFromApi = users.find((u) => u.id === user.id);
+        const orgId = currentUserFromApi?.organization_id;
+        
+        if (!orgId) {
+          setOrganizationUserNames(new Set());
+          return;
+        }
+
+        const orgUsers = users.filter((u) => u.organization_id === orgId);
+        const normalizedNames = new Set(
+          orgUsers.map((u) => normalizeName(u.name))
+        );
+        setOrganizationUserNames(normalizedNames);
+      } catch (error) {
+        setOrganizationUserNames(new Set());
+      }
+    };
+
+    fetchUsers();
+  }, [user]);
+
+  const filteredIncidents = useMemo(() => {
+    if (organizationUserNames.size === 0) return incidents;
+    
+    return incidents.filter((incident) => {
+      const normalizedSource = normalizeName(incident.source || "");
+      return organizationUserNames.has(normalizedSource);
+    });
+  }, [incidents, organizationUserNames]);
 
   const stats = useMemo(() => {
-    const todayIncidents = incidents.filter((incident) => {
+    const todayIncidents = filteredIncidents.filter((incident) => {
       return isToday(incident);
     });
 
@@ -60,11 +110,11 @@ const IncidentStatusWidget: React.FC = () => {
     const avg = resolvedPercentage;
     const max = totalPercentage;
 
-    const status = errors === 0 ? "OK" : errors <= 2 ? "WARNING" : "ERROR";
+    const status = online < 5 ? "OK" : online < 10 ? "WARNING" : "ERROR";
     const statusColor =
-      errors === 0
+      online < 5
         ? "bg-green-500"
-        : errors <= 2
+        : online < 10
         ? "bg-yellow-500"
         : "bg-red-500";
 
@@ -77,7 +127,7 @@ const IncidentStatusWidget: React.FC = () => {
       status,
       statusColor,
     };
-  }, [incidents]);
+  }, [filteredIncidents]);
 
   const gaugePercentage = 100;
 
@@ -163,7 +213,7 @@ const IncidentStatusWidget: React.FC = () => {
           Trạng thái
         </span>
         <span className="text-white text-base md:text-lg font-bold">
-          {stats.status}
+          {stats.status }
         </span>
       </div>
     </div>

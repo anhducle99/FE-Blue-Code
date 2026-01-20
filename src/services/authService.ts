@@ -11,6 +11,7 @@ export interface IUser {
   department_name?: string | null;
   is_admin_view?: boolean;
   is_floor_account?: boolean;
+  is_department_account?: boolean;
 }
 
 export interface IAuthResponse {
