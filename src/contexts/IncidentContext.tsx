@@ -102,12 +102,15 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const globalSocketInstance = getGlobalSocket();
-    const hasValidUser = user && user.department_id;
+    const hasValidUser = user && (user.department_id || user.is_floor_account);
 
     setSocket(
       hasValidUser && globalSocketInstance ? globalSocketInstance : null
     );
-  }, [user?.id, user?.department_id]);
+
+    if (process.env.NODE_ENV === "development") {
+    }
+  }, [user?.id, user?.department_id, user?.is_floor_account]);
 
   const addIncident = useCallback(
     (incidentData: Omit<Incident, "id" | "timestamp">) => {
@@ -116,9 +119,6 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         id: `${Math.random().toString(36).substring(2, 9)}-${Date.now()}`,
         timestamp: new Date(),
       };
-
-   
-
       setIncidents((prev) => {
         const isDuplicate = prev.some((inc) => {
           const hasCallType =
@@ -356,13 +356,18 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
       const now = Date.now();
       let hasRealTimeUpdate = false;
 
-    
+      if (process.env.NODE_ENV === "development") {
+        
+      }
 
       if (data && data.callLog) {
         try {
           const callLog = data.callLog as ICallLog;
           const converted = convertCallLogToIncidents(callLog);
 
+          if (process.env.NODE_ENV === "development") {
+            
+          }
 
           setIncidents((prev) => {
             const existingIds = new Set(prev.map((i) => i.id));
@@ -378,9 +383,8 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
               hasRealTimeUpdate = true;
               lastSyncTime = now;
               
-             
-              if (process.env.NODE_ENV === "development" && newIncidents.length > 0) {
-               
+              if (process.env.NODE_ENV === "development") {
+              
               }
               
               return merged;
@@ -389,7 +393,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
             return prev;
           });
         } catch (err) {
-        
+         
         }
       }
 
@@ -413,7 +417,14 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
 
     events.forEach((event) => {
       socket.on(event, handleSocketEvent);
+      if (process.env.NODE_ENV === "development") {
+       
+      }
     });
+
+    if (process.env.NODE_ENV === "development") {
+      
+    }
 
     const handleIncidentsSync = (data: { incidents?: ICallLog[] }) => {
       if (data && Array.isArray(data.incidents)) {

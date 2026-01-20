@@ -19,6 +19,7 @@ export interface User {
   department_name?: string;
   is_admin_view?: boolean;
   is_floor_account?: boolean;
+  is_department_account?: boolean;
 }
 
 interface AuthContextType {
@@ -50,12 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(() => {
     const loadedUser = legacyStorage.get<User>("user");
     if (process.env.NODE_ENV === "development" && loadedUser) {
-      console.log("🔍 [AuthContext] Loaded user from localStorage:", {
-        id: loadedUser.id,
-        name: loadedUser.name,
-        is_floor_account: loadedUser.is_floor_account,
-        fullUser: loadedUser,
-      });
+     
     }
     return loadedUser;
   });
@@ -135,6 +131,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           userData.is_floor_account !== undefined
             ? userData.is_floor_account
             : prevUser.is_floor_account,
+        is_department_account:
+          userData.is_department_account !== undefined
+            ? userData.is_department_account
+            : prevUser.is_department_account,
       };
 
       legacyStorage.set("user", updatedUser);
@@ -170,6 +170,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           department_name: currentUserFromBackend.department_name || undefined,
           is_admin_view: currentUserFromBackend.is_admin_view,
           is_floor_account: currentUserFromBackend.is_floor_account || false,
+          is_department_account: currentUserFromBackend.is_department_account || false,
         };
 
         setUser(newUser);

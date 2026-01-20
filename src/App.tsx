@@ -31,15 +31,9 @@ export default function App() {
   const { error: showError, success: showSuccess } = useToast();
   const { addIncident } = useIncidents();
 
-  // Debug: Log user data để kiểm tra
   useEffect(() => {
     if (process.env.NODE_ENV === "development" && user) {
-      console.log("🔍 [App] Current user:", {
-        id: user.id,
-        name: user.name,
-        is_floor_account: user.is_floor_account,
-        fullUser: user,
-      });
+      
     }
   }, [user]);
 
@@ -51,14 +45,13 @@ export default function App() {
     }
   }, [user?.id, user?.department_name, user?.department_id]);
 
-  // Tự động refresh user data từ backend khi app load để đảm bảo có data mới nhất (bao gồm is_floor_account)
   useEffect(() => {
     if (user && user.id && refreshUser) {
       refreshUser().catch((err) => {
         console.error("⚠️ [App] Failed to refresh user data:", err);
       });
     }
-  }, []); // Chỉ chạy 1 lần khi component mount
+  }, []); 
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tempMessage, setTempMessage] = useState("");
@@ -112,13 +105,17 @@ export default function App() {
   }, []);
 
   const handleRequestCall = useCallback(() => {
+    if (user?.is_department_account === true) {
+      showError("Tài khoản xử lý sự cố không thể thực hiện cuộc gọi");
+      return;
+    }
     if (!selectedKey) {
       showError("Vui lòng chọn đội cần gọi");
       return;
     }
     setTempMessage("");
     setShowConfirm(true);
-  }, [selectedKey, showError]);
+  }, [selectedKey, showError, user?.is_department_account]);
 
   const selectedNames = useMemo(() => {
     if (!selectedKey) return [];
@@ -224,7 +221,12 @@ export default function App() {
             <div className="flex justify-start items-center gap-3 pt-4 pb-3 flex-wrap">
               <button
                 onClick={handleRequestCall}
-                className="bg-blue-600 px-4 py-2 rounded-lg text-white font-semibold flex items-center gap-2"
+                disabled={user?.is_department_account === true}
+                className={`px-4 py-2 rounded-lg text-white font-semibold flex items-center gap-2 ${
+                  user?.is_department_account === true
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
               >
                 <svg
                   className="w-4 h-4"
@@ -249,6 +251,7 @@ export default function App() {
                   const userDeptName = user?.department_name?.trim();
                   const deptName = d.name.trim();
                   const isCurrentDept = userDeptName === deptName;
+                  const isDepartmentAccount = user?.is_department_account === true;
 
                   return (
                     <DepartmentButton
@@ -256,8 +259,8 @@ export default function App() {
                       name={d.name}
                       phone={d.phone}
                       isSelected={selectedKey === key}
-                      onClick={() => !isCurrentDept && toggleSelect(key)}
-                      disabled={isCurrentDept}
+                      onClick={() => !isCurrentDept && !isDepartmentAccount && toggleSelect(key)}
+                      disabled={isCurrentDept || isDepartmentAccount}
                     />
                   );
                 })}
@@ -266,6 +269,7 @@ export default function App() {
                   const key = makeKey(s.label, s.label);
                   const isCurrentSupport =
                     s.label === user?.department_name || s.label === user?.name;
+                  const isDepartmentAccount = user?.is_department_account === true;
                   return (
                     <SupportButton
                       key={s.id}
@@ -273,8 +277,8 @@ export default function App() {
                       phone={s.phone}
                       color={s.color}
                       isSelected={selectedKey === key}
-                      onClick={() => !isCurrentSupport && toggleSelect(key)}
-                      disabled={isCurrentSupport}
+                      onClick={() => !isCurrentSupport && !isDepartmentAccount && toggleSelect(key)}
+                      disabled={isCurrentSupport || isDepartmentAccount}
                     />
                   );
                 })}

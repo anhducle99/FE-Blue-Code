@@ -1,24 +1,75 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useIncidents } from "../contexts/IncidentContext";
+import { useAuth } from "../contexts/AuthContext";
 import { Incident, IncidentFilter } from "../types/incident";
+import { getUsers, IUser } from "../services/userService";
 
 interface IncidentSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+const normalizeName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+};
+
 const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   isOpen,
   onClose,
 }) => {
   const { incidents, filter, setFilter, clearIncidents } = useIncidents();
+  const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user) return;
+
+      try {
+        const usersResponse = await getUsers();
+        const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        const currentUserFromApi = users.find((u) => u.id === user.id);
+        const orgId = currentUserFromApi?.organization_id;
+        
+        if (!orgId) {
+          setOrganizationUserNames(new Set());
+          return;
+        }
+
+        const orgUsers = users.filter((u) => u.organization_id === orgId);
+        const normalizedNames = new Set(
+          orgUsers.map((u) => normalizeName(u.name))
+        );
+        setOrganizationUserNames(normalizedNames);
+      } catch (error) {
+        setOrganizationUserNames(new Set());
+      }
+    };
+
+    fetchUsers();
+  }, [user]);
+
+  const organizationFilteredIncidents = useMemo(() => {
+    if (organizationUserNames.size === 0) return incidents;
+    
+    return incidents.filter((incident) => {
+      const normalizedSource = normalizeName(incident.source || "");
+      return organizationUserNames.has(normalizedSource);
+    });
+  }, [incidents, organizationUserNames]);
 
   const filteredIncidents = useMemo(() => {
-    if (filter === "all") return incidents;
-    return incidents.filter((incident) => incident.status === filter);
-  }, [incidents, filter]);
+    const orgFiltered = organizationFilteredIncidents;
+    if (filter === "all") return orgFiltered;
+    return orgFiltered.filter((incident) => incident.status === filter);
+  }, [organizationFilteredIncidents, filter]);
 
   const paginatedIncidents = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
@@ -170,7 +221,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                 {option.label} (
                 {filter === option.value
                   ? filteredIncidents.length
-                  : incidents.filter((i) => i.status === option.value).length}
+                  : organizationFilteredIncidents.filter((i) => i.status === option.value).length}
                 )
               </option>
             ))}
