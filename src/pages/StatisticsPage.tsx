@@ -18,6 +18,7 @@ import {
   IDepartmentStats,
   IGroupStats,
 } from "../services/statisticsService";
+import { useAuth } from "../contexts/AuthContext";
 
 ChartJS.register(
   ArcElement,
@@ -40,8 +41,12 @@ export const StatisticsPage: React.FC = () => {
     startOfMonth
   );
   const [endDateGroup, setEndDateGroup] = useState<Date | null>(now);
+  const [loadingDept, setLoadingDept] = useState(false);
+  const [loadingGroup, setLoadingGroup] = useState(false);
+  const [errorDept, setErrorDept] = useState<string | null>(null);
+  const [errorGroup, setErrorGroup] = useState<string | null>(null);
 
-  const token = localStorage.getItem("token") || "";
+  const { token } = useAuth();
 
   const alertGroupColors: Record<string, string> = {
     "y tế": "#22c55e",
@@ -56,61 +61,116 @@ export const StatisticsPage: React.FC = () => {
     alertGroupColors[label?.toLowerCase().trim() || ""] || "#999";
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
+
     const fetchDepartment = async () => {
+      setLoadingDept(true);
+      setErrorDept(null);
       try {
-        const res = await getDepartmentStats(token, {
+       
+        
+        const res = await getDepartmentStats({
           startDate: startDateDept?.toISOString(),
           endDate: endDateDept?.toISOString(),
         });
-        setDepartments(
-          res.map((d: any) => ({
-            id: Number(d.id),
-            name: d.name,
-            sent: Number(d.sent),
-            received: Number(d.received),
-          }))
-        );
-      } catch {
-        // Error fetching department stats
+     
+        
+        if (!Array.isArray(res)) {
+          setErrorDept("Dữ liệu không đúng định dạng");
+          setDepartments([]);
+          return;
+        }
+
+        const mappedData = res.map((d: any) => ({
+          id: Number(d.id),
+          name: d.name,
+          sent: Number(d.sent) || 0,
+          received: Number(d.received) || 0,
+        }));
+        
+        setDepartments(mappedData);
+      } catch (err: any) {
+        const errorMessage = err?.response?.data?.message || err?.message || "Không thể tải thống kê khoa";
+        setErrorDept(errorMessage);
+        setDepartments([]);
+      } finally {
+        setLoadingDept(false);
       }
     };
     fetchDepartment();
   }, [startDateDept, endDateDept, token]);
 
   useEffect(() => {
+    if (!token) {
+      return;
+    }
+
     const fetchGroup = async () => {
+      setLoadingGroup(true);
+      setErrorGroup(null);
       try {
-        const res = await getGroupStats(token, {
+        const res = await getGroupStats({
           startDate: startDateGroup?.toISOString(),
           endDate: endDateGroup?.toISOString(),
         });
-        setGroups(
-          res.map((g: any) => ({
-            label: g.label,
-            sent: Number(g.sent),
-            received: Number(g.received),
-          }))
-        );
-      } catch {
-        // Error fetching group stats
+                
+        if (!Array.isArray(res)) {
+          setErrorGroup("Dữ liệu không đúng định dạng");
+          setGroups([]);
+          return;
+        }
+
+        const mappedData = res.map((g: any) => ({
+          label: g.label,
+          sent: Number(g.sent) || 0,
+          received: Number(g.received) || 0,
+        }));
+        
+        if (mappedData.length === 0) {
+        }
+        setGroups(mappedData);
+      } catch (err: any) {
+        const errorMessage = err?.response?.data?.message || err?.message || "Không thể tải thống kê nhóm";
+        setErrorGroup(errorMessage);
+        setGroups([]);
+      } finally {
+        setLoadingGroup(false);
       }
     };
     fetchGroup();
   }, [startDateGroup, endDateGroup, token]);
 
-  const groupChartData = (type: "Gửi thông báo" | "Nhận thông báo") => ({
-    labels: groups.map((g) => g.label),
-    datasets: [
-      {
-        label: type,
-        data: groups.map((g) =>
-          type === "Gửi thông báo" ? g.sent : g.received
-        ),
-        backgroundColor: groups.map((g) => getColorByLabel(g.label)),
-        borderWidth: 1,
-      },
-    ],
-  });
+  const groupChartData = (type: "Gửi thông báo" | "Nhận thông báo") => {
+    if (groups.length === 0) {
+      return {
+        labels: [],
+        datasets: [
+          {
+            label: type,
+            data: [],
+            backgroundColor: [],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+    
+    return {
+      labels: groups.map((g) => g.label),
+      datasets: [
+        {
+          label: type,
+          data: groups.map((g) =>
+            type === "Gửi thông báo" ? g.sent : g.received
+          ),
+          backgroundColor: groups.map((g) => getColorByLabel(g.label)),
+          borderWidth: 1,
+        },
+      ],
+    };
+  };
 
   return (
     <div className="mx-2 sm:mx-4">
@@ -150,11 +210,25 @@ export const StatisticsPage: React.FC = () => {
           </div>
         </div>
         <div className="w-full h-[400px] sm:h-[500px] mt-4">
-          <DepartmentBarChart
-            labels={departments.map((d) => d.name)}
-            sentData={departments.map((d) => d.sent)}
-            receivedData={departments.map((d) => d.received)}
-          />
+          {loadingDept ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">Đang tải dữ liệu...</p>
+            </div>
+          ) : errorDept ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-red-500">{errorDept}</p>
+            </div>
+          ) : departments.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">Không có dữ liệu trong khoảng thời gian này</p>
+            </div>
+          ) : (
+            <DepartmentBarChart
+              labels={departments.map((d) => d.name)}
+              sentData={departments.map((d) => d.sent)}
+              receivedData={departments.map((d) => d.received)}
+            />
+          )}
         </div>
       </div>
 
@@ -191,21 +265,54 @@ export const StatisticsPage: React.FC = () => {
             />
           </div>
         </div>
-
+   
+        {/* Pie Charts cho Groups - Hiển thị theo departments */}
         <div className="grid sm:grid-cols-2 gap-6 mt-6">
-          {["Gửi thông báo", "Nhận thông báo"].map((label) => (
-            <div key={label} className="w-full flex flex-col items-center">
-              <div className="w-full max-w-[350px] h-[300px] sm:h-[350px]">
-                <Pie
-                  data={groupChartData(
-                    label as "Gửi thông báo" | "Nhận thông báo"
-                  )}
-                  options={{ responsive: true, maintainAspectRatio: false }}
-                />
-              </div>
-              <p className="text-center mt-4">{label}</p>
+          {loadingGroup ? (
+            <div className="col-span-2 flex items-center justify-center h-[350px]">
+              <p className="text-gray-500">Đang tải dữ liệu...</p>
             </div>
-          ))}
+          ) : errorGroup ? (
+            <div className="col-span-2 flex items-center justify-center h-[350px]">
+              <p className="text-red-500">{errorGroup}</p>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="col-span-2 flex flex-col items-center justify-center h-[350px]">
+              <p className="text-gray-500 text-center mb-2">Không có dữ liệu thống kê nhóm</p>
+              <p className="text-gray-400 text-sm text-center">
+                Không có dữ liệu thống kê cho khoảng thời gian này.<br />
+                Vui lòng chọn khoảng thời gian khác.
+              </p>
+            </div>
+          ) : (
+            ["Gửi thông báo", "Nhận thông báo"].map((label) => (
+              <div key={label} className="w-full flex flex-col items-center">
+                <div className="w-full max-w-[350px] h-[300px] sm:h-[350px]">
+                  <Pie
+                    data={groupChartData(
+                      label as "Gửi thông báo" | "Nhận thông báo"
+                    )}
+                    options={{ 
+                      responsive: true, 
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: "bottom",
+                          labels: {
+                            padding: 15,
+                            font: {
+                              size: 12
+                            }
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-center mt-4 font-medium">{label}</p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

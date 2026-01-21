@@ -47,12 +47,7 @@ export default function LoginPage() {
           is_floor_account: Boolean(isFloorAccount),
         };
 
-        // Debug: Log để kiểm tra
         if (process.env.NODE_ENV === "development") {
-          console.log("🔍 [LoginPage] API User data:", apiUser);
-          console.log("🔍 [LoginPage] is_floor_account from API:", apiUser.is_floor_account);
-          console.log("🔍 [LoginPage] Parsed is_floor_account:", Boolean(isFloorAccount));
-          console.log("🔍 [LoginPage] Final userData:", userData);
         }
 
         login(userData, data.data.token);
@@ -62,8 +57,6 @@ export default function LoginPage() {
         showError(data.message || "Sai email hoặc mật khẩu!");
       }
     } catch (err: any) {
-      console.error("Login error:", err);
-
       const errorData = err?.response?.data;
       const errorMessage =
         errorData?.message || err?.message || "Không thể kết nối đến server!";

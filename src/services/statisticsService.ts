@@ -14,7 +14,6 @@ export interface IGroupStats {
 }
 
 export const getDepartmentStats = async (
-  token: string,
   range: { startDate?: string; endDate?: string }
 ) => {
   const res = await API.get<IDepartmentStats[]>("/api/statistics/departments", {
@@ -24,7 +23,6 @@ export const getDepartmentStats = async (
 };
 
 export const getGroupStats = async (
-  token: string,
   range: { startDate?: string; endDate?: string }
 ) => {
   const res = await API.get<IGroupStats[]>("/api/statistics/groups", {
