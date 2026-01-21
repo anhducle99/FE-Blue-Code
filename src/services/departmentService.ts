@@ -5,6 +5,7 @@ export interface IDepartment {
   name: string;
   phone?: string;
   alert_group?: string;
+  organization_id?: number | null;
 }
 
 export const getDepartments = () =>

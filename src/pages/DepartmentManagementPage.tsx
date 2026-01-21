@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Modal, Input, Button, message } from "antd";
+import { Modal, Input, Button, message, Select } from "antd";
 import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -11,10 +11,18 @@ import {
 } from "../services/departmentService";
 import { useDashboard } from "../layouts/DashboardContext";
 import { useDepartments } from "../contexts/DepartmentContext";
+import { useOrganizations } from "../contexts/OrganizationContext";
+
+const { Option } = Select;
 
 export const DepartmentManagementPage: React.FC = () => {
   const { reloadData } = useDashboard();
   const { refreshDepartments } = useDepartments();
+  const {
+    organizations,
+    loading: organizationsLoading,
+    error: organizationsError,
+  } = useOrganizations();
   const [departments, setDepartments] = useState<IDepartment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -24,6 +32,7 @@ export const DepartmentManagementPage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
     phone: "",
+    organization_id: undefined,
   });
   const [isDepartmentAccount, setIsDepartmentAccount] = useState(false);
 
@@ -53,31 +62,33 @@ export const DepartmentManagementPage: React.FC = () => {
       message.error("Tên là bắt buộc");
       return;
     }
+    if (!formData.organization_id) {
+      message.error("Tổ chức là bắt buộc");
+      return;
+    }
 
     try {
       if (editingDept && editingDept.id) {
         const res = await updateDepartment(editingDept.id, formData);
         if (res.data.success) {
-          setDepartments((prev) =>
-            prev.map((d) => (d.id === editingDept.id ? res.data.data : d))
-          );
           message.success("Cập nhật thành công");
           reloadData();
           await refreshDepartments();
+          await fetchDepartments();
         }
       } else {
         const res = await createDepartment(formData);
         if (res.data.success) {
-          setDepartments((prev) => [...prev, res.data.data]);
           message.success("Thêm đội phản ứng thành công");
           reloadData();
           await refreshDepartments();
+          await fetchDepartments();
         }
       }
 
       setIsOpen(false);
       setEditingDept(null);
-      setFormData({ name: "", phone: "" });
+      setFormData({ name: "", phone: "", organization_id: undefined });
       setIsDepartmentAccount(false);
     } catch (err) {
       message.error("Lưu đội phản ứng thất bại");
@@ -101,7 +112,7 @@ export const DepartmentManagementPage: React.FC = () => {
 
   const handleAdd = () => {
     setEditingDept(null);
-    setFormData({ name: "", phone: "" });
+    setFormData({ name: "", phone: "", organization_id: undefined });
     setIsDepartmentAccount(false);
     setIsOpen(true);
   };
@@ -111,6 +122,7 @@ export const DepartmentManagementPage: React.FC = () => {
     setFormData({
       name: dept.name,
       phone: dept.phone || "",
+      organization_id: dept.organization_id || undefined,
     });
     setIsDepartmentAccount(false);
     setIsOpen(true);
@@ -146,15 +158,19 @@ export const DepartmentManagementPage: React.FC = () => {
             <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
               <tr>
                 <th className="px-4 py-2 text-left">Đội Phản Ứng</th>
+                <th className="px-4 py-2 text-left">Tổ chức</th>
                 <th className="px-4 py-2 text-left">Điện thoại</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
             <tbody className="text-gray-700 text-sm">
-              {departments.map((d, index) => (
-                <tr key={d.id} className="border-t">
-                  <td className="px-4 py-2">{d.name}</td>
-                  <td className="px-4 py-2">{d.phone}</td>
+              {departments.map((d, index) => {
+                const org = organizations.find((o) => o.id === d.organization_id);
+                return (
+                  <tr key={d.id} className="border-t">
+                    <td className="px-4 py-2">{d.name}</td>
+                    <td className="px-4 py-2">{org?.name || "-"}</td>
+                    <td className="px-4 py-2">{d.phone}</td>
                   <td className="px-4 py-2 text-right relative">
                     <Button
                       type="text"
@@ -189,8 +205,9 @@ export const DepartmentManagementPage: React.FC = () => {
                       </div>
                     )}
                   </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -221,6 +238,35 @@ export const DepartmentManagementPage: React.FC = () => {
               }
               placeholder="Nhập tên đội phản ứng"
             />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">
+              Tổ chức <span className="text-red-500">*</span>
+            </label>
+            <Select
+              placeholder="Chọn tổ chức"
+              value={formData.organization_id || undefined}
+              onChange={(val) => {
+                setFormData({ ...formData, organization_id: val ? Number(val) : undefined });
+              }}
+              className="w-full"
+              loading={organizationsLoading}
+              notFoundContent={
+                organizationsLoading
+                  ? "Đang tải..."
+                  : organizationsError
+                    ? `Lỗi: ${organizationsError}`
+                    : organizations.length === 0
+                      ? "Không có tổ chức nào"
+                      : "Không tìm thấy"
+              }
+            >
+              {organizations.map((org) => (
+                <Option key={org.id} value={org.id}>
+                  {org.name}
+                </Option>
+              ))}
+            </Select>
           </div>
           <div>
             <label className="block text-sm mb-1">Số điện thoại</label>
