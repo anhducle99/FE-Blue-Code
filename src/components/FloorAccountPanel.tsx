@@ -128,6 +128,19 @@ export const FloorAccountPanel: React.FC = () => {
     
     const now = Date.now();
     const ACTIVE_CALL_THRESHOLD = 20 * 1000;
+    const cancelledCalls = new Set<string>();
+    
+    incidents.forEach((incident) => {
+      if (
+        incident.type === "call_rejected" &&
+        incident.message &&
+        incident.message.toLowerCase().includes("đã bị hủy")
+      ) {
+        const source = normalizeName(incident.source || "");
+        const timestamp = incident.timestamp.getTime();
+        cancelledCalls.add(`${source}_${timestamp}`);
+      }
+    });
     
     const latestIncidentsByUser = new Map<string, typeof incidents[0]>();
     
@@ -138,6 +151,23 @@ export const FloorAccountPanel: React.FC = () => {
           return;
         }
         const source = normalizeName(incident.source || "");
+        const timestamp = incident.timestamp.getTime();
+        const isCancelled = incidents.some((inc) => {
+          if (
+            inc.type === "call_rejected" &&
+            inc.message &&
+            inc.message.toLowerCase().includes("đã bị hủy") &&
+            normalizeName(inc.source || "") === source &&
+            inc.timestamp.getTime() >= timestamp
+          ) {
+            return true;
+          }
+          return false;
+        });
+        
+        if (isCancelled) {
+          return;
+        }
         
         const existing = latestIncidentsByUser.get(source);
         if (!existing || incident.timestamp.getTime() > existing.timestamp.getTime()) {

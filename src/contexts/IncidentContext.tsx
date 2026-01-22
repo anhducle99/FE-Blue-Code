@@ -35,6 +35,32 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
   const incidents: Incident[] = [];
   const createdAt = new Date(callLog.created_at);
 
+  if (callLog.status === "cancelled") {
+    incidents.push({
+      id: `call-cancelled-sender-${callLog.id}`,
+      timestamp: callLog.rejected_at ? new Date(callLog.rejected_at) : createdAt,
+      source: callLog.sender.toUpperCase(),
+      type: "call_rejected",
+      status: "info",
+      message: `Cuộc gọi đã bị hủy`,
+      callType: "rejected",
+    });
+
+    incidents.push({
+      id: `call-cancelled-receiver-${callLog.id}`,
+      timestamp: callLog.rejected_at ? new Date(callLog.rejected_at) : createdAt,
+      source: callLog.receiver.toUpperCase(),
+      type: "call_rejected",
+      status: "info",
+      message: `Cuộc gọi từ ${callLog.sender} đã bị hủy${
+        callLog.message ? ` - ${callLog.message}` : ""
+      }`,
+      callType: "rejected",
+    });
+
+    return incidents;
+  }
+
   let receiverCallType: "accepted" | "rejected" | "timeout" = "accepted";
   let receiverIncidentType: Incident["type"] = "call_accepted";
 

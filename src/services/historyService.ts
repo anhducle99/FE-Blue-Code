@@ -36,3 +36,11 @@ export const getCallHistory = async (filters: {
   }
   return [];
 };
+
+export const cancelCall = async (callId: string): Promise<void> => {
+  try {
+    await API.post(`/api/call/${callId}/cancel`);
+  } catch (error) {
+    console.error("Error cancelling call:", error);
+  }
+};
