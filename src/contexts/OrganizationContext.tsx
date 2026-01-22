@@ -43,10 +43,8 @@ export const OrganizationProvider = ({ children }: { children: ReactNode }) => {
       const organizationsArray = Array.isArray(data) ? data : [];
       setOrganizations(organizationsArray);
       if (organizationsArray.length === 0) {
-        console.warn("No organizations found");
       }
     } catch (err: any) {
-      console.error("Error fetching organizations:", err);
       const errorMessage =
         err?.response?.data?.message ||
         err?.message ||

@@ -3,9 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 
-/**
- * Component to handle deep linking in native apps
- */
 export default function DeepLinkHandler() {
   const navigate = useNavigate();
 
@@ -15,8 +12,6 @@ export default function DeepLinkHandler() {
     }
 
     const listener = CapacitorApp.addListener("appUrlOpen", (data) => {
-      console.log("App opened with URL:", data.url);
-
       try {
         const url = new URL(data.url);
         const path = url.pathname;
@@ -32,7 +27,6 @@ export default function DeepLinkHandler() {
           navigate(path, { replace: true });
         }
       } catch (error) {
-        console.error("Error parsing deep link URL:", error);
       }
     });
 

@@ -1,7 +1,6 @@
 export function registerServiceWorker() {
  
   if (process.env.NODE_ENV === "development") {
-    console.log("[Service Worker] Registration skipped in development mode");
     return;
   }
   
@@ -17,8 +16,6 @@ function registerValidSW(swUrl: string) {
   navigator.serviceWorker
     .register(swUrl)
     .then((registration) => {
-      console.log(registration.scope);
-
       registration.onupdatefound = () => {
         const installingWorker = registration.installing;
         if (installingWorker == null) {
@@ -28,9 +25,7 @@ function registerValidSW(swUrl: string) {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === "installed") {
             if (navigator.serviceWorker.controller) {
-             console.log("")
             } else {
-              console.log("")
             }
           }
         };

@@ -20,16 +20,9 @@ const getApiUrl = () => {
 
   if (typeof window !== "undefined") {
     if (process.env.NODE_ENV === "development") {
-      console.log(
-        "🔍 Using relative path for API (FE & BE cùng domain). API calls will use: /api/..."
-      );
     }
     return "";
   }
-
-  console.error(
-    "REACT_APP_API_URL is not defined and window is undefined! Please set REACT_APP_API_URL in .env file"
-  );
   return "";
 };
 
@@ -46,10 +39,6 @@ const getSocketUrl = () => {
   if (process.env.NODE_ENV === "development") {
     return "/socket.io";
   }
-
-  console.error(
-    "REACT_APP_SOCKET_URL is not defined! Please create .env.production file with REACT_APP_SOCKET_URL"
-  );
   return "";
 };
 

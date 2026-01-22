@@ -49,7 +49,6 @@ const initializeSocket = (): Socket => {
       !error.message.includes("WebSocket is closed") &&
       !error.message.includes("websocket")
     ) {
-      console.warn("Socket connection error:", error.message);
     }
   });
 
@@ -84,7 +83,6 @@ const cleanupSocket = (): void => {
         !errorMessage.includes("Socket is closed")
       ) {
         if (process.env.NODE_ENV === "development") {
-          console.warn("Error during socket cleanup:", errorMessage);
         }
       }
     } finally {
@@ -136,14 +134,12 @@ export const useSocket = (user: RegisterData | null) => {
           return;
         }
         if (process.env.NODE_ENV === "development") {
-          console.warn("Socket connection error:", error.message);
         }
       });
 
       socketInstance.on("reconnect", (attemptNumber) => {
         setIsConnected(true);
         if (process.env.NODE_ENV === "development") {
-          console.log(`Socket reconnected after ${attemptNumber} attempts`);
         }
       });
 
@@ -152,7 +148,6 @@ export const useSocket = (user: RegisterData | null) => {
       socketInstance.on("reconnect_failed", () => {
         setIsConnected(false);
         if (process.env.NODE_ENV === "development") {
-          console.warn("Socket reconnection failed, will retry...");
         }
       });
 

@@ -9,7 +9,6 @@ export const useDeviceInfo = (): DeviceInfo | null => {
       .getInfo()
       .then(setDeviceInfo)
       .catch((error) => {
-        console.error("Failed to get device info:", error);
         setDeviceInfo(null);
       });
   }, []);

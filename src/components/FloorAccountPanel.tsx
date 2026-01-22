@@ -55,7 +55,6 @@ export const FloorAccountPanel: React.FC = () => {
         setDepartments(filteredDepartments);
         
       } catch (error) {
-        console.error("Error fetching data:", error);
         setFloorAccountUsers([]);
         setDepartments([]);
       } finally {

@@ -23,7 +23,6 @@ export const fileSystem = {
       const content = await fileSystemService.readFile(path);
       return JSON.parse(content) as T;
     } catch (error) {
-      console.error("Failed to read JSON file:", error);
       return null;
     }
   },
