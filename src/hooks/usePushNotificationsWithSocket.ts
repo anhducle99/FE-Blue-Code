@@ -50,10 +50,7 @@ export const usePushNotificationsWithSocket = () => {
               userId: user.id,
             });
           }
-
-          console.log("Push token registered successfully");
         } catch (error) {
-          console.error("Failed to register push token:", error);
         }
       };
 

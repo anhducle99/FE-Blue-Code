@@ -26,7 +26,6 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
         setIsRegistered(true);
       }
     } catch (error) {
-      console.error("Failed to register push notifications:", error);
     }
   }, []);
 
@@ -35,18 +34,14 @@ export const usePushNotifications = (): UsePushNotificationsReturn => {
       onRegistration: (tokenData) => {
         setToken(tokenData.value);
         setIsRegistered(true);
-        console.log("Push notification token:", tokenData.value);
       },
       onRegistrationError: (error) => {
-        console.error("Push notification registration error:", error);
         setIsRegistered(false);
       },
       onNotificationReceived: (notification) => {
         setLastNotification(notification);
-        console.log("Push notification received:", notification);
       },
       onActionPerformed: (action) => {
-        console.log("Push notification action performed:", action);
       },
     });
 

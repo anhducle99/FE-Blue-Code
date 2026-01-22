@@ -319,7 +319,6 @@ export const pushNotificationService = {
           });
           return subscription.endpoint;
         } catch (error) {
-          console.warn("Web Push registration failed:", error);
           return null;
         }
       }
@@ -334,7 +333,6 @@ export const pushNotificationService = {
       }
       return null;
     } catch (error) {
-      console.error("Push notification registration error:", error);
       return null;
     }
   },
@@ -410,7 +408,6 @@ export const statusBarService = {
         style: style === "dark" ? Style.Dark : Style.Light,
       });
     } catch (error) {
-      console.error("Status bar style error:", error);
     }
   },
 
@@ -422,7 +419,6 @@ export const statusBarService = {
     try {
       await StatusBar.setBackgroundColor({ color });
     } catch (error) {
-      console.error("Status bar color error:", error);
     }
   },
 };

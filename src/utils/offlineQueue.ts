@@ -30,7 +30,6 @@ class OfflineQueueService {
         this.queue = JSON.parse(stored);
       }
     } catch (error) {
-      console.error("Failed to load offline queue:", error);
       this.queue = [];
     }
   }
@@ -39,7 +38,6 @@ class OfflineQueueService {
     try {
       localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(this.queue));
     } catch (error) {
-      console.error("Failed to save offline queue:", error);
     }
   }
 
@@ -103,13 +101,9 @@ class OfflineQueueService {
         await this.processRequest(request);
         this.remove(request.id);
       } catch (error) {
-        console.error(`Failed to process queued request ${request.id}:`, error);
         request.retries += 1;
 
         if (request.retries >= (request.maxRetries || MAX_RETRIES)) {
-          console.warn(
-            `Request ${request.id} exceeded max retries, removing from queue`
-          );
           this.remove(request.id);
         } else {
           const index = this.queue.findIndex((r) => r.id === request.id);
@@ -133,7 +127,6 @@ class OfflineQueueService {
         await this.processImageUpload(request);
         break;
       case "custom":
-        console.warn("Custom request type not implemented:", request);
         break;
       default:
         throw new Error(`Unknown request type: ${request.type}`);

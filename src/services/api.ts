@@ -20,17 +20,11 @@ if (baseURL && typeof window !== "undefined") {
     const currentHostname = window.location.hostname;
 
     if (baseURLHost === "localhost" && !currentHostname.includes("localhost")) {
-      console.warn(
-        "⚠️ [API] Detected localhost in baseURL but not on localhost. Forcing relative path."
-      );
       baseURL = "";
     } else if (
       baseURLProtocol !== currentProtocol &&
       baseURLHost === currentHostname
     ) {
-      console.warn(
-        `⚠️ [API] Protocol mismatch: baseURL uses ${baseURLProtocol} but frontend uses ${currentProtocol}. Forcing relative path.`
-      );
       baseURL = "";
     }
   } catch (e) {
@@ -89,7 +83,6 @@ API.interceptors.response.use(
             apiUrl: config.apiUrl,
           },
         };
-        console.error("CORS Error:", corsError);
         return Promise.reject(corsError);
       }
 
@@ -107,13 +100,6 @@ API.interceptors.response.use(
     switch (status) {
       case 401:
         message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
-        console.error("❌ [API] 401 Unauthorized - Logging out", {
-          url: error.config?.url,
-          method: error.config?.method,
-          pathname: window.location.pathname,
-          timestamp: new Date().toISOString(),
-          stack: new Error().stack,
-        });
         localStorage.removeItem("token");
         localStorage.removeItem("user");
    
@@ -121,10 +107,6 @@ API.interceptors.response.use(
           window.dispatchEvent(new CustomEvent("auth:logout"));
           
           if (window.location.pathname !== "/login") {
-            console.log({
-              currentPath: window.location.pathname,
-              isNative: Capacitor.isNativePlatform(),
-            });
             if (Capacitor.isNativePlatform()) {
               window.location.href = "/login";
             } else {

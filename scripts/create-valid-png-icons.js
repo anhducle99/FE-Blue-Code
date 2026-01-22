@@ -64,9 +64,5 @@ sizes.forEach(({ width, height }) => {
     fs.writeFileSync(filePath, png);
     const stats = fs.statSync(filePath);
   } catch (err) {
-    console.error(
-      `❌ Error creating icon-${width}x${height}.png:`,
-      err.message
-    );
   }
 });

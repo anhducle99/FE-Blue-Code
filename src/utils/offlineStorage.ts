@@ -28,7 +28,6 @@ class OfflineStorageService {
           cacheData
         );
       } catch (error) {
-        console.error("Failed to cache data on native:", error);
         this.setLocalStorage(key, cacheData);
       }
     } else {
@@ -80,7 +79,6 @@ class OfflineStorageService {
       try {
         this.clearLocalStorage();
       } catch (error) {
-        console.error("Failed to clear cache:", error);
       }
     } else {
       this.clearLocalStorage();
@@ -104,7 +102,6 @@ class OfflineStorageService {
     try {
       localStorage.setItem(`${STORAGE_KEY_PREFIX}${key}`, JSON.stringify(data));
     } catch (error) {
-      console.error("Failed to set localStorage:", error);
     }
   }
 
@@ -114,7 +111,6 @@ class OfflineStorageService {
       if (!stored) return null;
       return JSON.parse(stored) as CachedData<T>;
     } catch (error) {
-      console.error("Failed to get localStorage:", error);
       return null;
     }
   }

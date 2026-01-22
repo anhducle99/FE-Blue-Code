@@ -2,6 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { getCallHistory, ICallLog } from "../services/historyService";
 import { useSocket } from "../contexts/useSocket";
 import { useAuth } from "../contexts/AuthContext";
+import { getUsers, IUser } from "../services/userService";
+import { getDepartments, IDepartment } from "../services/departmentService";
 
 interface Props {
   filters: {
@@ -76,10 +78,138 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString("vi-VN", { hour12: false });
 };
 
+const normalizeName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+};
+
 export const HistoryTable: React.FC<Props> = ({ filters }) => {
   const [data, setData] = useState<ICallLog[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
+  const [allUsers, setAllUsers] = useState<IUser[]>([]);
+  const [allDepartments, setAllDepartments] = useState<IDepartment[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+      try {
+        const [usersResponse, departmentsResponse] = await Promise.all([
+          getUsers(),
+          getDepartments(),
+        ]);
+        const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        const departments = Array.isArray(departmentsResponse.data.data)
+          ? departmentsResponse.data.data
+          : [];
+        setAllUsers(users);
+        setAllDepartments(departments);
+      } catch (error) {
+        setAllUsers([]);
+        setAllDepartments([]);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  const currentOrganizationId = useMemo(() => {
+    if (!user || !allUsers.length) return null;
+    const currentUserFromApi = allUsers.find((u) => u.id === user.id);
+    return currentUserFromApi?.organization_id || null;
+  }, [user, allUsers]);
+
+  const organizationUsers = useMemo(() => {
+    if (!currentOrganizationId) return [];
+    return allUsers.filter((u) => u.organization_id === currentOrganizationId);
+  }, [allUsers, currentOrganizationId]);
+
+  const organizationDepartments = useMemo(() => {
+    if (!currentOrganizationId) return [];
+    return allDepartments.filter(
+      (d) => d.organization_id === currentOrganizationId
+    );
+  }, [allDepartments, currentOrganizationId]);
+
+  const userMapByName = useMemo(() => {
+    const map = new Map<string, IUser>();
+    organizationUsers.forEach((u) => {
+      map.set(normalizeName(u.name), u);
+    });
+    return map;
+  }, [organizationUsers]);
+
+  const departmentMapByName = useMemo(() => {
+    const map = new Map<string, IDepartment>();
+    organizationDepartments.forEach((d) => {
+      map.set(normalizeName(d.name), d);
+    });
+    return map;
+  }, [organizationDepartments]);
+
+  const organizationNames = useMemo(() => {
+    const names = new Set<string>();
+    organizationUsers.forEach((u) => {
+      names.add(normalizeName(u.name));
+    });
+    organizationDepartments.forEach((d) => {
+      names.add(normalizeName(d.name));
+    });
+    return names;
+  }, [organizationUsers, organizationDepartments]);
+
+  const filteredData = useMemo(() => {
+    if (!currentOrganizationId || organizationNames.size === 0) {
+      return data;
+    }
+    
+    return data.filter((log) => {
+      const normalizedSender = normalizeName(log.sender);
+      const normalizedReceiver = normalizeName(log.receiver);
+      
+      return (
+        organizationNames.has(normalizedSender) ||
+        organizationNames.has(normalizedReceiver)
+      );
+    });
+  }, [data, currentOrganizationId, organizationNames]);
+
+  const getReceiverInfo = useCallback(
+    (receiver: string) => {
+      const normalizedReceiver = normalizeName(receiver);
+      const department = departmentMapByName.get(normalizedReceiver);
+      if (department) {
+        const departmentUser = organizationUsers.find(
+          (u) => u.department_id === department.id
+        );
+        return {
+          departmentName: department.name,
+          userName: departmentUser?.name || "",
+        };
+      }
+
+      const user = userMapByName.get(normalizedReceiver);
+      if (user && user.department_id) {
+        const userDepartment = organizationDepartments.find(
+          (d) => d.id === user.department_id
+        );
+        return {
+          departmentName: userDepartment?.name || "",
+          userName: user.name,
+        };
+      }
+
+      return {
+        departmentName: receiver,
+        userName: "",
+      };
+    },
+    [departmentMapByName, userMapByName, organizationUsers, organizationDepartments]
+  );
 
   const identifier = useMemo(() => {
     if (!user) return null;
@@ -130,8 +260,8 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   }, [socket, fetchData]);
 
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const currentData = data.slice(startIndex, startIndex + PAGE_SIZE);
-  const totalPages = Math.ceil(data.length / PAGE_SIZE);
+  const currentData = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
+  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
 
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -203,15 +333,19 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
             </div>
             <div className="flex items-start">
               <span className="font-medium text-gray-600 w-24 flex-shrink-0">
-                Khoa nhận:
+                Sự cố:
               </span>
-              <span className="text-gray-800 flex-1">{row.receiver}</span>
+              <span className="text-gray-800 flex-1">
+                {getReceiverInfo(row.receiver).departmentName}
+              </span>
             </div>
             <div className="flex items-start">
               <span className="font-medium text-gray-600 w-24 flex-shrink-0">
-                Người nhận:
+                Người xử lý:
               </span>
-              <span className="text-gray-800 flex-1">{row.receiver}</span>
+              <span className="text-gray-800 flex-1">
+                {getReceiverInfo(row.receiver).userName || "-"}
+              </span>
             </div>
             <div className="flex items-start">
               <span className="font-medium text-gray-600 w-24 flex-shrink-0">
@@ -239,7 +373,6 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
 
   return (
     <div>
-      {/* Card view cho mobile */}
       {currentData.length > 0 ? (
         renderCardView()
       ) : (
@@ -263,19 +396,19 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
                   style={{ width: COLUMN_WIDTHS.KhoaGui }}
                 >
-                  Khoa gửi
+                  Tầng phòng
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
                   style={{ width: COLUMN_WIDTHS.KhoaNhan }}
                 >
-                  Khoa nhận
+                  Sự cố
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
                   style={{ width: COLUMN_WIDTHS.NguoiNhan }}
                 >
-                  Người nhận
+                  Người xử lý
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
@@ -317,16 +450,16 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.KhoaNhan, true)}
-                      title={row.receiver}
+                      title={getReceiverInfo(row.receiver).departmentName}
                     >
-                      {row.receiver}
+                      {getReceiverInfo(row.receiver).departmentName}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.NguoiNhan, true)}
-                      title={row.receiver}
+                      title={getReceiverInfo(row.receiver).userName || "-"}
                     >
-                      {row.receiver}
+                      {getReceiverInfo(row.receiver).userName || "-"}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
@@ -362,11 +495,10 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
         </div>
       </div>
 
-      {/* Pagination */}
-      {data.length > 0 && (
+      {filteredData.length > 0 && (
         <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
           <div className="text-sm text-gray-700 order-2 sm:order-1">
-            Tổng: <span className="font-semibold">{data.length}</span> mục
+            Tổng: <span className="font-semibold">{filteredData.length}</span> mục
             {totalPages > 1 && (
               <span className="ml-2">
                 (Trang {currentPage}/{totalPages})

@@ -71,7 +71,6 @@ export const legacyStorage = {
         return item as T;
       }
     } catch (error) {
-      console.error(`Error getting "${key}" from localStorage:`, error);
       return null;
     }
   },

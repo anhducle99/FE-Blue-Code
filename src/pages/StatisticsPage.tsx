@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { DepartmentBarChart } from "../components/DepartmentBarChart";
 import { Pie } from "react-chartjs-2";
 import {
@@ -57,8 +57,57 @@ export const StatisticsPage: React.FC = () => {
     "an ninh": "#6b7280",
   };
 
-  const getColorByLabel = (label?: string) =>
-    alertGroupColors[label?.toLowerCase().trim() || ""] || "#999";
+  const departmentColors = [
+    "#3b82f6", 
+    "#22c55e", 
+    "#f97316", 
+    "#ef4444", 
+    "#a855f7", 
+    "#f59e0b", 
+    "#06b6d4", 
+    "#84cc16", 
+    "#ec4899", 
+    "#14b8a6", 
+    "#f43f5e", 
+    "#8b5cf6", 
+    "#10b981", 
+    "#f59e0b", 
+    "#6366f1", 
+    "#ec4899", 
+  ];
+
+  const departmentColorMap = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    groups.forEach((group, index) => {
+      const label = group.label?.toLowerCase().trim() || "";
+      if (alertGroupColors[label]) {
+        map[label] = alertGroupColors[label];
+      } else {
+        map[label] = departmentColors[index % departmentColors.length];
+      }
+    });
+    return map;
+  }, [groups]);
+
+  const getColorByLabel = (label?: string) => {
+    const normalizedLabel = label?.toLowerCase().trim() || "";
+    if (alertGroupColors[normalizedLabel]) {
+      return alertGroupColors[normalizedLabel];
+    }
+    if (departmentColorMap[normalizedLabel]) {
+      return departmentColorMap[normalizedLabel];
+    }
+    return generateColorFromString(normalizedLabel);
+  };
+
+  const generateColorFromString = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % departmentColors.length;
+    return departmentColors[index];
+  };
 
   useEffect(() => {
     if (!token) {
@@ -266,7 +315,6 @@ export const StatisticsPage: React.FC = () => {
           </div>
         </div>
    
-        {/* Pie Charts cho Groups - Hiển thị theo departments */}
         <div className="grid sm:grid-cols-2 gap-6 mt-6">
           {loadingGroup ? (
             <div className="col-span-2 flex items-center justify-center h-[350px]">
