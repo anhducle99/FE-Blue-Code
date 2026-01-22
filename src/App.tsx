@@ -22,14 +22,61 @@ import { useNetworkStatus } from "./hooks/useNetworkStatus";
 import { appService } from "./services/nativeService";
 import { apiWithRetry } from "./services/api";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
+import { getUsers, IUser } from "./services/userService";
+import { getDepartments, IDepartment } from "./services/departmentService";
 
 export default function App() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/login";
-  const { departments, supportContacts } = useDashboard();
+  const { departments: allDepartments, supportContacts: allSupportContacts } = useDashboard();
   const { user, refreshUser } = useAuth();
   const { error: showError, success: showSuccess } = useToast();
   const { addIncident } = useIncidents();
+  const [allUsers, setAllUsers] = useState<IUser[]>([]);
+  const [allDepartmentsFromApi, setAllDepartmentsFromApi] = useState<IDepartment[]>([]);
+
+  useEffect(() => {
+    const fetchUsersAndDepartments = async () => {
+      try {
+        const [usersRes, deptsRes] = await Promise.all([
+          getUsers(),
+          getDepartments()
+        ]);
+        
+        setAllUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+        setAllDepartmentsFromApi(
+          Array.isArray(deptsRes.data.data) ? deptsRes.data.data : []
+        );
+      } catch (error) {
+        console.error("Failed to fetch users/departments:", error);
+      }
+    };
+
+    if (user) {
+      fetchUsersAndDepartments();
+    }
+  }, [user]);
+
+  const currentOrganizationId = useMemo(() => {
+    if (!user || !allUsers.length) return null;
+    const currentUserFromApi = allUsers.find((u) => u.id === user.id);
+    return currentUserFromApi?.organization_id || null;
+  }, [user, allUsers]);
+
+  const departments = useMemo(() => {
+    if (!currentOrganizationId) return allDepartments;
+    return allDepartments.filter((d) => {
+      const deptFromApi = allDepartmentsFromApi.find(
+        (ad) => ad.name === d.name || ad.id === d.id
+      );
+      return deptFromApi?.organization_id === currentOrganizationId;
+    });
+  }, [allDepartments, allDepartmentsFromApi, currentOrganizationId]);
+
+  const supportContacts = useMemo(() => {
+    if (!currentOrganizationId) return allSupportContacts;
+    return allSupportContacts;
+  }, [allSupportContacts, currentOrganizationId]);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "development" && user) {
@@ -57,17 +104,14 @@ export default function App() {
   const [tempMessage, setTempMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
-
   const identifier: RegisterData | null = useMemo(() => {
     if (!user) return null;
-
     return {
       name: user.name || "",
       department_id: String(user.department_id || ""),
       department_name: user.department_name || "",
     };
   }, [user?.name, user?.department_id, user?.department_name]);
-
   const { socket } = useSocket(identifier);
   const [waitingModalOpen, setWaitingModalOpen] = useState(false);
   const [lastCallId, setLastCallId] = useState<string | null>(null);
@@ -84,7 +128,6 @@ export default function App() {
 
   useEffect(() => {
     const removeListener = appService.addStateListener(() => { });
-
     return () => {
       removeListener();
     };
