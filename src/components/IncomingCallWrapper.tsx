@@ -73,7 +73,49 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       stopAudio();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [incomingCall, socket, user, addIncident]);
+  }, [incomingCall, socket, user, addIncident, setIncomingCall]);
+
+  useEffect(() => {
+    if (!socket || !incomingCall) return;
+
+    const handleCallStatusUpdate = (data: {
+      callId: string;
+      toDept: string;
+      status: "accepted" | "rejected" | "timeout" | "cancelled";
+    }) => {
+      if (
+        data.callId === incomingCall.callId &&
+        (data.status === "cancelled" || data.status === "rejected")
+      ) {
+        stopAudio();
+        
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
+        setIncomingCall();
+
+        if (user?.department_name) {
+          addIncident({
+            source: user.department_name.toUpperCase(),
+            type: "call_rejected",
+            status: "info",
+            message: `Cuộc gọi từ ${incomingCall.fromDept} đã bị hủy${
+              incomingCall.message ? ` - ${incomingCall.message}` : ""
+            }`,
+            callType: "rejected",
+          });
+        }
+      }
+    };
+
+    socket.on("callStatusUpdate", handleCallStatusUpdate);
+
+    return () => {
+      socket.off("callStatusUpdate", handleCallStatusUpdate);
+    };
+  }, [socket, incomingCall, user, addIncident, setIncomingCall]);
   const handleAccept = useCallback(() => {
     if (
       !incomingCall ||
