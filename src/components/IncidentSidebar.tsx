@@ -3,6 +3,7 @@ import { useIncidents } from "../contexts/IncidentContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Incident, IncidentFilter } from "../types/incident";
 import { getUsers, IUser } from "../services/userService";
+import { getDepartments, IDepartment } from "../services/departmentService";
 
 interface IncidentSidebarProps {
   isOpen: boolean;
@@ -26,44 +27,63 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   const { user } = useAuth();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
+  const [organizationNames, setOrganizationNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       if (!user) return;
 
       try {
-        const usersResponse = await getUsers();
+        const [usersResponse, departmentsResponse] = await Promise.all([
+          getUsers(),
+          getDepartments(),
+        ]);
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        const departments = Array.isArray(departmentsResponse.data.data)
+          ? departmentsResponse.data.data
+          : [];
+        
         const currentUserFromApi = users.find((u) => u.id === user.id);
         const orgId = currentUserFromApi?.organization_id;
         
         if (!orgId) {
-          setOrganizationUserNames(new Set());
+          setOrganizationNames(new Set());
           return;
         }
 
         const orgUsers = users.filter((u) => u.organization_id === orgId);
-        const normalizedNames = new Set(
-          orgUsers.map((u) => normalizeName(u.name))
-        );
-        setOrganizationUserNames(normalizedNames);
+        const orgDepartments = departments.filter((d) => d.organization_id === orgId);
+
+        const normalizedNames = new Set<string>();
+        
+        orgUsers.forEach((u) => {
+          normalizedNames.add(normalizeName(u.name));
+          if (u.department_name) {
+            normalizedNames.add(normalizeName(u.department_name));
+          }
+        });
+        
+        orgDepartments.forEach((d) => {
+          normalizedNames.add(normalizeName(d.name));
+        });
+
+        setOrganizationNames(normalizedNames);
       } catch (error) {
-        setOrganizationUserNames(new Set());
+        setOrganizationNames(new Set());
       }
     };
 
-    fetchUsers();
+    fetchData();
   }, [user]);
 
   const organizationFilteredIncidents = useMemo(() => {
-    if (organizationUserNames.size === 0) return incidents;
+    if (organizationNames.size === 0) return incidents;
     
     return incidents.filter((incident) => {
       const normalizedSource = normalizeName(incident.source || "");
-      return organizationUserNames.has(normalizedSource);
+      return organizationNames.has(normalizedSource);
     });
-  }, [incidents, organizationUserNames]);
+  }, [incidents, organizationNames]);
 
   const filteredIncidents = useMemo(() => {
     const orgFiltered = organizationFilteredIncidents;
@@ -91,17 +111,59 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     };
   };
 
+  const getCallStatusText = (incident: Incident): string => {
+    const callType = (incident as any).callType;
+    const message = incident.message.toLowerCase();
+
+    if (callType === "outgoing") {
+      return "Chờ gọi";
+    }
+
+    if (callType === "pending") {
+      return "Chờ phản hồi";
+    }
+
+    if (callType === "accepted") {
+      return "Đã xác nhận";
+    }
+
+    if (callType === "rejected") {
+      return "Từ chối";
+    }
+
+    if (callType === "timeout") {
+      return "Không liên lạc được";
+    }
+
+    if (callType === "cancelled" || message.includes("đã bị hủy") || message.includes("đã hủy")) {
+      return "Đã hủy";
+    }
+
+    return incident.message;
+  };
+
   const getCallLogColor = (incident: Incident): string => {
     if ((incident as any).callType) {
       const callType = (incident as any).callType;
+      const message = incident.message.toLowerCase();
+
       if (callType === "outgoing") {
         return "#ef4444";
       }
-      if (callType === "accepted") {
-        return "#22c55e";
+      if (callType === "pending") {
+        return "#fbbf24"; 
       }
-      if (callType === "rejected" || callType === "timeout") {
-        return "#facc15";
+      if (callType === "accepted") {
+        return "#22c55e"; 
+      }
+      if (callType === "rejected") {
+        return "#facc15"; 
+      }
+      if (callType === "timeout") {
+        return "#9ca3af"; 
+      }
+      if (callType === "cancelled" || message.includes("đã bị hủy") || message.includes("đã hủy")) {
+        return "#f97316"; 
       }
     }
 
@@ -279,7 +341,9 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                     </span>
                   </div>
                   <p className="text-[10px] text-white/90 break-words leading-tight">
-                    {incident.message}
+                    {(incident as any).callType
+                      ? getCallStatusText(incident)
+                      : incident.message}
                     {incident.duration !== undefined &&
                       incident.duration > 0 && (
                         <span className="text-white/60 ml-1">

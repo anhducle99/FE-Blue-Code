@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Socket } from "socket.io-client";
 import { useIncidents } from "../contexts/IncidentContext";
 import { cancelCall } from "../services/historyService";
+import { useAuth } from "../contexts/AuthContext";
 
 export type CallStatus =
   | "Đang chờ"
@@ -34,11 +35,16 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
   onClose,
 }) => {
   const { addIncident } = useIncidents();
+  const { user } = useAuth();
   const [statusMap, setStatusMap] = useState<Record<string, CallStatus>>({});
   const [countdown, setCountdown] = useState<number>(20);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(true);
   const [isCallCancelled, setIsCallCancelled] = useState<boolean>(false);
   const loggedStatuses = useRef<Set<string>>(new Set());
+
+  const getCallerName = (): string => {
+    return fromDept || user?.name || user?.department_name || "-";
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -197,7 +203,7 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-lg w-[420px] text-center border border-gray-200 relative">
+      <div className="bg-white p-6 rounded-xl shadow-lg w-[520px] text-center border border-gray-200 relative">
         <button
           onClick={handleCloseModal}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -240,7 +246,8 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b bg-blue-50">
-                <th className="p-2 font-semibold text-gray-700">Khoa/Nhóm</th>
+                <th className="p-2 font-semibold text-gray-700">Sự cố</th>
+                <th className="p-2 font-semibold text-gray-700">Tầng phòng</th>
                 <th className="p-2 text-center font-semibold text-gray-700">
                   Trạng thái
                 </th>
@@ -253,6 +260,7 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
                   className="border-b hover:bg-gray-50 transition-colors"
                 >
                   <td className="p-2 text-gray-800">{t}</td>
+                  <td className="p-2 text-gray-800">{getCallerName()}</td>
                   <td
                     className={`p-2 text-center font-semibold transition-colors ${
                       statusMap[t] === "Đã xác nhận"

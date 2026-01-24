@@ -35,46 +35,6 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
   const incidents: Incident[] = [];
   const createdAt = new Date(callLog.created_at);
 
-  if (callLog.status === "cancelled") {
-    incidents.push({
-      id: `call-cancelled-sender-${callLog.id}`,
-      timestamp: callLog.rejected_at ? new Date(callLog.rejected_at) : createdAt,
-      source: callLog.sender.toUpperCase(),
-      type: "call_rejected",
-      status: "info",
-      message: `Cuộc gọi đã bị hủy`,
-      callType: "rejected",
-    });
-
-    incidents.push({
-      id: `call-cancelled-receiver-${callLog.id}`,
-      timestamp: callLog.rejected_at ? new Date(callLog.rejected_at) : createdAt,
-      source: callLog.receiver.toUpperCase(),
-      type: "call_rejected",
-      status: "info",
-      message: `Cuộc gọi từ ${callLog.sender} đã bị hủy${
-        callLog.message ? ` - ${callLog.message}` : ""
-      }`,
-      callType: "rejected",
-    });
-
-    return incidents;
-  }
-
-  let receiverCallType: "accepted" | "rejected" | "timeout" = "accepted";
-  let receiverIncidentType: Incident["type"] = "call_accepted";
-
-  if (callLog.status === "rejected" || callLog.rejected_at) {
-    receiverCallType = "rejected";
-    receiverIncidentType = "call_rejected";
-  } else if (callLog.status === "timeout") {
-    receiverCallType = "timeout";
-    receiverIncidentType = "call_rejected";
-  } else if (callLog.status === "accepted" || callLog.accepted_at) {
-    receiverCallType = "accepted";
-    receiverIncidentType = "call_accepted";
-  }
-
   incidents.push({
     id: `call-outgoing-${callLog.id}`,
     timestamp: createdAt,
@@ -87,20 +47,45 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
     callType: "outgoing",
   });
 
+  let receiverCallType: "accepted" | "rejected" | "timeout" | "pending" | "cancelled" = "pending";
+  let receiverIncidentType: Incident["type"] = "call_rejected";
+  let receiverMessage = `Chờ phản hồi cuộc gọi từ ${callLog.sender}${
+    callLog.message ? ` - ${callLog.message}` : ""
+  }`;
+
+  if (callLog.status === "accepted" || callLog.accepted_at) {
+    receiverCallType = "accepted";
+    receiverIncidentType = "call_accepted";
+    receiverMessage = `Đã xác nhận cuộc gọi từ ${callLog.sender}${
+      callLog.message ? ` - ${callLog.message}` : ""
+    }`;
+  } else if (callLog.status === "cancelled") {
+    receiverCallType = "cancelled";
+    receiverIncidentType = "call_rejected";
+    receiverMessage = `Cuộc gọi từ ${callLog.sender} đã bị hủy${
+      callLog.message ? ` - ${callLog.message}` : ""
+    }`;
+  } else if (callLog.status === "timeout" || callLog.status === "unreachable") {
+    receiverCallType = "timeout";
+    receiverIncidentType = "call_rejected";
+    receiverMessage = `Không liên lạc được cuộc gọi từ ${callLog.sender}${
+      callLog.message ? ` - ${callLog.message}` : ""
+    }`;
+  } else if (callLog.status === "rejected" || callLog.rejected_at) {
+    receiverCallType = "rejected";
+    receiverIncidentType = "call_rejected";
+    receiverMessage = `Từ chối cuộc gọi từ ${callLog.sender}${
+      callLog.message ? ` - ${callLog.message}` : ""
+    }`;
+  }
+
   const receiverTimestamp = callLog.accepted_at
     ? new Date(callLog.accepted_at)
     : callLog.rejected_at
     ? new Date(callLog.rejected_at)
+    : callLog.status === "cancelled" && callLog.rejected_at
+    ? new Date(callLog.rejected_at)
     : createdAt;
-
-  const receiverMessage =
-    receiverCallType === "accepted"
-      ? `Đã xác nhận cuộc gọi từ ${callLog.sender}${
-          callLog.message ? ` - ${callLog.message}` : ""
-        }`
-      : `Từ chối cuộc gọi từ ${callLog.sender}${
-          callLog.message ? ` - ${callLog.message}` : ""
-        }`;
 
   incidents.push({
     id: `call-receiver-${callLog.id}`,
@@ -234,84 +219,101 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
           }
 
           if (isCallStatusUpdate) {
-            const apiIncidentKeys = new Set<string>();
-            convertedIncidents.forEach((inc) => {
-              const callType = (inc as any).callType || "";
-              const key = `${inc.message}|${inc.source}|${callType}`;
-              apiIncidentKeys.add(key);
-            });
-
-            const filteredPrev = prevIncidents.filter((prev) => {
-              const callType = (prev as any).callType || "";
-              const key = `${prev.message}|${prev.source}|${callType}`;
-
-              if (apiIncidentKeys.has(key)) {
-                const timeSinceLastUpdate =
-                  Date.now() - lastCallStatusUpdateRef.current;
-                if (timeSinceLastUpdate < 30000) {
-                  return false;
-                }
+            const existingById = new Map(prevIncidents.map((i) => [i.id, i]));
+            const apiIncidentIds = new Set(convertedIncidents.map((i) => i.id));
+            
+            const updatedIncidents = convertedIncidents.map((newInc) => {
+              const existing = existingById.get(newInc.id);
+              if (existing) {
+                return { ...existing, ...newInc };
               }
-              return true;
+              return newInc;
             });
-
-            const merged = [...convertedIncidents, ...filteredPrev];
-            merged.sort(
+            
+            const remainingExisting = prevIncidents.filter(
+              (prev) => !apiIncidentIds.has(prev.id)
+            );
+            
+            const merged = [...updatedIncidents, ...remainingExisting];
+            const latestIncidents = new Map<string, Incident>();
+            
+            merged.forEach((inc) => {
+              const callType = (inc as any).callType;
+              if (!callType) {
+                return;
+              }
+              const callLogIdMatch = inc.id.match(/call-(outgoing|receiver)-(\d+)/);
+              if (!callLogIdMatch) return;
+              const callLogId = callLogIdMatch[2];
+              const incidentType = callLogIdMatch[1];
+              const key = `${callLogId}-${incidentType}`;
+              const existing = latestIncidents.get(key);
+              if (!existing || inc.timestamp.getTime() >= existing.timestamp.getTime()) {
+                latestIncidents.set(key, inc);
+              }
+            });
+            
+            const deduplicated = [
+              ...Array.from(latestIncidents.values()),
+              ...merged.filter((inc) => !(inc as any).callType)
+            ];
+            
+            deduplicated.sort(
               (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
             );
-            return merged;
+            return deduplicated;
           }
 
-          const existingIds = new Set(prevIncidents.map((i) => i.id));
-
-          const existingKeys = new Set<string>();
-          prevIncidents.forEach((inc) => {
-            const callType = (inc as any).callType || "";
-            const key = `${inc.message}|${inc.source}|${callType}|${Math.floor(
-              inc.timestamp.getTime() / 10000
-            )}`;
-            existingKeys.add(key);
+          const existingById = new Map(prevIncidents.map((i) => [i.id, i]));
+          const apiIncidentIds = new Set(convertedIncidents.map((i) => i.id));
+          
+          const updatedIncidents = convertedIncidents.map((newInc) => {
+            const existing = existingById.get(newInc.id);
+            if (existing) {
+              return { ...existing, ...newInc };
+            }
+            return newInc;
           });
-
-          const newCallLogIncidents = convertedIncidents.filter((i) => {
-            if (existingIds.has(i.id)) {
-              return false;
+          
+          const remainingExisting = prevIncidents.filter((prev) => {
+            const hasCallType = (prev as any).callType;
+            if (hasCallType) {
+              return !apiIncidentIds.has(prev.id);
             }
-
-            const callType = (i as any).callType || "";
-            const key = `${i.message}|${i.source}|${callType}|${Math.floor(
-              i.timestamp.getTime() / 10000
-            )}`;
-
-            if (existingKeys.has(key)) {
-              return false;
-            }
-
-            if (!callType) {
-              const timeWindow = 5000;
-              const isDuplicate = prevIncidents.some((prev) => {
-                const timeDiff = Math.abs(
-                  prev.timestamp.getTime() - i.timestamp.getTime()
-                );
-                return (
-                  prev.message === i.message &&
-                  prev.source === i.source &&
-                  timeDiff < timeWindow
-                );
-              });
-              if (isDuplicate) {
-                return false;
-              }
-            }
-
             return true;
           });
+          
+          const merged = [...updatedIncidents, ...remainingExisting];
 
-          const merged = [...prevIncidents, ...newCallLogIncidents];
+          const latestIncidents = new Map<string, Incident>();
+          
+          merged.forEach((inc) => {
+            const callType = (inc as any).callType;
+            if (!callType) {
+              return;
+            }
+            
+            const callLogIdMatch = inc.id.match(/call-(outgoing|receiver|cancelled-sender|cancelled-receiver)-(\d+)/);
+            if (!callLogIdMatch) return;
+            
+            const callLogId = callLogIdMatch[2];
+            const incidentType = callLogIdMatch[1];
+            const key = `${callLogId}-${incidentType}`;
+            
+            const existing = latestIncidents.get(key);
+            if (!existing || inc.timestamp.getTime() >= existing.timestamp.getTime()) {
+              latestIncidents.set(key, inc);
+            }
+          });
+          
+          const deduplicated = [
+            ...Array.from(latestIncidents.values()),
+            ...merged.filter((inc) => !(inc as any).callType)
+          ];
 
-          merged.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          deduplicated.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
-          return merged;
+          return deduplicated;
         });
       } catch (err) {
       } finally {
@@ -397,13 +399,60 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
 
           setIncidents((prev) => {
             const existingIds = new Set(prev.map((i) => i.id));
-            const newIncidents = converted.filter(
-              (i) => !existingIds.has(i.id)
-            );
-
-            if (newIncidents.length > 0) {
-              const merged = [...newIncidents, ...prev];
-              merged.sort(
+            const existingById = new Map(prev.map((i) => [i.id, i]));
+            
+            const callLogId = callLog.id;
+            const callLogIncidentIds = new Set([
+              `call-outgoing-${callLogId}`,
+              `call-receiver-${callLogId}`,
+            ]);
+            
+            const updatedIncidents = converted.map((newInc) => {
+              const existing = existingById.get(newInc.id);
+              if (existing) {
+                return { ...existing, ...newInc };
+              }
+              return newInc;
+            });
+            
+            const newIncidents = converted.filter((i) => !existingIds.has(i.id));
+            
+            if (updatedIncidents.length > 0 || newIncidents.length > 0) {
+              const updatedIds = new Set(updatedIncidents.map((i) => i.id));
+              const remainingExisting = prev.filter((i) => {
+                if (updatedIds.has(i.id)) return false;
+                if (callLogIncidentIds.has(i.id)) return false;
+                return true;
+              });
+              const merged = [...updatedIncidents, ...newIncidents, ...remainingExisting];
+              
+              const latestIncidents = new Map<string, Incident>();
+              
+              merged.forEach((inc) => {
+                const callType = (inc as any).callType;
+                if (!callType) {
+                  return;
+                }
+                
+                const callLogIdMatch = inc.id.match(/call-(outgoing|receiver)-(\d+)/);
+                if (!callLogIdMatch) return;
+                
+                const callLogId = callLogIdMatch[2];
+                const incidentType = callLogIdMatch[1];
+                const key = `${callLogId}-${incidentType}`;
+                
+                const existing = latestIncidents.get(key);
+                if (!existing || inc.timestamp.getTime() >= existing.timestamp.getTime()) {
+                  latestIncidents.set(key, inc);
+                }
+              });
+              
+              const deduplicated = [
+                ...Array.from(latestIncidents.values()),
+                ...merged.filter((inc) => !(inc as any).callType)
+              ];
+              
+              deduplicated.sort(
                 (a, b) => b.timestamp.getTime() - a.timestamp.getTime()
               );
               hasRealTimeUpdate = true;
@@ -413,7 +462,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
               
               }
               
-              return merged;
+              return deduplicated;
             }
             
             return prev;

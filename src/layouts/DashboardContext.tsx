@@ -13,6 +13,7 @@ import {
   getCachedSupportContacts,
 } from "../utils/offlineStorage";
 import { networkService } from "../services/nativeService";
+import { useAuth } from "../contexts/AuthContext";
 
 export interface Department {
   id: number;
@@ -53,6 +54,7 @@ const DashboardContext = createContext<DashboardContextType | undefined>(
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const { token, isAuthenticated } = useAuth();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [supportContacts, setSupportContacts] = useState<SupportContact[]>([]);
   const [leaders, setLeaders] = useState<LeaderContact[]>([]);
@@ -71,6 +73,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchData = useCallback(async () => {
+    if (!token || !isAuthenticated) {
+      setDepartments([]);
+      setSupportContacts([]);
+      setLeaders([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
 
@@ -130,11 +139,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  }, [getColorByAlertGroup]);
+  }, [token, isAuthenticated]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (token && isAuthenticated) {
+      fetchData();
+    } else {
+      setDepartments([]);
+      setSupportContacts([]);
+      setLeaders([]);
+      setLoading(false);
+    }
+  }, [token, isAuthenticated, fetchData]);
 
   return (
     <DashboardContext.Provider

@@ -72,6 +72,24 @@ const STATUS_CONFIG: Record<
     textColor: "text-gray-800",
     bullet: "bg-gray-800",
   },
+  cancelled: {
+    text: "Đã hủy",
+    bg: "bg-orange-50",
+    textColor: "text-orange-700",
+    bullet: "bg-orange-600",
+  },
+  "Đã hủy": {
+    text: "Đã hủy",
+    bg: "bg-orange-50",
+    textColor: "text-orange-700",
+    bullet: "bg-orange-600",
+  },
+  unreachable: {
+    text: "Không liên lạc được",
+    bg: "bg-gray-100",
+    textColor: "text-gray-800",
+    bullet: "bg-gray-800",
+  },
 };
 
 const formatDate = (dateString: string) => {

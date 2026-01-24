@@ -19,7 +19,7 @@ export interface Incident {
   status: IncidentStatus;
   message: string;
   duration?: number;
-  callType?: "outgoing" | "accepted" | "rejected" | "timeout";
+  callType?: "outgoing" | "accepted" | "rejected" | "timeout" | "pending" | "cancelled";
 }
 
 export type IncidentFilter = "all" | "resolved" | "warning" | "error" | "info";
