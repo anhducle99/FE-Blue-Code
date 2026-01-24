@@ -1,5 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { getDepartments, IDepartment } from "../services/departmentService";
+import { useAuth } from "./AuthContext";
 
 interface DepartmentContextType {
   departments: IDepartment[];
@@ -23,11 +30,17 @@ export const useDepartments = () => {
 export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const { token, isAuthenticated } = useAuth();
   const [departments, setDepartments] = useState<IDepartment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshDepartments = async () => {
+  const refreshDepartments = useCallback(async () => {
+    if (!token || !isAuthenticated) {
+      setDepartments([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);
@@ -41,11 +54,17 @@ export const DepartmentProvider: React.FC<{ children: React.ReactNode }> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, isAuthenticated]);
 
   useEffect(() => {
-    refreshDepartments();
-  }, []);
+    if (token && isAuthenticated) {
+      refreshDepartments();
+    } else {
+      setDepartments([]);
+      setLoading(false);
+      setError(null);
+    }
+  }, [token, isAuthenticated, refreshDepartments]);
 
   return (
     <DepartmentContext.Provider
