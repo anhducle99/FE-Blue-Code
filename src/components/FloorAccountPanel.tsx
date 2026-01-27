@@ -198,10 +198,13 @@ export const FloorAccountPanel: React.FC = () => {
   const sortedUsers = useMemo(() => {
     const calling = floorAccountUsers.filter((u) => callingUsers.has(u.id));
     const notCalling = floorAccountUsers.filter((u) => !callingUsers.has(u.id));
-    
-    if (process.env.NODE_ENV === "development") {
-    }
-    
+
+    const byName = (a: IUser, b: IUser) =>
+      (a.name || "").localeCompare(b.name || "", "vi", { sensitivity: "base" });
+
+    calling.sort(byName);
+    notCalling.sort(byName);
+
     return [...calling, ...notCalling];
   }, [floorAccountUsers, callingUsers]);
 
