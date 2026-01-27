@@ -362,7 +362,9 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 Người xử lý:
               </span>
               <span className="text-gray-800 flex-1">
-                {getReceiverInfo(row.receiver).userName || "-"}
+                {row.status === "accepted" 
+                  ? getReceiverInfo(row.receiver).userName || "-"
+                  : "-"}
               </span>
             </div>
             <div className="flex items-start">
@@ -475,9 +477,13 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.NguoiNhan, true)}
-                      title={getReceiverInfo(row.receiver).userName || "-"}
+                      title={row.status === "accepted" 
+                        ? getReceiverInfo(row.receiver).userName || "-"
+                        : "-"}
                     >
-                      {getReceiverInfo(row.receiver).userName || "-"}
+                      {row.status === "accepted" 
+                        ? getReceiverInfo(row.receiver).userName || "-"
+                        : "-"}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"

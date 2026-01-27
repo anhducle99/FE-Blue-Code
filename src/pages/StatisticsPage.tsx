@@ -172,13 +172,15 @@ export const StatisticsPage: React.FC = () => {
         }
 
         const mappedData = res.map((g: any) => ({
-          label: g.label,
+          label: g.label || "Khác",
           sent: Number(g.sent) || 0,
           received: Number(g.received) || 0,
         }));
         
-        if (mappedData.length === 0) {
+    
+        if (process.env.NODE_ENV === "development") {
         }
+        
         setGroups(mappedData);
       } catch (err: any) {
         const errorMessage = err?.response?.data?.message || err?.message || "Không thể tải thống kê nhóm";

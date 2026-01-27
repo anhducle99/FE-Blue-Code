@@ -12,12 +12,15 @@ import {
 import { useDashboard } from "../layouts/DashboardContext";
 import { useDepartments } from "../contexts/DepartmentContext";
 import { useOrganizations } from "../contexts/OrganizationContext";
+import { useAuth } from "../contexts/AuthContext";
+import { getUsers } from "../services/userService";
 
 const { Option } = Select;
 
 export const DepartmentManagementPage: React.FC = () => {
   const { reloadData } = useDashboard();
   const { refreshDepartments } = useDepartments();
+  const { user } = useAuth();
   const {
     organizations,
     loading: organizationsLoading,
@@ -28,6 +31,7 @@ export const DepartmentManagementPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<IDepartment | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
+  const [currentUserOrgId, setCurrentUserOrgId] = useState<number | null>(null);
 
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
@@ -35,6 +39,24 @@ export const DepartmentManagementPage: React.FC = () => {
     organization_id: undefined,
   });
   const [isDepartmentAccount, setIsDepartmentAccount] = useState(false);
+
+  // Lấy organization_id của user hiện tại
+  useEffect(() => {
+    const fetchCurrentUserOrg = async () => {
+      if (!user) return;
+      try {
+        const usersRes = await getUsers();
+        const users = Array.isArray(usersRes.data) ? usersRes.data : [];
+        const currentUserFromApi = users.find((u) => u.id === user.id);
+        if (currentUserFromApi?.organization_id) {
+          setCurrentUserOrgId(currentUserFromApi.organization_id);
+        }
+      } catch (error) {
+        console.error("Failed to fetch current user organization:", error);
+      }
+    };
+    fetchCurrentUserOrg();
+  }, [user]);
 
   const fetchDepartments = async () => {
     try {
@@ -112,7 +134,12 @@ export const DepartmentManagementPage: React.FC = () => {
 
   const handleAdd = () => {
     setEditingDept(null);
-    setFormData({ name: "", phone: "", organization_id: undefined });
+    // Tự động set organization_id từ user hiện tại nếu có
+    setFormData({ 
+      name: "", 
+      phone: "", 
+      organization_id: currentUserOrgId || undefined 
+    });
     setIsDepartmentAccount(false);
     setIsOpen(true);
   };

@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiến Trúc Hệ Thống Blue Code</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            font-size: 12pt;
+            line-height: 1.5;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            font-size: 24pt;
+            font-weight: bold;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            color: #000;
+        }
+        h2 {
+            font-size: 18pt;
+            font-weight: bold;
+            margin-top: 16px;
+            margin-bottom: 10px;
+            color: #000;
+        }
+        h3 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin-top: 12px;
+            margin-bottom: 8px;
+            color: #000;
+        }
+        h4 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-bottom: 6px;
+            color: #000;
+        }
+        h5 {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-top: 8px;
+            margin-bottom: 4px;
+            color: #000;
+        }
+        h6 {
+            font-size: 10pt;
+            font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 4px;
+            color: #000;
+        }
+        p {
+            margin: 6px 0;
+            text-align: justify;
+        }
+        ul {
+            margin: 6px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 4px 0;
+        }
+        pre {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 10pt;
+            background-color: #f5f5f5;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        pre code {
+            background-color: transparent;
+            padding: 0;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #ccc;
+            margin: 20px 0;
+        }
+        strong {
+            font-weight: bold;
+        }
+        em {
+            font-style: italic;
+        }
+        @media print {
+            body {
+                max-width: 100%;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+<h1>KIẾN TRÚC HỆ THỐNG BLUE CODE</h1>
+
+<h2>1. TỔNG QUAN HỆ THỐNG</h2>
+
+<h3>1.1. Mô tả hệ thống</h3>
+<p>Blue Code là hệ thống quản lý cuộc gọi khẩn cấp và sự cố được xây dựng với công nghệ web hiện đại, hỗ trợ đa nền tảng (Web, Android, iOS) thông qua Progressive Web App (PWA) và Capacitor.</p>
+
+<h3>1.2. Mục đích</h3>
+<ul><li>Quản lý và điều phối cuộc gọi khẩn cấp giữa các phòng ban</li></ul>
+<ul><li>Theo dõi và xử lý sự cố theo thời gian thực</li></ul>
+<ul><li>Hỗ trợ làm việc offline với khả năng đồng bộ dữ liệu tự động</li></ul>
+<ul><li>Cung cấp thống kê và báo cáo về hoạt động hệ thống</li></ul>
+
+<h3>1.3. Đối tượng sử dụng</h3>
+<ul><li>Nhân viên các phòng ban cần gọi hỗ trợ khẩn cấp</li></ul>
+<ul><li>Tài khoản xử lý sự cố (Department Account)</li></ul>
+<ul><li>Quản trị viên hệ thống</li></ul>
+<ul><li>Người dùng hỗ trợ kỹ thuật</li></ul>
+
+<hr>
+
+<h2>2. KIẾN TRÚC TỔNG THỂ</h2>
+
+<h3>2.1. Sơ đồ kiến trúc</h3>
+
+<p><code>`</code></p>
+<p>┌─────────────────────────────────────────────────────────────┐</p>
+<p>│                    CLIENT LAYER                             │</p>
+<p>├─────────────────────────────────────────────────────────────┤</p>
+<p>│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │</p>
+<p>│  │   Web App    │  │ Android App  │  │   iOS App    │     │</p>
+<p>│  │   (PWA)      │  │  (Capacitor) │  │  (Capacitor) │     │</p>
+<p>│  └──────────────┘  └──────────────┘  └──────────────┘     │</p>
+<p>│         │                  │                  │            │</p>
+<p>│         └──────────────────┼──────────────────┘            │</p>
+<p>│                            │                               │</p>
+<p>│         ┌──────────────────▼──────────────────┐           │</p>
+<p>│         │     React Application Layer          │           │</p>
+<p>│         │  ┌──────────────────────────────┐   │           │</p>
+<p>│         │  │   Components & Pages         │   │           │</p>
+<p>│         │  │   Contexts & State Mgmt      │   │           │</p>
+<p>│         │  │   Hooks & Utilities           │   │           │</p>
+<p>│         │  └──────────────────────────────┘   │           │</p>
+<p>│         └──────────────────┬──────────────────┘           │</p>
+<p>└────────────────────────────┼───────────────────────────────┘</p>
+<p>                             │</p>
+<p>         ┌───────────────────┼───────────────────┐</p>
+<p>         │                   │                   │</p>
+<p>┌────────▼────────┐  ┌───────▼───────┐  ┌──────▼────────┐</p>
+<p>│   REST API      │  │  Socket.io     │  │  Native APIs  │</p>
+<p>│   (HTTP/HTTPS) │  │  (WebSocket)   │  │  (Capacitor)  │</p>
+<p>└────────┬────────┘  └───────┬───────┘  └───────────────┘</p>
+<p>         │                   │</p>
+<p>         └───────────┬───────┘</p>
+<p>                     │</p>
+<p>         ┌───────────▼───────────┐</p>
+<p>         │    BACKEND SERVER      │</p>
+<p>         │  ┌──────────────────┐  │</p>
+<p>         │  │  API Endpoints   │  │</p>
+<p>         │  │  Socket Server   │  │</p>
+<p>         │  │  Database        │  │</p>
+<p>         │  └──────────────────┘  │</p>
+<p>         └────────────────────────┘</p>
+<p><code>`</code></p>
+
+<h3>2.2. Kiến trúc phân tầng</h3>
+
+<h4><strong>Tầng Presentation (UI Layer)</strong></h4>
+<ul><li><strong>React Components</strong>: Giao diện người dùng</li></ul>
+<ul><li><strong>Pages</strong>: Các trang chính của ứng dụng</li></ul>
+<ul><li><strong>Layouts</strong>: Bố cục chung của ứng dụng</li></ul>
+
+<h4><strong>Tầng Business Logic</strong></h4>
+<ul><li><strong>Contexts</strong>: Quản lý state toàn cục (Auth, Incident, Department, Organization)</li></ul>
+<ul><li><strong>Hooks</strong>: Logic tái sử dụng (useSocket, useOfflineQueue, useNetworkStatus)</li></ul>
+<ul><li><strong>Services</strong>: Xử lý nghiệp vụ và giao tiếp với API</li></ul>
+
+<h4><strong>Tầng Data Access</strong></h4>
+<ul><li><strong>API Service</strong>: Giao tiếp với REST API</li></ul>
+<ul><li><strong>Socket Service</strong>: Giao tiếp real-time qua WebSocket</li></ul>
+<ul><li><strong>Native Service</strong>: Truy cập tính năng native (Camera, Push Notifications, File System)</li></ul>
+<ul><li><strong>Offline Queue</strong>: Quản lý hàng đợi khi offline</li></ul>
+
+<h4><strong>Tầng Infrastructure</strong></h4>
+<ul><li><strong>Capacitor</strong>: Bridge giữa web và native</li></ul>
+<ul><li><strong>Service Worker</strong>: Hỗ trợ PWA và offline</li></ul>
+<ul><li><strong>Local Storage</strong>: Lưu trữ dữ liệu cục bộ</li></ul>
+
+<hr>
+
+<h2>3. CÁC THÀNH PHẦN CHÍNH</h2>
+
+<h3>3.1. Frontend Application</h3>
+
+<h4><strong>3.1.1. Core Framework</strong></h4>
+<ul><li><strong>React 18</strong>: UI framework</li></ul>
+<ul><li><strong>TypeScript</strong>: Type safety và code quality</li></ul>
+<ul><li><strong>React Router DOM</strong>: Điều hướng và routing</li></ul>
+<ul><li><strong>Tailwind CSS</strong>: Styling framework</li></ul>
+
+<h4><strong>3.1.2. State Management</strong></h4>
+<ul><li><strong>React Context API</strong>: Quản lý state toàn cục</li></ul>
+<p>  - <code>AuthContext</code>: Xác thực và thông tin người dùng</p>
+<p>  - <code>IncidentContext</code>: Quản lý sự cố và thông báo</p>
+<p>  - <code>DepartmentContext</code>: Quản lý phòng ban</p>
+<p>  - <code>OrganizationContext</code>: Quản lý tổ chức</p>
+<p>  - <code>ToastContext</code>: Thông báo và toast messages</p>
+<p>  - <code>DashboardContext</code>: Dữ liệu dashboard</p>
+
+<h4><strong>3.1.3. Real-time Communication</strong></h4>
+<ul><li><strong>Socket.io Client</strong>: Kết nối WebSocket</li></ul>
+<p>  - Đăng ký người dùng theo department</p>
+<p>  - Nhận cuộc gọi đến (incomingCall)</p>
+<p>  - Gửi cuộc gọi đi (startCall)</p>
+<p>  - Theo dõi trạng thái kết nối</p>
+<p>  - Tự động reconnect khi mất kết nối</p>
+
+<h4><strong>3.1.4. API Communication</strong></h4>
+<ul><li><strong>Axios</strong>: HTTP client với interceptors</li></ul>
+<p>  - Tự động thêm Authorization token</p>
+<p>  - Xử lý lỗi tập trung (401, 403, 404, 500)</p>
+<p>  - Retry mechanism cho các request thất bại</p>
+<p>  - CORS error handling</p>
+
+<h4><strong>3.1.5. Offline Support</strong></h4>
+<ul><li><strong>Offline Queue Service</strong>: Hàng đợi các request khi offline</li></ul>
+<p>  - Lưu trữ trong LocalStorage</p>
+<p>  - Tự động xử lý khi có kết nối lại</p>
+<p>  - Retry với số lần giới hạn</p>
+<p>  - Hỗ trợ nhiều loại request (API call, Image upload)</p>
+
+<ul><li><strong>Service Worker</strong>: PWA và caching</li></ul>
+<p>  - Cache static assets</p>
+<p>  - Offline fallback</p>
+<p>  - Background sync</p>
+
+<h4><strong>3.1.6. Native Integration (Capacitor)</strong></h4>
+<ul><li><strong>@capacitor/app</strong>: App lifecycle management</li></ul>
+<ul><li><strong>@capacitor/camera</strong>: Chụp ảnh và truy cập thư viện ảnh</li></ul>
+<ul><li><strong>@capacitor/filesystem</strong>: Đọc/ghi file trên thiết bị</li></ul>
+<ul><li><strong>@capacitor/device</strong>: Thông tin thiết bị</li></ul>
+<ul><li><strong>@capacitor/network</strong>: Theo dõi trạng thái mạng</li></ul>
+<ul><li><strong>@capacitor/push-notifications</strong>: Push notifications</li></ul>
+<ul><li><strong>@capacitor/splash-screen</strong>: Splash screen</li></ul>
+<ul><li><strong>@capacitor/status-bar</strong>: Điều khiển status bar</li></ul>
+
+<h3>3.2. Pages & Components</h3>
+
+<h4><strong>3.2.1. Pages</strong></h4>
+<ul><li><strong>LoginPage</strong>: Đăng nhập và xác thực</li></ul>
+<ul><li><strong>App (HomePage)</strong>: Trang chính với danh sách phòng ban và cuộc gọi</li></ul>
+<ul><li><strong>HistoryPage</strong>: Lịch sử cuộc gọi và sự cố</li></ul>
+<ul><li><strong>StatisticsPage</strong>: Thống kê và báo cáo</li></ul>
+<ul><li><strong>UsersPage</strong>: Quản lý người dùng</li></ul>
+<ul><li><strong>DepartmentManagementPage</strong>: Quản lý phòng ban</li></ul>
+<ul><li><strong>OrganizationManagementPage</strong>: Quản lý tổ chức</li></ul>
+
+<h4><strong>3.2.2. Key Components</strong></h4>
+<ul><li><strong>Header</strong>: Header chung của ứng dụng</li></ul>
+<ul><li><strong>Sidebar</strong>: Menu điều hướng</li></ul>
+<ul><li><strong>DepartmentButton</strong>: Nút chọn phòng ban để gọi</li></ul>
+<ul><li><strong>SupportButton</strong>: Nút hỗ trợ kỹ thuật</li></ul>
+<ul><li><strong>CallStatusModal</strong>: Modal hiển thị trạng thái cuộc gọi</li></ul>
+<ul><li><strong>IncomingCallModal</strong>: Modal nhận cuộc gọi đến</li></ul>
+<ul><li><strong>IncidentSidebar</strong>: Sidebar hiển thị sự cố</li></ul>
+<ul><li><strong>IncidentStatusWidget</strong>: Widget trạng thái sự cố</li></ul>
+<ul><li><strong>FloorAccountPanel</strong>: Panel quản lý tài khoản tầng</li></ul>
+<ul><li><strong>HistoryTable</strong>: Bảng lịch sử</li></ul>
+<ul><li><strong>ConfirmationDialog</strong>: Dialog xác nhận</li></ul>
+
+<h3>3.3. Services Layer</h3>
+
+<h4><strong>3.3.1. API Services</strong></h4>
+<ul><li><strong>api.ts</strong>: Axios instance và interceptors</li></ul>
+<ul><li><strong>authService.ts</strong>: Xác thực và quản lý người dùng</li></ul>
+<ul><li><strong>userService.ts</strong>: CRUD người dùng</li></ul>
+<ul><li><strong>departmentService.ts</strong>: Quản lý phòng ban</li></ul>
+<ul><li><strong>organizationService.ts</strong>: Quản lý tổ chức</li></ul>
+<ul><li><strong>historyService.ts</strong>: Lịch sử cuộc gọi</li></ul>
+<ul><li><strong>statisticsService.ts</strong>: Thống kê và báo cáo</li></ul>
+<ul><li><strong>imageUploadService.ts</strong>: Upload ảnh</li></ul>
+
+<h4><strong>3.3.2. Native Services</strong></h4>
+<ul><li><strong>nativeService.ts</strong>: Wrapper cho Capacitor plugins</li></ul>
+<p>  - App service (lifecycle)</p>
+<p>  - Network service (status monitoring)</p>
+<p>  - Device service (device info)</p>
+<p>  - Camera service</p>
+<p>  - File system service</p>
+
+<h4><strong>3.3.3. Push Notification Service</strong></h4>
+<ul><li><strong>pushNotificationService.ts</strong>: Quản lý push notifications</li></ul>
+<ul><li><strong>usePushNotifications.ts</strong>: Hook cho push notifications</li></ul>
+<ul><li><strong>usePushNotificationsWithSocket.ts</strong>: Tích hợp với Socket.io</li></ul>
+
+<h3>3.4. Utilities & Helpers</h3>
+
+<h4><strong>3.4.1. Utilities</strong></h4>
+<ul><li><strong>apiRetry.ts</strong>: Retry mechanism cho API calls</li></ul>
+<ul><li><strong>offlineQueue.ts</strong>: Quản lý hàng đợi offline</li></ul>
+<ul><li><strong>offlineStorage.ts</strong>: Lưu trữ dữ liệu offline</li></ul>
+<ul><li><strong>storage.ts</strong>: Wrapper cho LocalStorage</li></ul>
+<ul><li><strong>fileSystem.ts</strong>: Thao tác file system</li></ul>
+<ul><li><strong>imageConverter.ts</strong>: Chuyển đổi ảnh</li></ul>
+<ul><li><strong>navigation.ts</strong>: Helper điều hướng</li></ul>
+<ul><li><strong>serviceWorkerRegistration.ts</strong>: Đăng ký service worker</li></ul>
+
+<h4><strong>3.4.2. Configuration</strong></h4>
+<ul><li><strong>env.ts</strong>: Cấu hình môi trường</li></ul>
+<p>  - API URL (khác nhau cho web và native)</p>
+<p>  - Socket URL</p>
+<p>  - Platform detection (web/android/ios)</p>
+<ul><li><strong>capacitor.config.ts</strong>: Cấu hình Capacitor</li></ul>
+
+<hr>
+
+<h2>4. LUỒNG DỮ LIỆU</h2>
+
+<h3>4.1. Luồng đăng nhập và xác thực</h3>
+
+<p><code>`</code></p>
+<p>User → LoginPage → authService.login()</p>
+<p>                ↓</p>
+<p>         API POST /api/auth/login</p>
+<p>                ↓</p>
+<p>    Backend xác thực và trả token</p>
+<p>                ↓</p>
+<p>    Lưu token vào localStorage</p>
+<p>                ↓</p>
+<p>    AuthContext cập nhật user state</p>
+<p>                ↓</p>
+<p>    Redirect đến trang chính</p>
+<p>                ↓</p>
+<p>    Socket.io đăng ký user với department</p>
+<p><code>`</code></p>
+
+<h3>4.2. Luồng thực hiện cuộc gọi</h3>
+
+<p><code>`</code></p>
+<p>User chọn department → Click "Gọi ngay"</p>
+<p>                    ↓</p>
+<p>        ConfirmationDialog hiển thị</p>
+<p>                    ↓</p>
+<p>    User xác nhận → handleConfirmCall()</p>
+<p>                    ↓</p>
+<p>    API POST /api/call với targetKeys</p>
+<p>                    ↓</p>
+<p>    Backend tạo callId và trả về</p>
+<p>                    ↓</p>
+<p>    Socket.emit("startCall", {callId, from, targets})</p>
+<p>                    ↓</p>
+<p>    CallStatusModal hiển thị (waiting)</p>
+<p>                    ↓</p>
+<p>    Socket nhận event từ server</p>
+<p>                    ↓</p>
+<p>    Cập nhật trạng thái cuộc gọi</p>
+<p>                    ↓</p>
+<p>    Thêm incident vào IncidentContext</p>
+<p><code>`</code></p>
+
+<h3>4.3. Luồng nhận cuộc gọi đến</h3>
+
+<p><code>`</code></p>
+<p>Backend → Socket.emit("incomingCall", data)</p>
+<p>                ↓</p>
+<p>    useSocket hook nhận event</p>
+<p>                ↓</p>
+<p>    setIncomingCall(data)</p>
+<p>                ↓</p>
+<p>    IncomingCallModal hiển thị</p>
+<p>                ↓</p>
+<p>    User chấp nhận/từ chối</p>
+<p>                ↓</p>
+<p>    Socket.emit("acceptCall"/"rejectCall")</p>
+<p>                ↓</p>
+<p>    Backend xử lý và broadcast</p>
+<p><code>`</code></p>
+
+<h3>4.4. Luồng offline và đồng bộ</h3>
+
+<p><code>`</code></p>
+<p>User thực hiện action khi offline</p>
+<p>                ↓</p>
+<p>    API call thất bại (network error)</p>
+<p>                ↓</p>
+<p>    OfflineQueue.add() lưu request</p>
+<p>                ↓</p>
+<p>    Request được lưu vào LocalStorage</p>
+<p>                ↓</p>
+<p>    User thấy thông báo "offline mode"</p>
+<p>                ↓</p>
+<p>    Network status monitor phát hiện online</p>
+<p>                ↓</p>
+<p>    OfflineQueue.processQueue()</p>
+<p>                ↓</p>
+<p>    Xử lý từng request trong queue</p>
+<p>                ↓</p>
+<p>    Retry nếu thất bại (max 3 lần)</p>
+<p>                ↓</p>
+<p>    Xóa request khỏi queue khi thành công</p>
+<p><code>`</code></p>
+
+<h3>4.5. Luồng upload ảnh</h3>
+
+<p><code>`</code></p>
+<p>User chọn ảnh từ Camera/Gallery</p>
+<p>                ↓</p>
+<p>    Capacitor Camera plugin</p>
+<p>                ↓</p>
+<p>    imageConverter xử lý ảnh</p>
+<p>                ↓</p>
+<p>    Kiểm tra network status</p>
+<p>                ↓</p>
+<p>    Nếu offline → OfflineQueue.add(uploadImage)</p>
+<p>                ↓</p>
+<p>    Nếu online → API POST /api/upload/image</p>
+<p>                ↓</p>
+<p>    FormData với file</p>
+<p>                ↓</p>
+<p>    Hiển thị progress (nếu có)</p>
+<p>                ↓</p>
+<p>    Nhận URL ảnh từ server</p>
+<p><code>`</code></p>
+
+<hr>
+
+<h2>5. CÔNG NGHỆ VÀ CÔNG CỤ</h2>
+
+<h3>5.1. Core Technologies</h3>
+<ul><li><strong>React 18.2.0</strong>: UI framework</li></ul>
+<ul><li><strong>TypeScript 4.9.5</strong>: Type safety</li></ul>
+<ul><li><strong>React Router DOM 7.6.3</strong>: Routing</li></ul>
+<ul><li><strong>Tailwind CSS 3.4.18</strong>: Styling</li></ul>
+
+<h3>5.2. State Management & Data</h3>
+<ul><li><strong>React Context API</strong>: Global state</li></ul>
+<ul><li><strong>React Hooks</strong>: Custom hooks</li></ul>
+<ul><li><strong>Axios 1.12.2</strong>: HTTP client</li></ul>
+<ul><li><strong>Socket.io Client 4.8.1</strong>: WebSocket</li></ul>
+
+<h3>5.3. UI Libraries</h3>
+<ul><li><strong>Ant Design 5.27.1</strong>: UI components</li></ul>
+<ul><li><strong>Chart.js 4.5.0</strong>: Data visualization</li></ul>
+<ul><li><strong>React Chart.js 2 5.3.0</strong>: React wrapper cho Chart.js</li></ul>
+<ul><li><strong>Heroicons React 2.2.0</strong>: Icons</li></ul>
+<ul><li><strong>Lucide React 0.525.0</strong>: Icons</li></ul>
+<ul><li><strong>React Icons 4.11.0</strong>: Icons</li></ul>
+<ul><li><strong>Framer Motion 12.23.22</strong>: Animations</li></ul>
+
+<h3>5.4. Forms & Validation</h3>
+<ul><li><strong>Formik 2.4.6</strong>: Form management</li></ul>
+<ul><li><strong>Yup 1.7.0</strong>: Schema validation</li></ul>
+
+<h3>5.5. Native Mobile</h3>
+<ul><li><strong>Capacitor 7.4.4</strong>: Native bridge</li></ul>
+<ul><li><strong>Capacitor Plugins</strong>:</li></ul>
+<p>  - App, Camera, Device, Filesystem</p>
+<p>  - Network, Push Notifications</p>
+<p>  - Splash Screen, Status Bar, Keyboard</p>
+
+<h3>5.6. Build Tools</h3>
+<ul><li><strong>React Scripts 5.0.1</strong>: Build tooling</li></ul>
+<ul><li><strong>PostCSS 8.5.6</strong>: CSS processing</li></ul>
+<ul><li><strong>Autoprefixer 10.4.22</strong>: CSS vendor prefixes</li></ul>
+
+<h3>5.7. Development Tools</h3>
+<ul><li><strong>TypeScript</strong>: Type checking</li></ul>
+<ul><li><strong>ESLint</strong>: Code linting (nếu có)</li></ul>
+<ul><li><strong>Git</strong>: Version control</li></ul>
+
+<hr>
+
+<h2>6. CẤU TRÚC THỨ MỤC</h2>
+
+<p><code>`</code></p>
+<p>FE-Blue-Code/</p>
+<p>├── public/                    # Static files</p>
+<p>│   ├── index.html            # HTML entry point</p>
+<p>│   ├── manifest.json         # PWA manifest</p>
+<p>│   ├── sw.js                 # Service worker</p>
+<p>│   └── img/                  # Images và icons</p>
+<p>│</p>
+<p>├── src/</p>
+<p>│   ├── components/           # React components</p>
+<p>│   │   ├── AudioPermissionModal.tsx</p>
+<p>│   │   ├── CallStatusModal.tsx</p>
+<p>│   │   ├── DepartmentButton.tsx</p>
+<p>│   │   ├── Header.tsx</p>
+<p>│   │   ├── HistoryTable.tsx</p>
+<p>│   │   ├── IncidentSidebar.tsx</p>
+<p>│   │   └── ...</p>
+<p>│   │</p>
+<p>│   ├── contexts/             # React contexts</p>
+<p>│   │   ├── AuthContext.tsx</p>
+<p>│   │   ├── IncidentContext.tsx</p>
+<p>│   │   ├── DepartmentContext.tsx</p>
+<p>│   │   ├── OrganizationContext.tsx</p>
+<p>│   │   ├── ToastContext.tsx</p>
+<p>│   │   └── useSocket.ts</p>
+<p>│   │</p>
+<p>│   ├── hooks/                # Custom hooks</p>
+<p>│   │   ├── useDeviceInfo.ts</p>
+<p>│   │   ├── useNetworkStatus.ts</p>
+<p>│   │   ├── useOfflineQueue.ts</p>
+<p>│   │   ├── usePushNotifications.ts</p>
+<p>│   │   └── usePushNotificationsWithSocket.ts</p>
+<p>│   │</p>
+<p>│   ├── layouts/              # Layout components</p>
+<p>│   │   ├── DashboardLayout.tsx</p>
+<p>│   │   └── DashboardContext.tsx</p>
+<p>│   │</p>
+<p>│   ├── pages/                # Page components</p>
+<p>│   │   ├── LoginPage.tsx</p>
+<p>│   │   ├── HistoryPage.tsx</p>
+<p>│   │   ├── StatisticsPage.tsx</p>
+<p>│   │   ├── UsersPage.tsx</p>
+<p>│   │   ├── DepartmentManagementPage.tsx</p>
+<p>│   │   └── OrganizationManagementPage.tsx</p>
+<p>│   │</p>
+<p>│   ├── services/             # API và business logic</p>
+<p>│   │   ├── api.ts</p>
+<p>│   │   ├── authService.ts</p>
+<p>│   │   ├── userService.ts</p>
+<p>│   │   ├── departmentService.ts</p>
+<p>│   │   ├── organizationService.ts</p>
+<p>│   │   ├── historyService.ts</p>
+<p>│   │   ├── statisticsService.ts</p>
+<p>│   │   ├── imageUploadService.ts</p>
+<p>│   │   ├── nativeService.ts</p>
+<p>│   │   └── pushNotificationService.ts</p>
+<p>│   │</p>
+<p>│   ├── types/                 # TypeScript definitions</p>
+<p>│   │   ├── incident.d.ts</p>
+<p>│   │   └── contact.d.ts</p>
+<p>│   │</p>
+<p>│   ├── utils/                 # Utility functions</p>
+<p>│   │   ├── apiRetry.ts</p>
+<p>│   │   ├── offlineQueue.ts</p>
+<p>│   │   ├── offlineStorage.ts</p>
+<p>│   │   ├── storage.ts</p>
+<p>│   │   ├── fileSystem.ts</p>
+<p>│   │   ├── imageConverter.ts</p>
+<p>│   │   ├── navigation.ts</p>
+<p>│   │   └── serviceWorkerRegistration.ts</p>
+<p>│   │</p>
+<p>│   ├── config/                # Configuration</p>
+<p>│   │   └── env.ts</p>
+<p>│   │</p>
+<p>│   ├── styles/                # Global styles</p>
+<p>│   │   └── index.css</p>
+<p>│   │</p>
+<p>│   ├── data/                  # Mock data</p>
+<p>│   │   └── mockUsers.json</p>
+<p>│   │</p>
+<p>│   ├── App.tsx                # Main App component</p>
+<p>│   └── index.tsx              # Entry point</p>
+<p>│</p>
+<p>├── android/                   # Android native project (Capacitor)</p>
+<p>├── ios/                       # iOS native project (Capacitor)</p>
+<p>│</p>
+<p>├── capacitor.config.ts        # Capacitor configuration</p>
+<p>├── tailwind.config.js         # Tailwind configuration</p>
+<p>├── postcss.config.js          # PostCSS configuration</p>
+<p>├── tsconfig.json              # TypeScript configuration</p>
+<p>├── package.json               # Dependencies</p>
+<p>└── README.md                  # Documentation</p>
+<p><code>`</code></p>
+
+<hr>
+
+<h2>7. CÁC TÍNH NĂNG CHÍNH</h2>
+
+<h3>7.1. Quản lý cuộc gọi khẩn cấp</h3>
+<ul><li><strong>Gọi đi</strong>: Chọn phòng ban và thực hiện cuộc gọi</li></ul>
+<ul><li><strong>Nhận cuộc gọi</strong>: Nhận và xử lý cuộc gọi đến</li></ul>
+<ul><li><strong>Theo dõi trạng thái</strong>: Real-time tracking của cuộc gọi</li></ul>
+<ul><li><strong>Lịch sử</strong>: Xem lịch sử các cuộc gọi đã thực hiện</li></ul>
+
+<h3>7.2. Quản lý sự cố</h3>
+<ul><li><strong>Theo dõi sự cố</strong>: Real-time incident tracking</li></ul>
+<ul><li><strong>Phân loại</strong>: Phân loại theo status (resolved, warning, error, info)</li></ul>
+<ul><li><strong>Lọc và tìm kiếm</strong>: Lọc sự cố theo loại và thời gian</li></ul>
+<ul><li><strong>Widget hiển thị</strong>: Widget trạng thái sự cố trên dashboard</li></ul>
+
+<h3>7.3. Quản lý người dùng và tổ chức</h3>
+<ul><li><strong>Quản lý người dùng</strong>: CRUD người dùng</li></ul>
+<ul><li><strong>Quản lý phòng ban</strong>: CRUD phòng ban</li></ul>
+<ul><li><strong>Quản lý tổ chức</strong>: CRUD tổ chức</li></ul>
+<ul><li><strong>Phân quyền</strong>: Phân biệt tài khoản thường và department account</li></ul>
+
+<h3>7.4. Thống kê và báo cáo</h3>
+<ul><li><strong>Dashboard</strong>: Tổng quan hoạt động hệ thống</li></ul>
+<ul><li><strong>Biểu đồ</strong>: Biểu đồ cột, tròn, đường xu hướng</li></ul>
+<ul><li><strong>Bộ lọc</strong>: Lọc theo thời gian, phòng ban, loại sự cố</li></ul>
+
+<h3>7.5. Tính năng offline</h3>
+<ul><li><strong>Hàng đợi offline</strong>: Lưu trữ request khi offline</li></ul>
+<ul><li><strong>Đồng bộ tự động</strong>: Tự động đồng bộ khi có kết nối</li></ul>
+<ul><li><strong>Thông báo trạng thái</strong>: Hiển thị trạng thái mạng</li></ul>
+<ul><li><strong>Retry mechanism</strong>: Tự động retry khi thất bại</li></ul>
+
+<h3>7.6. Tính năng native</h3>
+<ul><li><strong>Camera</strong>: Chụp ảnh và chọn từ thư viện</li></ul>
+<ul><li><strong>Push Notifications</strong>: Nhận thông báo đẩy</li></ul>
+<ul><li><strong>File System</strong>: Đọc/ghi file trên thiết bị</li></ul>
+<ul><li><strong>Network Status</strong>: Theo dõi trạng thái mạng</li></ul>
+<ul><li><strong>Device Info</strong>: Lấy thông tin thiết bị</li></ul>
+
+<h3>7.7. Progressive Web App (PWA)</h3>
+<ul><li><strong>Service Worker</strong>: Cache và offline support</li></ul>
+<ul><li><strong>Manifest</strong>: Cấu hình PWA</li></ul>
+<ul><li><strong>Installable</strong>: Có thể cài đặt như app</li></ul>
+<ul><li><strong>Responsive</strong>: Tối ưu cho mọi kích thước màn hình</li></ul>
+
+<hr>
+
+<h2>8. MÔ HÌNH TRIỂN KHAI</h2>
+
+<h3>8.1. Môi trường phát triển</h3>
+<ul><li><strong>Local Development</strong>: <code>npm start</code> hoặc <code>npm run dev</code></li></ul>
+<ul><li><strong>API URL</strong>: Cấu hình qua <code>.env</code> file</li></ul>
+<ul><li><strong>Socket URL</strong>: Tự động detect hoặc cấu hình</li></ul>
+
+<h3>8.2. Môi trường production</h3>
+<ul><li><strong>Web</strong>: Build với <code>npm run build:pwa</code></li></ul>
+<ul><li><strong>Android</strong>: Build với <code>npm run build</code> và <code>npm run cap:run:android</code></li></ul>
+<ul><li><strong>iOS</strong>: Build với <code>npm run build</code> và <code>npm run cap:run:ios</code></li></ul>
+
+<h3>8.3. Cấu hình môi trường</h3>
+<p><code>`</code>env</p>
+<p>REACT_APP_API_URL=http://localhost:5000</p>
+<p>REACT_APP_SOCKET_URL=http://localhost:5000</p>
+<p>REACT_APP_NATIVE_API_URL=https://api.bluecode.com</p>
+<p><code>`</code></p>
+
+<h3>8.4. Deployment</h3>
+<ul><li><strong>Web</strong>: Deploy build folder lên web server (Nginx, Apache, etc.)</li></ul>
+<ul><li><strong>Android</strong>: Build APK/AAB và publish lên Google Play Store</li></ul>
+<ul><li><strong>iOS</strong>: Build IPA và publish lên App Store</li></ul>
+
+<hr>
+
+<h2>9. BẢO MẬT</h2>
+
+<h3>9.1. Xác thực</h3>
+<ul><li><strong>JWT Token</strong>: Lưu trong localStorage</li></ul>
+<ul><li><strong>Authorization Header</strong>: Tự động thêm vào mọi request</li></ul>
+<ul><li><strong>Token Refresh</strong>: Xử lý khi token hết hạn (401)</li></ul>
+
+<h3>9.2. Bảo mật API</h3>
+<ul><li><strong>HTTPS</strong>: Bắt buộc cho production</li></ul>
+<ul><li><strong>CORS</strong>: Cấu hình trên backend</li></ul>
+<ul><li><strong>Error Handling</strong>: Không expose thông tin nhạy cảm</li></ul>
+
+<h3>9.3. Bảo mật dữ liệu</h3>
+<ul><li><strong>LocalStorage</strong>: Chỉ lưu token và dữ liệu không nhạy cảm</li></ul>
+<ul><li><strong>Offline Queue</strong>: Không lưu thông tin nhạy cảm</li></ul>
+<ul><li><strong>Native Permissions</strong>: Yêu cầu quyền truy cập khi cần</li></ul>
+
+<hr>
+
+<h2>10. XỬ LÝ LỖI</h2>
+
+<h3>10.1. Network Errors</h3>
+<ul><li><strong>Retry Mechanism</strong>: Tự động retry với số lần giới hạn</li></ul>
+<ul><li><strong>Offline Queue</strong>: Lưu request khi offline</li></ul>
+<ul><li><strong>User Notification</strong>: Thông báo cho người dùng</li></ul>
+
+<h3>10.2. API Errors</h3>
+<ul><li><strong>401 Unauthorized</strong>: Tự động logout và redirect</li></ul>
+<ul><li><strong>403 Forbidden</strong>: Hiển thị thông báo không có quyền</li></ul>
+<ul><li><strong>404 Not Found</strong>: Thông báo không tìm thấy</li></ul>
+<ul><li><strong>500 Server Error</strong>: Thông báo lỗi server</li></ul>
+
+<h3>10.3. Socket Errors</h3>
+<ul><li><strong>Connection Error</strong>: Tự động reconnect</li></ul>
+<ul><li><strong>Reconnect Attempts</strong>: Số lần reconnect không giới hạn</li></ul>
+<ul><li><strong>Error Handling</strong>: Xử lý lỗi WebSocket gracefully</li></ul>
+
+<hr>
+
+<h2>11. TỐI ƯU HÓA</h2>
+
+<h3>11.1. Performance</h3>
+<ul><li><strong>Code Splitting</strong>: Lazy loading components</li></ul>
+<ul><li><strong>Memoization</strong>: React.memo và useMemo</li></ul>
+<ul><li><strong>Image Optimization</strong>: Compress và resize ảnh</li></ul>
+<ul><li><strong>Bundle Size</strong>: Tree shaking và minification</li></ul>
+
+<h3>11.2. Caching</h3>
+<ul><li><strong>Service Worker</strong>: Cache static assets</li></ul>
+<ul><li><strong>LocalStorage</strong>: Cache dữ liệu thường dùng</li></ul>
+<ul><li><strong>Memory Cache</strong>: Cache trong memory khi cần</li></ul>
+
+<h3>11.3. Network Optimization</h3>
+<ul><li><strong>Request Batching</strong>: Gộp nhiều request khi có thể</li></ul>
+<ul><li><strong>Retry Strategy</strong>: Retry thông minh với exponential backoff</li></ul>
+<ul><li><strong>Offline First</strong>: Ưu tiên offline experience</li></ul>
+
+<hr>
+
+<h2>12. TESTING & QUALITY ASSURANCE</h2>
+
+<h3>12.1. Type Safety</h3>
+<ul><li><strong>TypeScript</strong>: Type checking tại compile time</li></ul>
+<ul><li><strong>Type Definitions</strong>: Định nghĩa types cho tất cả data structures</li></ul>
+
+<h3>12.2. Code Quality</h3>
+<ul><li><strong>ESLint</strong>: Code linting (nếu có)</li></ul>
+<ul><li><strong>Code Review</strong>: Review code trước khi merge</li></ul>
+<ul><li><strong>Best Practices</strong>: Tuân thủ React và TypeScript best practices</li></ul>
+
+<hr>
+
+<h2>13. TÀI LIỆU THAM KHẢO</h2>
+
+<h3>13.1. Documentation</h3>
+<ul><li>React: https://react.dev</li></ul>
+<ul><li>TypeScript: https://www.typescriptlang.org</li></ul>
+<ul><li>Capacitor: https://capacitorjs.com</li></ul>
+<ul><li>Socket.io: https://socket.io</li></ul>
+<ul><li>Tailwind CSS: https://tailwindcss.com</li></ul>
+
+<h3>13.2. Project Files</h3>
+<ul><li><code>README.md</code>: Hướng dẫn cài đặt và sử dụng</li></ul>
+<ul><li><code>package.json</code>: Dependencies và scripts</li></ul>
+<ul><li><code>capacitor.config.ts</code>: Cấu hình Capacitor</li></ul>
+<ul><li><code>tsconfig.json</code>: Cấu hình TypeScript</li></ul>
+
+<hr>
+
+<h2>14. ROADMAP & FUTURE ENHANCEMENTS</h2>
+
+<h3>14.1. Tính năng dự kiến</h3>
+<ul><li>[ ] Voice call integration</li></ul>
+<ul><li>[ ] Video call support</li></ul>
+<ul><li>[ ] Advanced analytics dashboard</li></ul>
+<ul><li>[ ] Multi-language support</li></ul>
+<ul><li>[ ] Dark mode</li></ul>
+<ul><li>[ ] Advanced search và filtering</li></ul>
+<ul><li>[ ] Export reports (PDF, Excel)</li></ul>
+
+<h3>14.2. Cải thiện kỹ thuật</h3>
+<ul><li>[ ] Unit tests</li></ul>
+<ul><li>[ ] Integration tests</li></ul>
+<ul><li>[ ] E2E tests</li></ul>
+<ul><li>[ ] Performance monitoring</li></ul>
+<ul><li>[ ] Error tracking (Sentry, etc.)</li></ul>
+<ul><li>[ ] Analytics integration</li></ul>
+
+<hr>
+
+<p><strong>Tài liệu này được tạo tự động dựa trên phân tích codebase của dự án Blue Code.</strong></p>
+
+<p><strong>Phiên bản</strong>: 1.0.0  </p>
+<p><strong>Ngày cập nhật</strong>: 27/01/2026</p>
+
+</body>
+</html>
