@@ -78,6 +78,10 @@ export default function App() {
     return allSupportContacts;
   }, [allSupportContacts, currentOrganizationId]);
 
+  const isAdmin = useMemo(() => {
+    return (user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true;
+  }, [user?.role, user?.is_admin_view]);
+
   useEffect(() => {
     if (process.env.NODE_ENV === "development" && user) {
       
@@ -259,73 +263,87 @@ export default function App() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-6">
-        <div className="grid gap-4 grid-cols-1 md:h-full md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:grid-rows-[auto,minmax(0,1fr)]">
-          <section className="flex flex-col min-h-0 overflow-hidden md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2">
-            <div className="flex justify-start items-center gap-3 pt-4 pb-3 flex-wrap">
-              <button
-                onClick={handleRequestCall}
-                disabled={user?.is_department_account === true}
-                className={`px-4 py-2 rounded-lg text-white font-semibold flex items-center gap-2 ${
-                  user?.is_department_account === true
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2 8l10 10 4-4m2 2l4 4M14 6a4 4 0 01-4 4 4 4 0 010-8 4 4 0 014 4z"
-                  />
-                </svg>
-                Gọi ngay
-              </button>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
-                {departments.map((d) => {
-                  const key = makeKey(d.name, d.name);
-                  const userDeptName = user?.department_name?.trim();
-                  const deptName = d.name.trim();
-                  const isCurrentDept = userDeptName === deptName;
-                  const isDepartmentAccount = user?.is_department_account === true;
+        <div className={`grid gap-4 grid-cols-1 md:h-full ${
+          isAdmin 
+            ? "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:grid-rows-[auto,minmax(0,1fr)]" 
+            : "md:grid-cols-1 md:grid-rows-[auto,auto]"
+        }`}>
+          <section className={`flex flex-col min-h-0 overflow-hidden ${
+            isAdmin 
+              ? "md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2" 
+              : "md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2"
+          }`}>
+            <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 pt-4">
+              {/* Phần trái: Departments và Support Contacts - chiếm 3/4 */}
+              <div className="flex-1 md:flex-[3] min-h-0 overflow-y-auto md:pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
+                  {departments.map((d) => {
+                    const key = makeKey(d.name, d.name);
+                    const userDeptName = user?.department_name?.trim();
+                    const deptName = d.name.trim();
+                    const isCurrentDept = userDeptName === deptName;
+                    const isDepartmentAccount = user?.is_department_account === true;
 
-                  return (
-                    <DepartmentButton
-                      key={`${d.id}-${user?.department_name || "none"}`}
-                      name={d.name}
-                      phone={d.phone}
-                      isSelected={selectedKey === key}
-                      onClick={() => !isCurrentDept && !isDepartmentAccount && toggleSelect(key)}
-                      disabled={isCurrentDept || isDepartmentAccount}
-                    />
-                  );
-                })}
+                    return (
+                      <DepartmentButton
+                        key={`${d.id}-${user?.department_name || "none"}`}
+                        name={d.name}
+                        phone={d.phone}
+                        isSelected={selectedKey === key}
+                        onClick={() => !isCurrentDept && !isDepartmentAccount && toggleSelect(key)}
+                        disabled={isCurrentDept || isDepartmentAccount}
+                      />
+                    );
+                  })}
 
-                {supportContacts.map((s) => {
-                  const key = makeKey(s.label, s.label);
-                  const isCurrentSupport =
-                    s.label === user?.department_name || s.label === user?.name;
-                  const isDepartmentAccount = user?.is_department_account === true;
-                  return (
-                    <SupportButton
-                      key={s.id}
-                      label={s.label}
-                      phone={s.phone}
-                      color={s.color}
-                      isSelected={selectedKey === key}
-                      onClick={() => !isCurrentSupport && !isDepartmentAccount && toggleSelect(key)}
-                      disabled={isCurrentSupport || isDepartmentAccount}
-                    />
-                  );
-                })}
+                  {supportContacts.map((s) => {
+                    const key = makeKey(s.label, s.label);
+                    const isCurrentSupport =
+                      s.label === user?.department_name || s.label === user?.name;
+                    const isDepartmentAccount = user?.is_department_account === true;
+                    return (
+                      <SupportButton
+                        key={s.id}
+                        label={s.label}
+                        phone={s.phone}
+                        color={s.color}
+                        isSelected={selectedKey === key}
+                        onClick={() => !isCurrentSupport && !isDepartmentAccount && toggleSelect(key)}
+                        disabled={isCurrentSupport || isDepartmentAccount}
+                      />
+                    );
+                  })}
+                </div>
               </div>
+
+              {!isAdmin && (
+                <div className="w-full md:w-auto md:flex-[1] flex flex-col items-center md:h-full">
+                  <button
+                    onClick={handleRequestCall}
+                    disabled={user?.is_department_account === true}
+                    className={`w-full md:w-full h-auto md:h-full px-4 py-4 md:py-3 rounded-lg text-white font-semibold flex flex-row md:flex-col items-center justify-center gap-2 ${
+                      user?.is_department_account === true
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-red-600 hover:bg-red-700"
+                    }`}
+                  >
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2 8l10 10 4-4m2 2l4 4M14 6a4 4 0 01-4 4 4 4 0 010-8 4 4 0 014 4z"
+                      />
+                    </svg>
+                    <span>Gọi ngay</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <ConfirmationDialog
@@ -337,15 +355,23 @@ export default function App() {
               onConfirm={handleConfirmCall}
             />
           </section>
-          <div className="md:row-start-1 md:row-end-2 md:col-start-2 md:col-end-3 min-h-0">
-            <IncidentStatusWidget />
-          </div>
-          <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2">
+          {isAdmin && (
+            <div className="md:row-start-1 md:row-end-2 md:col-start-2 md:col-end-3 min-h-0">
+              <IncidentStatusWidget />
+            </div>
+          )}
+          <div className={`min-h-0 ${
+            isAdmin 
+              ? "md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2" 
+              : "md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2"
+          }`}>
             <FloorAccountPanel />
           </div>
-          <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
-            <IncidentSidebar isOpen={true} onClose={() => { }} />
-          </div>
+          {isAdmin && (
+            <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
+              <IncidentSidebar isOpen={true} onClose={() => { }} />
+            </div>
+          )}
         </div>
       </div>
 
