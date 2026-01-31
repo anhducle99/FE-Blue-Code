@@ -40,7 +40,6 @@ export const DepartmentManagementPage: React.FC = () => {
   });
   const [isDepartmentAccount, setIsDepartmentAccount] = useState(false);
 
-  // Lấy organization_id của user hiện tại
   useEffect(() => {
     const fetchCurrentUserOrg = async () => {
       if (!user) return;
@@ -134,7 +133,6 @@ export const DepartmentManagementPage: React.FC = () => {
 
   const handleAdd = () => {
     setEditingDept(null);
-    // Tự động set organization_id từ user hiện tại nếu có
     setFormData({ 
       name: "", 
       phone: "", 

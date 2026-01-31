@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useNetworkStatus } from "../hooks/useNetworkStatus";
+import { FiRadio } from "react-icons/fi";
 
 export default function Header() {
   const [openDropdown, setOpenDropdown] = useState(false);
@@ -33,33 +35,47 @@ export default function Header() {
     navigate("/login");
   };
 
+  const { isOnline } = useNetworkStatus();
+
   return (
-    <div className="flex justify-between items-center px-4 py-4 relative z-50">
-      <h1 className="text-red-700 text-base sm:text-xl md:text-2xl lg:text-3xl font-bold">
-        HỆ THỐNG BÁO ĐỘNG ĐỎ (CODE BLUE)
+    <header className="h-14 sm:h-16 bg-white shadow-sm flex items-center justify-between px-3 sm:px-4 md:px-6 relative z-50 border-b border-gray-100 gap-2 min-w-0">
+      <h1 className="text-tthBlue text-sm sm:text-base md:text-lg lg:text-xl font-bold tracking-tight truncate min-w-0 flex-1">
+        Trung Tâm Điều Phối Khẩn Cấp
       </h1>
 
-      <div ref={dropdownRef} className="relative">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
         <div
-          className="flex items-center gap-2 cursor-pointer"
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm whitespace-nowrap ${
+            isOnline
+              ? "bg-green-100 text-green-700 animate-pulse"
+              : "bg-amber-100 text-amber-700"
+          }`}
+        >
+          <FiRadio className="w-4 h-4 flex-shrink-0" />
+          <span>{isOnline ? "Hệ thống sẵn sàng" : "Offline"}</span>
+        </div>
+
+        <div ref={dropdownRef} className="relative">
+        <div
+          className="flex items-center gap-2 cursor-pointer rounded-lg hover:bg-gray-50 p-1.5 transition-colors"
           onClick={toggleDropdown}
         >
           <img
-            className="w-10 sm:w-12 md:w-14 rounded-full object-cover"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover ring-2 ring-tthBlue/20"
             src="/img/doctor-avatar-icon-b2a5b5-43f1a958.webp"
             alt="Avatar"
           />
-          <span className="hidden sm:block font-bold text-red-700 text-sm md:text-base">
+          <span className="hidden sm:block font-semibold text-gray-700 text-sm">
             {user?.name || "Người dùng"}
           </span>
         </div>
 
         {openDropdown && (
-          <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-lg w-48">
+          <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl border border-gray-200 w-48 overflow-hidden">
             {((user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true) && (
               <a
                 href="/dashboard/history"
-                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 border-b"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -86,7 +102,7 @@ export default function Header() {
 
             <a
               href="/dashboard/history"
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 border-b"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -116,7 +132,7 @@ export default function Header() {
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 w-full text-left"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-urgentRed transition-colors w-full text-left"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -136,7 +152,8 @@ export default function Header() {
             </button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </header>
   );
 }

@@ -202,8 +202,8 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
   if (!isModalVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl shadow-lg w-[520px] text-center border border-gray-200 relative">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white p-4 sm:p-6 rounded-xl shadow-lg w-full max-w-[520px] max-h-[90vh] overflow-y-auto flex flex-col border border-gray-200 relative my-auto">
         <button
           onClick={handleCloseModal}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
@@ -242,8 +242,8 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           </h2>
         </div>
 
-        <div className="max-h-[320px] overflow-y-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="max-h-[280px] sm:max-h-[320px] overflow-auto min-w-0">
+          <table className="w-full text-left border-collapse text-sm sm:text-base">
             <thead>
               <tr className="border-b bg-blue-50">
                 <th className="p-2 font-semibold text-gray-700">Sự cố</th>
@@ -282,7 +282,7 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           </table>
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <p className="text-sm text-gray-600">
             {!isCallCancelled && (
               <>
@@ -296,7 +296,7 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           </p>
           <button
             onClick={handleCancelCall}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold"
+            className="px-4 py-2.5 sm:py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-semibold min-h-[44px] sm:min-h-0"
           >
             Hủy cuộc gọi
           </button>

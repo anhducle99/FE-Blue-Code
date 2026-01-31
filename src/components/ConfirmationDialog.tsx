@@ -33,8 +33,8 @@ export default function ConfirmationDialog({
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center px-4">
-      <div className="bg-white p-6 rounded-xl max-w-md w-full shadow-lg border border-gray-200">
+    <div className="fixed inset-0 bg-black/50 z-50 flex justify-center items-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white p-4 sm:p-6 rounded-xl max-w-md w-full shadow-lg border border-gray-200 my-auto max-h-[90vh] overflow-y-auto flex flex-col">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
             <svg
@@ -83,16 +83,16 @@ export default function ConfirmationDialog({
           </div>
         )}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 mt-4">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors border border-gray-300"
+            className="px-5 py-2.5 sm:py-2 rounded-lg font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors border border-gray-300 min-h-[44px] sm:min-h-0"
           >
             Hủy
           </button>
           <button
             onClick={onConfirm}
-            className="px-5 py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            className="px-5 py-2.5 sm:py-2 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-colors min-h-[44px] sm:min-h-0"
           >
             Xác nhận gọi
           </button>

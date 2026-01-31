@@ -27,7 +27,17 @@ const normalizeName = (name: string): string => {
     .trim();
 };
 
-const IncidentStatusWidget: React.FC = () => {
+interface IncidentStatusWidgetProps {
+  compact?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+}
+
+const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
+  compact = false,
+  isExpanded = true,
+  onToggleExpand,
+}) => {
   const { incidents } = useIncidents();
   const { user } = useAuth();
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
@@ -129,92 +139,79 @@ const IncidentStatusWidget: React.FC = () => {
     };
   }, [filteredIncidents]);
 
-  const gaugePercentage = 100;
+  const todayStats = useMemo(() => {
+    const todayIncidents = filteredIncidents.filter((inc) => isToday(inc));
+    const pending = todayIncidents.filter((i) => (i as any).callType === "outgoing" || (i as any).callType === "pending").length;
+    const resolved = todayIncidents.filter((i) => (i as any).callType === "accepted" || i.status === "resolved").length;
+    const cancelled = todayIncidents.filter((i) => (i as any).callType === "cancelled" || (i as any).callType === "rejected").length;
+    return { total: todayIncidents.length, pending, resolved, cancelled };
+  }, [filteredIncidents]);
 
-  const getGaugeColor = () => {
-    if (stats.status === "OK") return "#22c55e";
-    if (stats.status === "WARNING") return "#facc15";
-    return "#ef4444";
-  };
+  if (compact && onToggleExpand) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleExpand}
+        className="w-full flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl shadow-md border border-blue-700/30 bg-gradient-to-r from-tthBlue to-blue-800 text-white hover:from-blue-700 hover:to-blue-900 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+          <span className="text-blue-100 text-xs sm:text-sm font-medium whitespace-nowrap">Hôm nay:</span>
+          <div className="flex gap-3 sm:gap-5 flex-wrap">
+            <span><strong>{todayStats.total}</strong> sự cố</span>
+            <span className="text-amber-200"><strong>{todayStats.pending}</strong> chờ</span>
+            <span className="text-green-300"><strong>{todayStats.resolved}</strong> xử lý</span>
+            <span className="text-red-200"><strong>{todayStats.cancelled}</strong> hủy</span>
+          </div>
+          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+            stats.status === "OK" ? "bg-green-500/80" : stats.status === "WARNING" ? "bg-amber-500/80" : "bg-red-500/80"
+          }`}>{stats.status}</span>
+        </div>
+        <span className="text-blue-200 flex-shrink-0 text-sm">Xem chi tiết ▼</span>
+      </button>
+    );
+  }
 
   return (
-    <div
-      className="h-full flex flex-col overflow-auto rounded-xl border"
-      style={{
-        backgroundColor: "rgb(3 101 175)",
-        padding: "10px",
-        borderColor: "rgba(255, 255, 255, 0.2)",
-        borderWidth: "1px",
-      }}
-    >
-      <div className="mb-3 flex-shrink-0">
-        <h3 className="text-sm md:text-base font-bold text-white text-center">
-          Thống kê cảnh báo trong ngày
-        </h3>
+    <div className="h-full flex flex-col overflow-auto rounded-xl shadow-lg relative overflow-hidden bg-gradient-to-br from-tthBlue to-blue-800 text-white">
+      <div className="absolute right-0 top-0 opacity-10 pointer-events-none">
+        <svg className="w-32 h-32 md:w-40 md:h-40" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+        </svg>
       </div>
-
-      <div className="flex-1 flex items-center justify-center mb-3 min-h-0">
-        <div className="relative w-40 h-40 md:w-44 md:h-44 flex-shrink-0">
-          <svg
-            className="transform -rotate-90 w-full h-full"
-            viewBox="0 0 100 100"
-          >
-            <circle
-              cx="50"
-              cy="50"
-              r="40"
-              stroke="rgba(255, 255, 255, 0.2)"
-              strokeWidth="8"
-              fill="none"
-            />
-            <circle
-              cx="50"
-              cy="50"
-              r="40"
-              stroke={getGaugeColor()}
-              strokeWidth="8"
-              fill="none"
-              strokeDasharray={`${2 * Math.PI * 40}`}
-              strokeDashoffset={`${
-                2 * Math.PI * 40 * (1 - gaugePercentage / 100)
-              }`}
-              strokeLinecap="round"
-              className="transition-all duration-500"
-            />
-          </svg>
-
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl md:text-4xl font-bold text-blue-400 mb-1">
-              {stats.online}
-            </div>
-            <div className="text-xs text-white mb-1">Online</div>
-            <div className="text-[10px] md:text-xs text-emerald-400">
-              Avg {stats.avg}%
-            </div>
-            <div className="text-[10px] md:text-xs text-emerald-400">
-              Max {stats.max}%
-            </div>
+      <div className="relative p-5 flex flex-col flex-1 min-h-0">
+        <h3 className="text-blue-100 text-sm font-semibold uppercase flex-shrink-0">
+          Hoạt động hôm nay
+        </h3>
+        <div className="flex items-end gap-2 mt-2 flex-shrink-0">
+          <span className="text-4xl md:text-5xl font-bold">{todayStats.total}</span>
+          <span className="text-base md:text-lg mb-1">sự cố</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-blue-600/50 flex-shrink-0">
+          <div className="text-center">
+            <div className="text-xl md:text-2xl font-bold">{todayStats.pending}</div>
+            <div className="text-xs text-blue-200">Đang chờ</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl md:text-2xl font-bold text-green-300">{todayStats.resolved}</div>
+            <div className="text-xs text-blue-200">Đã xử lý</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xl md:text-2xl font-bold text-red-300">{todayStats.cancelled}</div>
+            <div className="text-xs text-blue-200">Hủy</div>
           </div>
         </div>
-      </div>
-
-      <div
-        className="rounded-lg px-3 md:px-4 py-2 md:py-3 flex items-center justify-between flex-shrink-0"
-        style={{
-          backgroundColor:
+        <div
+          className={`rounded-lg px-3 md:px-4 py-2 md:py-3 flex items-center justify-between flex-shrink-0 mt-4 ${
             stats.status === "OK"
-              ? "#22c55e"
+              ? "bg-green-500/90"
               : stats.status === "WARNING"
-              ? "#facc15"
-              : "#ef4444",
-        }}
-      >
-        <span className="text-white text-xs md:text-sm font-medium">
-          Trạng thái
-        </span>
-        <span className="text-white text-base md:text-lg font-bold">
-          {stats.status }
-        </span>
+              ? "bg-amber-500/90"
+              : "bg-red-500/90"
+          }`}
+        >
+          <span className="text-white text-xs md:text-sm font-medium">Trạng thái</span>
+          <span className="text-white text-base md:text-lg font-bold">{stats.status}</span>
+        </div>
       </div>
     </div>
   );

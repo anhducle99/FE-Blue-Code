@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TTH Group - Hệ Thống Code Blue Tối Ưu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tthBlue: '#0054a6',
+                        urgentRed: '#dc2626',
+                        warningOrange: '#f97316',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-100 font-sans h-screen flex overflow-hidden">
+
+    <aside class="w-20 lg:w-64 bg-white shadow-lg flex flex-col z-20">
+        <div class="h-16 flex items-center justify-center border-b border-gray-200">
+            <h1 class="text-tthBlue font-bold text-2xl tracking-tighter hidden lg:block">TTH GROUP</h1>
+            <span class="text-tthBlue font-bold text-2xl lg:hidden">TTH</span>
+        </div>
+        <nav class="flex-1 py-4">
+            <a href="#" class="flex items-center px-6 py-3 bg-blue-50 text-tthBlue border-r-4 border-tthBlue">
+                <i class="fas fa-bullhorn w-6"></i>
+                <span class="ml-3 font-medium hidden lg:block">Điều Phối (Code Blue)</span>
+            </a>
+            <a href="#" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-50 hover:text-tthBlue transition">
+                <i class="fas fa-history w-6"></i>
+                <span class="ml-3 font-medium hidden lg:block">Lịch sử sự cố</span>
+            </a>
+            <a href="#" class="flex items-center px-6 py-3 text-gray-500 hover:bg-gray-50 hover:text-tthBlue transition">
+                <i class="fas fa-chart-pie w-6"></i>
+                <span class="ml-3 font-medium hidden lg:block">Báo cáo thống kê</span>
+            </a>
+        </nav>
+        <div class="p-4 border-t">
+            <div class="flex items-center">
+                <div class="w-8 h-8 rounded-full bg-tthBlue text-white flex items-center justify-center font-bold">A</div>
+                <div class="ml-3 hidden lg:block">
+                    <p class="text-sm font-semibold text-gray-700">Admin Test</p>
+                    <p class="text-xs text-green-500">● Online</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10">
+            <h2 class="text-xl font-bold text-gray-800">Trung Tâm Điều Phối Khẩn Cấp</h2>
+            <div class="flex gap-4">
+                <button class="px-4 py-2 bg-red-100 text-red-600 rounded-lg font-medium animate-pulse">
+                    <i class="fas fa-broadcast-tower mr-2"></i>Hệ thống sẵn sàng
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 p-6 grid grid-cols-12 gap-6 overflow-y-auto">
+            
+            <div class="col-span-12 lg:col-span-8 flex flex-col gap-6">
+                
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
+                    <h3 class="text-gray-500 text-sm font-bold uppercase mb-3"><i class="fas fa-map-marker-alt mr-2"></i>1. Chọn Vị Trí Sự Cố</h3>
+                    <div class="grid grid-cols-4 md:grid-cols-6 gap-3">
+                        <button class="px-4 py-3 rounded-lg bg-tthBlue text-white font-bold shadow-md ring-2 ring-blue-300">
+                            Tầng 1-P2
+                        </button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P1</button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P3</button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P4</button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P5</button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P6</button>
+                        <button class="px-4 py-3 rounded-lg bg-gray-100 text-gray-600 hover:bg-blue-50 transition">Tầng 1-P7</button>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex-1">
+                    <h3 class="text-gray-500 text-sm font-bold uppercase mb-4"><i class="fas fa-exclamation-triangle mr-2"></i>2. Kích Hoạt Báo Động (Nhấn giữ 2s để gọi ngay)</h3>
+                    
+                    <div class="grid grid-cols-2 gap-6 h-64">
+                        <button class="group relative flex flex-col items-center justify-center bg-red-50 border-2 border-red-200 hover:bg-red-600 hover:border-red-600 rounded-2xl transition-all duration-200 shadow-sm">
+                            <i class="fas fa-heart-crack text-4xl text-red-500 group-hover:text-white mb-3 transition-colors"></i>
+                            <span class="text-xl font-bold text-red-700 group-hover:text-white">NGỪNG TIM</span>
+                            <span class="text-sm text-red-400 group-hover:text-red-100 mt-1">Code Blue</span>
+                        </button>
+
+                        <button class="group flex flex-col items-center justify-center bg-red-50 border-2 border-red-200 hover:bg-red-600 hover:border-red-600 rounded-2xl transition-all duration-200 shadow-sm">
+                            <i class="fas fa-lungs-virus text-4xl text-red-500 group-hover:text-white mb-3 transition-colors"></i>
+                            <span class="text-xl font-bold text-red-700 group-hover:text-white">NGỪNG HÔ HẤP</span>
+                            <span class="text-sm text-red-400 group-hover:text-red-100 mt-1">Respiratory Arrest</span>
+                        </button>
+
+                        <button class="group flex flex-col items-center justify-center bg-orange-50 border-2 border-orange-200 hover:bg-orange-500 hover:border-orange-500 rounded-2xl transition-all duration-200 shadow-sm">
+                            <i class="fas fa-brain text-4xl text-orange-500 group-hover:text-white mb-3 transition-colors"></i>
+                            <span class="text-xl font-bold text-orange-700 group-hover:text-white">ĐỘT QUỴ</span>
+                            <span class="text-sm text-orange-400 group-hover:text-orange-100 mt-1">Stroke</span>
+                        </button>
+
+                        <button class="group flex flex-col items-center justify-center bg-blue-50 border-2 border-blue-200 hover:bg-tthBlue hover:border-tthBlue rounded-2xl transition-all duration-200 shadow-sm">
+                            <i class="fas fa-user-injured text-4xl text-tthBlue group-hover:text-white mb-3 transition-colors"></i>
+                            <span class="text-xl font-bold text-tthBlue group-hover:text-white">SỰ CỐ KHÁC</span>
+                            <span class="text-sm text-blue-400 group-hover:text-blue-100 mt-1">General Support</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="bg-gradient-to-br from-tthBlue to-blue-800 rounded-xl p-5 text-white shadow-lg relative overflow-hidden">
+                    <div class="absolute right-0 top-0 opacity-10">
+                        <i class="fas fa-heartbeat text-9xl"></i>
+                    </div>
+                    <h3 class="text-blue-100 text-sm font-semibold uppercase">Hoạt động hôm nay</h3>
+                    <div class="flex items-end gap-2 mt-2">
+                        <span class="text-5xl font-bold">15</span>
+                        <span class="text-lg mb-1">sự cố</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-blue-600/50">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold">2</div>
+                            <div class="text-xs text-blue-200">Đang chờ</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-green-300">12</div>
+                            <div class="text-xs text-blue-200">Đã xử lý</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-red-300">1</div>
+                            <div class="text-xs text-blue-200">Hủy</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                        <h3 class="font-bold text-gray-700">🔴 Live Feed (Thời gian thực)</h3>
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse">● Live</span>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto p-2 space-y-2">
+                        <div class="p-3 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="text-xs font-bold text-red-600 bg-red-200 px-2 py-0.5 rounded">MỚI NHẤT</span>
+                                    <h4 class="font-bold text-gray-800 mt-1">Ngừng tuần hoàn</h4>
+                                    <p class="text-sm text-gray-600"><i class="fas fa-map-marker-alt mr-1"></i> Tầng 1-P2</p>
+                                </div>
+                                <span class="text-xs text-gray-500">10:29:02</span>
+                            </div>
+                            <div class="mt-2 flex gap-2">
+                                <button class="flex-1 bg-red-600 text-white text-xs py-1.5 rounded hover:bg-red-700">Tiếp nhận</button>
+                                <button class="flex-1 bg-white border border-gray-300 text-gray-600 text-xs py-1.5 rounded hover:bg-gray-50">Chi tiết</button>
+                            </div>
+                        </div>
+
+                        <div class="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-gray-700">Ngừng tim</h4>
+                                    <p class="text-sm text-gray-500">Tầng 1-P2</p>
+                                </div>
+                                <span class="text-xs text-gray-400">09:50:06</span>
+                            </div>
+                            <div class="mt-1">
+                                <span class="text-xs text-green-600"><i class="fas fa-check-circle mr-1"></i>Đã xử lý xong (duc1)</span>
+                            </div>
+                        </div>
+
+                         <div class="p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition opacity-75">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-gray-500 line-through">Ngừng tim</h4>
+                                    <p class="text-sm text-gray-500">Tầng 1-P2</p>
+                                </div>
+                                <span class="text-xs text-gray-400">09:45:52</span>
+                            </div>
+                            <div class="mt-1">
+                                <span class="text-xs text-red-400"><i class="fas fa-times-circle mr-1"></i>Đã hủy</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    </body>
+</html>

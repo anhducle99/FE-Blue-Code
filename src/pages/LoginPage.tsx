@@ -77,12 +77,12 @@ export default function LoginPage() {
 
       <div className="absolute inset-0 bg-black opacity-50" />
 
-      <div className="relative flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 w-full">
+      <div className="relative flex flex-1 flex-col justify-center px-3 py-8 sm:px-6 sm:py-12 lg:flex-none lg:px-20 xl:px-24 w-full min-w-0">
         <form
           onSubmit={handleLogin}
-          className="mx-auto w-full max-w-sm lg:w-96 bg-white p-8 rounded-lg shadow-3xl shadow-gray-700"
+          className="mx-auto w-full max-w-[min(100%,24rem)] sm:max-w-sm lg:w-96 bg-white p-6 sm:p-8 rounded-lg shadow-3xl shadow-gray-700"
         >
-          <h2 className="text-2xl font-bold text-gray-900 text-center">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center">
             Đăng nhập
           </h2>
 

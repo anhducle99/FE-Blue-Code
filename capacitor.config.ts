@@ -1,15 +1,12 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.bluecode.app',
-  appName: 'Blue Code',
+  appId: 'com.bluecode.app.test',
+  appName: 'Blue Code Test',
   webDir: 'build',
   server: {
-    androidScheme: 'https',
-    iosScheme: 'https',
-    // For development, uncomment and set your local IP
-    // url: 'http://192.168.1.xxx:3000',
-    // cleartext: true
+    androidScheme: 'http',
+    cleartext: true
   },
   plugins: {
     SplashScreen: {
@@ -19,8 +16,6 @@ const config: CapacitorConfig = {
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
-      iosSpinnerStyle: 'small',
-      spinnerColor: '#ffffff',
     },
     StatusBar: {
       style: 'default',
@@ -31,12 +26,11 @@ const config: CapacitorConfig = {
     },
     Camera: {
       permissions: {
-        camera: 'Allow Blue Code to access your camera to take photos for incidents.',
-        photos: 'Allow Blue Code to access your photos to attach images.',
+        camera: 'Allow Blue Code to access your camera.',
+        photos: 'Allow Blue Code to access your photos.',
       },
     },
   },
 };
 
 export default config;
-

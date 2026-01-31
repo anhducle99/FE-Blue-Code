@@ -6,6 +6,7 @@ interface Props {
   isSelected?: boolean;
   onClick?: () => void;
   disabled?: boolean;
+  icon?: React.ReactNode;
 }
 
 export default function DepartmentButton({
@@ -14,21 +15,28 @@ export default function DepartmentButton({
   isSelected = false,
   onClick,
   disabled = false,
+  icon,
 }: Props) {
   return (
     <button
       onClick={disabled ? undefined : onClick}
       disabled={disabled}
-      className={`p-3 rounded-lg text-white font-semibold text-base w-full shadow-md transition-colors duration-200 ${
+      title={name}
+      className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base w-full min-w-0 shadow-sm border-2 transition-all duration-200 flex flex-col items-center ${
         disabled
-          ? "bg-blue-500 cursor-not-allowed"
+          ? "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-200"
           : isSelected
-          ? "bg-green-600"
-          : "bg-blue-500 hover:bg-blue-600"
+          ? "bg-tthBlue text-white border-tthBlue ring-2 ring-blue-300 ring-offset-1"
+          : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-tthBlue"
       }`}
     >
-      <div className="text-center">{name}</div>
-      <div className="mt-2 text-sm flex justify-center items-center gap-1">
+      {icon && (
+        <div className="text-xl sm:text-2xl mb-1.5 sm:mb-2 [&>svg]:w-5 [&>svg]:h-5 sm:[&>svg]:w-6 sm:[&>svg]:h-6 text-current flex-shrink-0">
+          {icon}
+        </div>
+      )}
+      <div className="text-center w-full min-w-0 break-words whitespace-normal leading-tight px-0.5">{name}</div>
+      <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm flex justify-center items-center gap-1 opacity-90 min-w-0">
         <PhoneIcon className="w-4 h-4" />
         <span>{phone}</span>
       </div>
