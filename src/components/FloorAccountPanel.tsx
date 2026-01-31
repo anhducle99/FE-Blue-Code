@@ -209,36 +209,40 @@ export const FloorAccountPanel: React.FC = () => {
   }, [floorAccountUsers, callingUsers]);
 
   return (
-    <div className="h-full bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col min-h-0">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4 flex-shrink-0">
-        Tầng phòng
-      </h2>
+    <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 p-5 flex flex-col min-h-0">
+      <h3 className="text-gray-500 text-xs sm:text-sm font-bold uppercase mb-2 sm:mb-3 flex-shrink-0 flex items-center gap-2 flex-wrap">
+        <svg className="w-4 h-4 text-tthBlue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        <span>1. Chọn Vị Trí Sự Cố (Tầng phòng)</span>
+      </h3>
       
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pr-1">
         {loading ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-500">Đang tải...</p>
+            <p className="text-gray-500 text-sm">Đang tải...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
             {sortedUsers.map((u) => {
               const isCurrentUser = u.id === user?.id;
               const isBeingCalled = callingUsers.has(u.id);
-              
-              if (process.env.NODE_ENV === "development" && isBeingCalled) {
-              }
               
               return (
                 <button
                   key={`floor-user-${u.id}`}
                   disabled={isCurrentUser && !isBeingCalled}
-                  className={`p-3 rounded-lg text-white font-semibold text-base w-full shadow-md transition-colors duration-200 ${
+                  title={u.name}
+                  className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm w-full shadow-sm border-2 transition-all duration-200 min-w-0 break-words whitespace-normal text-center leading-tight ${
                     isBeingCalled
-                      ? "bg-red-600 hover:bg-red-700 animate-pulse"
-                      : "bg-blue-500 hover:bg-blue-600"
-                  } ${isCurrentUser && !isBeingCalled ? "cursor-not-allowed" : ""}`}
+                      ? "bg-urgentRed text-white border-urgentRed animate-pulse ring-2 ring-red-300"
+                      : isCurrentUser && !isBeingCalled
+                      ? "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-200"
+                      : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-tthBlue"
+                  }`}
                 >
-                  <div className="text-center">{u.name}</div>
+                  {u.name}
                 </button>
               );
             })}

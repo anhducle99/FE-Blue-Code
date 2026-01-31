@@ -2,11 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = require('docx');
 
-// Đọc file markdown
 const markdownPath = path.join(__dirname, '..', 'KIEN-TRUC-HE-THONG.md');
 const markdownContent = fs.readFileSync(markdownPath, 'utf-8');
 
-// Parse markdown thành các đoạn
 function parseMarkdown(markdown) {
   const lines = markdown.split('\n');
   const paragraphs = [];
@@ -16,13 +14,11 @@ function parseMarkdown(markdown) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     
-    // Xử lý code blocks
     if (line.startsWith('```')) {
       if (currentCodeBlock === null) {
         currentCodeBlock = line.substring(3).trim();
         currentCodeContent = [];
       } else {
-        // Kết thúc code block
         if (currentCodeContent.length > 0) {
           paragraphs.push({
             type: 'code',
@@ -41,7 +37,6 @@ function parseMarkdown(markdown) {
       continue;
     }
 
-    // Xử lý headings
     if (line.startsWith('# ')) {
       paragraphs.push({ type: 'heading1', text: line.substring(2).trim() });
     } else if (line.startsWith('## ')) {
@@ -55,19 +50,15 @@ function parseMarkdown(markdown) {
     } else if (line.startsWith('###### ')) {
       paragraphs.push({ type: 'heading6', text: line.substring(7).trim() });
     }
-    // Xử lý horizontal rule
     else if (line.trim() === '---' || line.trim() === '***') {
       paragraphs.push({ type: 'separator' });
     }
-    // Xử lý list items
     else if (line.trim().startsWith('- ')) {
       paragraphs.push({ type: 'bullet', text: line.trim().substring(2) });
     }
-    // Xử lý empty lines
     else if (line.trim() === '') {
       paragraphs.push({ type: 'empty' });
     }
-    // Xử lý text thường
     else if (line.trim()) {
       paragraphs.push({ type: 'text', text: line.trim() });
     }
@@ -76,7 +67,6 @@ function parseMarkdown(markdown) {
   return paragraphs;
 }
 
-// Chuyển đổi sang Word document
 function createWordDocument(paragraphs) {
   const children = [];
 
@@ -147,7 +137,6 @@ function createWordDocument(paragraphs) {
         })
       );
     } else if (para.type === 'text') {
-      // Xử lý bold và italic trong text
       const textRuns = parseTextRuns(para.text);
       children.push(
         new Paragraph({
@@ -177,11 +166,11 @@ function createWordDocument(paragraphs) {
         document: {
           run: {
             font: 'Times New Roman',
-            size: 24, // 12pt
+            size: 24, 
           },
           paragraph: {
             spacing: {
-              line: 276, // 1.15 line spacing
+              line: 276, 
             },
           },
         },
@@ -193,14 +182,14 @@ function createWordDocument(paragraphs) {
           basedOn: 'Normal',
           run: {
             font: 'Courier New',
-            size: 20, // 10pt
+            size: 20, 
           },
           paragraph: {
             shading: {
               fill: 'F5F5F5',
             },
             indent: {
-              left: 360, // 0.25 inch
+              left: 360, 
             },
           },
         },
@@ -209,19 +198,16 @@ function createWordDocument(paragraphs) {
   });
 }
 
-// Parse text runs để xử lý bold và italic
 function parseTextRuns(text) {
   const runs = [];
   let currentIndex = 0;
   
-  // Regex để tìm **bold** và *italic*
   const boldRegex = /\*\*(.+?)\*\*/g;
   const italicRegex = /\*(.+?)\*/g;
   
   const matches = [];
   let match;
   
-  // Tìm tất cả bold matches
   while ((match = boldRegex.exec(text)) !== null) {
     matches.push({
       type: 'bold',
@@ -231,7 +217,6 @@ function parseTextRuns(text) {
     });
   }
   
-  // Tìm tất cả italic matches
   while ((match = italicRegex.exec(text)) !== null) {
     matches.push({
       type: 'italic',
@@ -241,10 +226,8 @@ function parseTextRuns(text) {
     });
   }
   
-  // Sắp xếp matches theo vị trí
   matches.sort((a, b) => a.start - b.start);
   
-  // Loại bỏ overlaps (ưu tiên bold)
   const filteredMatches = [];
   for (let i = 0; i < matches.length; i++) {
     const current = matches[i];
@@ -267,7 +250,6 @@ function parseTextRuns(text) {
     }
   }
   
-  // Tạo text runs
   let lastIndex = 0;
   for (const match of filteredMatches) {
     if (match.start > lastIndex) {
@@ -300,24 +282,18 @@ function parseTextRuns(text) {
   return runs.length > 0 ? runs : [new TextRun(text)];
 }
 
-// Main function
 async function convertToWord() {
   try {
-    console.log('Đang đọc file markdown...');
     const paragraphs = parseMarkdown(markdownContent);
     
-    console.log('Đang tạo document Word...');
     const doc = createWordDocument(paragraphs);
     
-    console.log('Đang xuất file Word...');
     const buffer = await Packer.toBuffer(doc);
     
     const outputPath = path.join(__dirname, '..', 'KIEN-TRUC-HE-THONG.docx');
     fs.writeFileSync(outputPath, buffer);
     
-    console.log(`✅ Đã xuất thành công file Word tại: ${outputPath}`);
   } catch (error) {
-    console.error('❌ Lỗi khi chuyển đổi:', error);
     process.exit(1);
   }
 }

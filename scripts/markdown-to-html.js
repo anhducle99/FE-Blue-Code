@@ -1,15 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
-// Đọc file markdown
 const markdownPath = path.join(__dirname, '..', 'KIEN-TRUC-HE-THONG.md');
 const markdownContent = fs.readFileSync(markdownPath, 'utf-8');
 
-// Chuyển đổi markdown sang HTML đơn giản
 function markdownToHtml(markdown) {
   let html = markdown;
   
-  // Headings
   html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
   html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
   html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
@@ -17,31 +14,24 @@ function markdownToHtml(markdown) {
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
   
-  // Horizontal rules
   html = html.replace(/^---$/gm, '<hr>');
   html = html.replace(/^\*\*\*$/gm, '<hr>');
   
-  // Bold
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   
-  // Italic
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
   
-  // Inline code
   html = html.replace(/`(.+?)`/g, '<code>$1</code>');
   
-  // Code blocks
   html = html.replace(/```(\w+)?\n([\s\S]+?)```/g, (match, lang, code) => {
     return `<pre><code>${escapeHtml(code)}</code></pre>`;
   });
   
-  // Lists
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/(<li>.*<\/li>\n?)+/g, (match) => {
     return '<ul>' + match + '</ul>';
   });
   
-  // Paragraphs (lines không phải là heading, list, code, hr)
   const lines = html.split('\n');
   const processedLines = [];
   let inCodeBlock = false;
@@ -97,7 +87,6 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Tạo HTML document hoàn chỉnh
 const htmlContent = `<!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -212,12 +201,6 @@ ${markdownToHtml(markdownContent)}
 </body>
 </html>`;
 
-// Lưu file HTML
 const outputPath = path.join(__dirname, '..', 'KIEN-TRUC-HE-THONG.html');
 fs.writeFileSync(outputPath, htmlContent, 'utf-8');
 
-console.log(`✅ Đã tạo file HTML tại: ${outputPath}`);
-console.log('📝 Bạn có thể:');
-console.log('   1. Mở file HTML bằng trình duyệt');
-console.log('   2. Mở file HTML bằng Microsoft Word');
-console.log('   3. Trong Word: File > Save As > chọn định dạng .docx');

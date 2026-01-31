@@ -24,6 +24,9 @@ import { apiWithRetry } from "./services/api";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
 import { getUsers, IUser } from "./services/userService";
 import { getDepartments, IDepartment } from "./services/departmentService";
+import { FaHeartCrack, FaLungsVirus, FaBrain, FaUserInjured } from "react-icons/fa6";
+
+const DEPT_ICONS = [FaHeartCrack, FaLungsVirus, FaBrain, FaUserInjured];
 
 export default function App() {
   const location = useLocation();
@@ -107,6 +110,7 @@ export default function App() {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [tempMessage, setTempMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
+  const [adminPanelExpanded, setAdminPanelExpanded] = useState(false);
   const [audioModalOpen, setAudioModalOpen] = useState(false);
   const identifier: RegisterData | null = useMemo(() => {
     if (!user) return null;
@@ -244,17 +248,17 @@ export default function App() {
   ]);
 
   return (
-    <div className="min-h-screen h-screen overflow-hidden bg-white flex flex-col">
+    <div className="min-h-screen h-screen overflow-hidden bg-gray-100 flex flex-col">
       {!networkStatus.isOnline && (
-        <div className="bg-yellow-500 text-white text-center py-2 px-4 text-sm font-semibold">
+        <div className="bg-amber-500 text-white text-center py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold flex-shrink-0">
           ⚠️ Không có kết nối mạng. Ứng dụng đang hoạt động ở chế độ offline.
           {pendingCount > 0 && (
-            <span className="ml-2">({pendingCount} hành động đang chờ)</span>
+            <span className="ml-1 sm:ml-2">({pendingCount} hành động đang chờ)</span>
           )}
         </div>
       )}
       {uploadProgress !== null && (
-        <div className="bg-blue-500 text-white text-center py-2 px-4 text-sm font-semibold">
+        <div className="bg-tthBlue text-white text-center py-2 px-3 sm:px-4 text-xs sm:text-sm font-semibold flex-shrink-0">
           Đang upload ảnh... {uploadProgress}%
         </div>
       )}
@@ -262,27 +266,40 @@ export default function App() {
         <Header />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
-        <div className={`grid gap-4 grid-cols-1 md:h-full ${
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 md:p-6 min-h-0 flex flex-col">
+        <div className={`grid gap-4 sm:gap-6 grid-cols-1 min-w-0 flex-shrink-0 ${
           isAdmin 
-            ? "md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] md:grid-rows-[auto,minmax(0,1fr)]" 
-            : "md:grid-cols-1 md:grid-rows-[auto,auto]"
+            ? "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:h-full" 
+            : "md:grid-cols-1 md:grid-rows-[auto_auto]"
         }`}>
-          <section className={`flex flex-col min-h-0 overflow-hidden ${
+          <section className={`flex flex-col min-h-0 overflow-hidden gap-6 ${
             isAdmin 
-              ? "md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2" 
-              : "md:row-start-1 md:row-end-2 md:col-start-1 md:col-end-2"
+              ? "lg:row-start-1 lg:row-end-3 lg:col-start-1 lg:col-end-2" 
+              : "md:row-start-1 md:row-end-3 md:col-start-1 md:col-end-2"
           }`}>
-            <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-4 pt-4">
-              {/* Phần trái: Departments và Support Contacts - chiếm 3/4 */}
-              <div className="flex-1 md:flex-[3] min-h-0 overflow-y-auto md:pr-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-6">
-                  {departments.map((d) => {
+            <div className={`min-h-0 flex-shrink-0 ${
+              isAdmin ? "lg:row-start-1" : ""
+            }`}>
+              <FloorAccountPanel />
+            </div>
+
+            <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+              <div className="flex-1 md:flex-[3] min-h-0 flex flex-col overflow-hidden">
+                <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-200 flex-shrink-0 min-w-0">
+                  <h3 className="text-gray-500 text-xs sm:text-sm font-bold uppercase mb-3 sm:mb-4 flex items-center gap-2 flex-wrap">
+                    <svg className="w-4 h-4 text-tthBlue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    <span>2. Chọn Đội Cần Gọi (Nhấn chọn rồi bấm Gọi ngay)</span>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 overflow-y-auto max-h-48 sm:max-h-56 md:max-h-64 min-h-0">
+                  {departments.map((d, idx) => {
                     const key = makeKey(d.name, d.name);
                     const userDeptName = user?.department_name?.trim();
                     const deptName = d.name.trim();
                     const isCurrentDept = userDeptName === deptName;
                     const isDepartmentAccount = user?.is_department_account === true;
+                    const IconComponent = DEPT_ICONS[idx % DEPT_ICONS.length];
 
                     return (
                       <DepartmentButton
@@ -292,15 +309,18 @@ export default function App() {
                         isSelected={selectedKey === key}
                         onClick={() => !isCurrentDept && !isDepartmentAccount && toggleSelect(key)}
                         disabled={isCurrentDept || isDepartmentAccount}
+                        icon={<IconComponent />}
                       />
                     );
                   })}
 
-                  {supportContacts.map((s) => {
+                  {supportContacts.map((s, idx) => {
                     const key = makeKey(s.label, s.label);
                     const isCurrentSupport =
                       s.label === user?.department_name || s.label === user?.name;
                     const isDepartmentAccount = user?.is_department_account === true;
+                    const IconComponent = DEPT_ICONS[(departments.length + idx) % DEPT_ICONS.length];
+
                     return (
                       <SupportButton
                         key={s.id}
@@ -310,25 +330,27 @@ export default function App() {
                         isSelected={selectedKey === key}
                         onClick={() => !isCurrentSupport && !isDepartmentAccount && toggleSelect(key)}
                         disabled={isCurrentSupport || isDepartmentAccount}
+                        icon={<IconComponent />}
                       />
                     );
                   })}
+                  </div>
                 </div>
               </div>
 
               {!isAdmin && (
-                <div className="w-full md:w-auto md:flex-[1] flex flex-col items-center md:h-full">
+                <div className="w-full md:w-auto md:flex-[1] flex flex-col items-center justify-center min-w-0 flex-shrink-0">
                   <button
                     onClick={handleRequestCall}
                     disabled={user?.is_department_account === true}
-                    className={`w-full md:w-full h-auto md:h-full px-4 py-4 md:py-3 rounded-lg text-white font-semibold flex flex-row md:flex-col items-center justify-center gap-2 ${
+                    className={`w-full max-w-xs md:max-w-none min-h-[100px] sm:min-h-[120px] md:min-h-[140px] px-4 py-3 sm:py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all duration-200 shadow-md text-base sm:text-lg ${
                       user?.is_department_account === true
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-red-600 hover:bg-red-700"
+                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                        : "bg-urgentRed hover:bg-red-700 text-white border-2 border-red-700 hover:border-red-800"
                     }`}
                   >
                     <svg
-                      className="w-6 h-6"
+                      className="w-8 h-8"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -337,10 +359,10 @@ export default function App() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M2 8l10 10 4-4m2 2l4 4M14 6a4 4 0 01-4 4 4 4 0 010-8 4 4 0 014 4z"
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
                       />
                     </svg>
-                    <span>Gọi ngay</span>
+                    <span className="text-lg">Gọi ngay</span>
                   </button>
                 </div>
               )}
@@ -356,23 +378,54 @@ export default function App() {
             />
           </section>
           {isAdmin && (
-            <div className="md:row-start-1 md:row-end-2 md:col-start-2 md:col-end-3 min-h-0">
-              <IncidentStatusWidget />
-            </div>
-          )}
-          <div className={`min-h-0 ${
-            isAdmin 
-              ? "md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2" 
-              : "md:row-start-2 md:row-end-3 md:col-start-1 md:col-end-2"
-          }`}>
-            <FloorAccountPanel />
-          </div>
-          {isAdmin && (
-            <div className="min-h-0 md:row-start-2 md:row-end-3 md:col-start-2 md:col-end-3">
-              <IncidentSidebar isOpen={true} onClose={() => { }} />
-            </div>
+            <>
+              <div className="hidden lg:block min-h-0 lg:row-start-1 lg:row-end-2 lg:col-start-2 lg:col-end-3 min-w-0">
+                <IncidentStatusWidget />
+              </div>
+              <div className="hidden lg:flex min-h-0 lg:row-start-2 lg:row-end-3 lg:col-start-2 lg:col-end-3 min-w-0 flex-col overflow-hidden">
+                <IncidentSidebar isOpen={true} onClose={() => { }} />
+              </div>
+
+              <div className="lg:hidden min-w-0 space-y-2">
+                {!adminPanelExpanded ? (
+                  <IncidentStatusWidget
+                    compact
+                    isExpanded={false}
+                    onToggleExpand={() => setAdminPanelExpanded(true)}
+                  />
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between px-3 py-2 bg-gray-100 rounded-t-xl border-b border-gray-200">
+                      <span className="font-semibold text-gray-700 text-sm">Live Feed & Thống kê</span>
+                      <button
+                        type="button"
+                        onClick={() => setAdminPanelExpanded(false)}
+                        className="px-3 py-1.5 text-sm font-medium text-tthBlue hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        Thu gọn ▲
+                      </button>
+                    </div>
+                    <div className="min-h-[160px]">
+                      <IncidentStatusWidget />
+                    </div>
+                    <div className="flex flex-col overflow-hidden min-h-[240px] rounded-xl border border-gray-200">
+                      <IncidentSidebar isOpen={true} onClose={() => { }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
+
+       
+        {/* <div className="mt-4 sm:mt-6 flex-1 min-h-[200px] w-full overflow-hidden rounded-xl shadow-md border border-gray-200 relative">
+          <img
+            src="/img/logo.jpg"
+            alt="TTH Group - Tòa nhà"
+            className="absolute inset-0 w-full h-full object-cover object-center block"
+          />
+        </div> */}
       </div>
 
       <AudioPermissionModal

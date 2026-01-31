@@ -4,7 +4,11 @@ module.exports = {
   darkMode: "class",
   theme: {
     extend: {
-      colors: {},
+      colors: {
+        tthBlue: "#0054a6",
+        urgentRed: "#dc2626",
+        warningOrange: "#f97316",
+      },
     },
   },
   plugins: [require("@tailwindcss/typography"), require("daisyui")],

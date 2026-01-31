@@ -142,105 +142,6 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     return incident.message;
   };
 
-  const getCallLogColor = (incident: Incident): string => {
-    if ((incident as any).callType) {
-      const callType = (incident as any).callType;
-      const message = incident.message.toLowerCase();
-
-      if (callType === "outgoing") {
-        return "#ef4444";
-      }
-      if (callType === "pending") {
-        return "#fbbf24"; 
-      }
-      if (callType === "accepted") {
-        return "#22c55e"; 
-      }
-      if (callType === "rejected") {
-        return "#facc15"; 
-      }
-      if (callType === "timeout") {
-        return "#9ca3af"; 
-      }
-      if (callType === "cancelled" || message.includes("đã bị hủy") || message.includes("đã hủy")) {
-        return "#f97316"; 
-      }
-    }
-
-    const message = incident.message.toLowerCase();
-    if (
-      message.includes("đang gọi") ||
-      message.includes("gọi đi") ||
-      message.includes("khởi tạo cuộc gọi")
-    ) {
-      return "#ef4444";
-    }
-    if (
-      message.includes("đã xác nhận") ||
-      message.includes("chấp nhận") ||
-      message.includes("đã nhận")
-    ) {
-      return "#22c55e";
-    }
-    if (
-      message.includes("từ chối") ||
-      message.includes("không nhận") ||
-      message.includes("không liên lạc")
-    ) {
-      return "#facc15";
-    }
-
-    switch (incident.status) {
-      case "resolved":
-        return "#22c55e";
-      case "error":
-        return "#ef4444";
-      case "warning":
-        return "#facc15";
-      default:
-        return "#3b82f6";
-    }
-  };
-
-  const getStatusIcon = (incident: Incident): React.ReactElement | null => {
-    if ((incident as any).callType) {
-      return (
-        <svg
-          className="w-3 h-3 text-white/70"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-          />
-        </svg>
-      );
-    }
-
-    if (incident.status === "resolved") {
-      return (
-        <svg
-          className="w-3 h-3 text-green-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      );
-    }
-    return null;
-  };
-
   const filterOptions: { value: IncidentFilter; label: string }[] = [
     { value: "all", label: "Tất cả" },
     { value: "error", label: "Lỗi" },
@@ -249,35 +150,40 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     { value: "info", label: "Thông tin" },
   ];
 
+  const getCardStyle = (incident: Incident, index: number) => {
+    const callType = (incident as any).callType;
+    const isNewest = index === 0;
+    const isOutgoing = callType === "outgoing" || callType === "pending";
+    const isResolved = callType === "accepted" || incident.status === "resolved";
+    const isCancelled = callType === "cancelled" || callType === "rejected";
+
+    if (isNewest && isOutgoing) {
+      return "p-3 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm";
+    }
+    if (isCancelled) {
+      return "p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition opacity-75";
+    }
+    return "p-3 bg-white border border-gray-100 rounded-lg hover:bg-gray-50 transition";
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div
-      className="h-full w-full text-white flex flex-col overflow-hidden rounded-xl border"
-      style={{
-        backgroundColor: "rgb(3 101 175)",
-        borderColor: "rgba(255, 255, 255, 0.2)",
-        borderWidth: "1px",
-      }}
-    >
-      <div
-        className="flex items-center justify-between p-2 border-b flex-shrink-0"
-        style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
-      >
-        <h2 className="text-sm font-bold">Sự cố và cảnh báo</h2>
-        <div className="flex items-center gap-2">
-          <select
-            value={filter}
-            onChange={(e) => {
-              setFilter(e.target.value as IncidentFilter);
-              setCurrentPage(1);
-            }}
-            className="text-white px-2 py-0.5 rounded border text-xs"
-            style={{
-              backgroundColor: "rgba(0, 0, 0, 0.2)",
-              borderColor: "rgba(255, 255, 255, 0.2)",
-            }}
-          >
+    <div className="h-full w-full flex flex-col overflow-hidden rounded-xl shadow-sm border border-gray-200 bg-white">
+      <div className="p-3 sm:p-4 border-b border-gray-100 flex justify-between items-center gap-2 bg-gray-50 flex-shrink-0 min-w-0">
+        <h2 className="font-bold text-gray-700 text-sm sm:text-base truncate min-w-0">🔴 Live Feed (Thời gian thực)</h2>
+        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse flex-shrink-0">● Live</span>
+      </div>
+
+      <div className="flex items-center gap-2 px-2 sm:px-3 py-2 border-b border-gray-100 flex-shrink-0 bg-white min-w-0">
+        <select
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value as IncidentFilter);
+            setCurrentPage(1);
+          }}
+          className="text-gray-700 px-2 py-1.5 rounded-lg border border-gray-200 text-xs bg-white focus:ring-2 focus:ring-tthBlue/20 focus:border-tthBlue min-h-[44px] sm:min-h-0 w-full max-w-full"
+        >
             {filterOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label} (
@@ -287,108 +193,84 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                 )
               </option>
             ))}
-          </select>
-          <button
-            onClick={onClose}
-            className="text-white/70 hover:text-white transition-colors"
-            aria-label="Đóng"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
+        </select>
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
         {paginatedIncidents.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-white/60 p-4">
+          <div className="flex items-center justify-center h-full text-gray-500 p-4">
             <p className="text-sm md:text-base">Không có sự cố nào</p>
           </div>
         ) : (
-          <div className="p-2 space-y-1.5">
-            {paginatedIncidents.map((incident) => {
-              const { date, time } = formatDate(incident.timestamp);
-              return (
-                <div
-                  key={incident.id}
-                  className="rounded-lg p-1.5 border-l-4"
-                  style={{
-                    backgroundColor: "rgba(0, 0, 0, 0.2)",
-                    borderLeftColor: getCallLogColor(incident),
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-0.5">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="text-[10px] text-white/70">{date}</span>
-                      <span className="text-[10px] text-white/70">{time}</span>
-                    </div>
-                    {getStatusIcon(incident)}
+          paginatedIncidents.map((incident, index) => {
+            const { time } = formatDate(incident.timestamp);
+            const callType = (incident as any).callType;
+            const isNewest = index === 0;
+            const isOutgoing = callType === "outgoing" || callType === "pending";
+            const isResolved = callType === "accepted" || incident.status === "resolved";
+            const isCancelled = callType === "cancelled" || callType === "rejected";
+
+            const statusDisplay = (incident as any).callType
+              ? getCallStatusText(incident)
+              : incident.message;
+
+            return (
+              <div
+                key={incident.id}
+                className={getCardStyle(incident, index)}
+              >
+                <div className="flex justify-between items-start">
+                  <div>
+                    {isNewest && isOutgoing && (
+                      <span className="text-xs font-bold text-red-600 bg-red-200 px-2 py-0.5 rounded">MỚI NHẤT</span>
+                    )}
+                    <h4 className={`font-bold mt-1 ${isCancelled ? "text-gray-500 line-through" : "text-gray-800"}`}>
+                      {statusDisplay}
+                    </h4>
+                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
+                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {incident.source}
+                    </p>
                   </div>
-                  <div className="mb-0.5">
-                    <span className="font-semibold text-[10px] uppercase text-white">
-                      {incident.source}:
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-white/90 break-words leading-tight">
-                    {(incident as any).callType
-                      ? getCallStatusText(incident)
-                      : incident.message}
-                    {incident.duration !== undefined &&
-                      incident.duration > 0 && (
-                        <span className="text-white/60 ml-1">
-                          (sau {incident.duration} phút)
-                        </span>
-                      )}
-                  </p>
+                  <span className="text-xs text-gray-500">{time}</span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="mt-2">
+                  {isResolved && (
+                    <span className="text-xs text-green-600 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                      Đã xử lý xong
+                    </span>
+                  )}
+                  {isCancelled && (
+                    <span className="text-xs text-red-400 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                      Đã hủy
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 
-      {filteredIncidents.length > 0 && (
-        <div
-          className="border-t p-2 flex-shrink-0"
-          style={{ borderColor: "rgba(255, 255, 255, 0.1)" }}
-        >
+      {filteredIncidents.length > 0 && totalPages > 1 && (
+        <div className="border-t border-gray-100 p-2 flex-shrink-0 bg-gray-50">
           <div className="flex items-center justify-center gap-1 flex-wrap">
             <button
               onClick={() => setCurrentPage(1)}
               disabled={currentPage === 1}
-              className="px-1.5 py-0.5 rounded disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs"
-              style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.3)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.2)")
-              }
+              className="px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 text-xs bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               &lt;&lt;
             </button>
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1}
-              className="px-1.5 py-0.5 rounded disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs"
-              style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.3)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.2)")
-              }
+              className="px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 text-xs bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               &lt;
             </button>
@@ -407,48 +289,23 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                 <button
                   key={pageNum}
                   onClick={() => setCurrentPage(pageNum)}
-                  className={`px-2 py-0.5 rounded text-xs ${
+                  className={`px-2 py-1 rounded-lg text-xs transition-colors ${
                     currentPage === pageNum
-                      ? "bg-blue-600 text-white"
-                      : "text-white"
+                      ? "bg-tthBlue text-white border border-tthBlue"
+                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
                   }`}
-                  style={{
-                    backgroundColor:
-                      currentPage === pageNum
-                        ? "#3b82f6"
-                        : "rgba(0, 0, 0, 0.2)",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (currentPage !== pageNum) {
-                      e.currentTarget.style.backgroundColor =
-                        "rgba(0, 0, 0, 0.3)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (currentPage !== pageNum) {
-                      e.currentTarget.style.backgroundColor =
-                        "rgba(0, 0, 0, 0.2)";
-                    }
-                  }}
                 >
                   {pageNum}
                 </button>
               );
             })}
             {totalPages > 5 && currentPage < totalPages - 2 && (
-              <span className="px-1 text-white/70 text-xs">...</span>
+              <span className="px-1 text-gray-400 text-xs">...</span>
             )}
             {totalPages > 5 && currentPage < totalPages - 2 && (
               <button
                 onClick={() => setCurrentPage(totalPages)}
-                className="px-2 py-0.5 rounded text-white text-xs"
-                style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.3)")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.2)")
-                }
+                className="px-2 py-1 rounded-lg text-gray-600 text-xs bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
               >
                 {totalPages}
               </button>
@@ -458,28 +315,14 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                 setCurrentPage((prev) => Math.min(totalPages, prev + 1))
               }
               disabled={currentPage === totalPages}
-              className="px-1.5 py-0.5 rounded disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs"
-              style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.3)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.2)")
-              }
+              className="px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 text-xs bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               &gt;
             </button>
             <button
               onClick={() => setCurrentPage(totalPages)}
               disabled={currentPage === totalPages}
-              className="px-1.5 py-0.5 rounded disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs"
-              style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.3)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.2)")
-              }
+              className="px-2 py-1 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 text-xs bg-white border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               &gt;&gt;
             </button>

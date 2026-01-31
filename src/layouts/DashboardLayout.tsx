@@ -78,8 +78,8 @@ export const DashboardLayout: React.FC = () => {
           </div>
         </header>
 
-        <div className="flex-1 flex overflow-hidden">
-          <main className="w-full p-4 overflow-y-auto">
+        <div className="flex-1 flex overflow-hidden min-w-0">
+          <main className="w-full p-3 sm:p-4 overflow-y-auto overflow-x-hidden min-w-0">
             <Outlet />
           </main>
         </div>
