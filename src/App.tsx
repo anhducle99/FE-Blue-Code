@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import API from "./services/api";
 import { useDashboard } from "./layouts/DashboardContext";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./contexts/ToastContext";
 import { useIncidents } from "./contexts/IncidentContext";
+import { getOrganizations } from "./services/organizationService";
+import type { IOrganization } from "./services/organizationService";
 import DepartmentButton from "./components/DepartmentButton";
 import SupportButton from "./components/SupportButton";
 import Header from "./components/Header";
@@ -60,21 +62,52 @@ export default function App() {
     }
   }, [user]);
 
+  const isSuperAdmin = user?.role === "SuperAdmin";
+  const [organizations, setOrganizations] = useState<IOrganization[]>([]);
+  const [superAdminOrgFilterId, setSuperAdminOrgFilterId] = useState<number | "">("");
+  const [openOrgFilterDropdown, setOpenOrgFilterDropdown] = useState(false);
+  const orgFilterDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getOrganizations()
+        .then((data) => setOrganizations(Array.isArray(data) ? data : []))
+        .catch(() => setOrganizations([]));
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (orgFilterDropdownRef.current && !orgFilterDropdownRef.current.contains(e.target as Node)) {
+        setOpenOrgFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const currentOrganizationId = useMemo(() => {
     if (!user || !allUsers.length) return null;
     const currentUserFromApi = allUsers.find((u) => u.id === user.id);
     return currentUserFromApi?.organization_id || null;
   }, [user, allUsers]);
 
+  const effectiveOrgIdForDepartments = useMemo(() => {
+    if (isSuperAdmin) {
+      return superAdminOrgFilterId === "" ? null : superAdminOrgFilterId;
+    }
+    return currentOrganizationId;
+  }, [isSuperAdmin, superAdminOrgFilterId, currentOrganizationId]);
+
   const departments = useMemo(() => {
-    if (!currentOrganizationId) return allDepartments;
+    if (!effectiveOrgIdForDepartments) return allDepartments;
     return allDepartments.filter((d) => {
       const deptFromApi = allDepartmentsFromApi.find(
         (ad) => ad.name === d.name || ad.id === d.id
       );
-      return deptFromApi?.organization_id === currentOrganizationId;
+      return deptFromApi?.organization_id === effectiveOrgIdForDepartments;
     });
-  }, [allDepartments, allDepartmentsFromApi, currentOrganizationId]);
+  }, [allDepartments, allDepartmentsFromApi, effectiveOrgIdForDepartments]);
 
   const supportContacts = useMemo(() => {
     if (!currentOrganizationId) return allSupportContacts;
@@ -280,18 +313,70 @@ export default function App() {
             <div className={`min-h-0 flex-shrink-0 ${
               isAdmin ? "lg:row-start-1" : ""
             }`}>
-              <FloorAccountPanel />
+              <FloorAccountPanel
+                effectiveOrgId={isSuperAdmin ? effectiveOrgIdForDepartments : undefined}
+                isSuperAdmin={isSuperAdmin}
+                organizations={organizations}
+                superAdminOrgFilterId={superAdminOrgFilterId}
+                onSuperAdminOrgFilterChange={setSuperAdminOrgFilterId}
+              />
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
               <div className="flex-1 md:flex-[3] min-h-0 flex flex-col overflow-hidden">
                 <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-200 flex-shrink-0 min-w-0">
-                  <h3 className="text-gray-500 text-xs sm:text-sm font-bold uppercase mb-3 sm:mb-4 flex items-center gap-2 flex-wrap">
-                    <svg className="w-4 h-4 text-tthBlue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    <span>2. Chọn Đội Cần Gọi (Nhấn chọn rồi bấm Gọi ngay)</span>
-                  </h3>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3 sm:mb-4">
+                    <h3 className="text-gray-500 text-xs sm:text-sm font-bold uppercase flex items-center gap-2 flex-wrap">
+                      <svg className="w-4 h-4 text-tthBlue flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      <span>2. Chọn Sự Cố Cần Gọi (Nhấn chọn rồi bấm Gọi ngay)</span>
+                    </h3>
+                    {isSuperAdmin && organizations.length > 0 && (
+                      <div className="relative flex-shrink-0" ref={orgFilterDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenOrgFilterDropdown(!openOrgFilterDropdown)}
+                          className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-200 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium min-h-[36px] whitespace-nowrap"
+                        >
+                          <i className="bi bi-funnel-fill text-xs" />
+                          Lọc theo tổ chức
+                          <i className={`bi bi-caret-down-fill text-xs transition-transform ${openOrgFilterDropdown ? "rotate-180" : ""}`} />
+                        </button>
+                        {openOrgFilterDropdown && (
+                          <div className="absolute right-0 mt-1 w-48 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSuperAdminOrgFilterId("");
+                                setOpenOrgFilterDropdown(false);
+                              }}
+                              className={`flex items-center w-full px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors ${
+                                superAdminOrgFilterId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                              }`}
+                            >
+                              Tất cả tổ chức
+                            </button>
+                            {organizations.map((org) => (
+                              <button
+                                key={org.id}
+                                type="button"
+                                onClick={() => {
+                                  setSuperAdminOrgFilterId(org.id ?? "");
+                                  setOpenOrgFilterDropdown(false);
+                                }}
+                                className={`flex items-center w-full px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors border-t border-gray-100 ${
+                                  superAdminOrgFilterId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                                }`}
+                              >
+                                {org.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 overflow-y-auto max-h-48 sm:max-h-56 md:max-h-64 min-h-0">
                   {departments.map((d, idx) => {
                     const key = makeKey(d.name, d.name);
@@ -383,7 +468,12 @@ export default function App() {
                 <IncidentStatusWidget />
               </div>
               <div className="hidden lg:flex min-h-0 lg:row-start-2 lg:row-end-3 lg:col-start-2 lg:col-end-3 min-w-0 flex-col overflow-hidden">
-                <IncidentSidebar isOpen={true} onClose={() => { }} />
+                <IncidentSidebar
+                  isOpen={true}
+                  onClose={() => { }}
+                  superAdminOrgFilterId={superAdminOrgFilterId}
+                  onSuperAdminOrgFilterChange={setSuperAdminOrgFilterId}
+                />
               </div>
 
               <div className="lg:hidden min-w-0 space-y-2">
@@ -409,7 +499,12 @@ export default function App() {
                       <IncidentStatusWidget />
                     </div>
                     <div className="flex flex-col overflow-hidden min-h-[240px] rounded-xl border border-gray-200">
-                      <IncidentSidebar isOpen={true} onClose={() => { }} />
+                      <IncidentSidebar
+                        isOpen={true}
+                        onClose={() => { }}
+                        superAdminOrgFilterId={superAdminOrgFilterId}
+                        onSuperAdminOrgFilterChange={setSuperAdminOrgFilterId}
+                      />
                     </div>
                   </div>
                 )}

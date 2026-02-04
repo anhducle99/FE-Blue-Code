@@ -2,7 +2,8 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useIncidents } from "../contexts/IncidentContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Incident } from "../types/incident";
-import { getUsers, IUser } from "../services/userService";
+import { getUsers } from "../services/userService";
+import { getDepartments } from "../services/departmentService";
 
 const isToday = (incident: Incident): boolean => {
   const incidentDate =
@@ -43,31 +44,38 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchData = async () => {
       if (!user) return;
 
       try {
-        const usersResponse = await getUsers();
+        const [usersResponse, departmentsResponse] = await Promise.all([
+          getUsers(),
+          getDepartments(),
+        ]);
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
+        const departments = Array.isArray(departmentsResponse.data?.data)
+          ? departmentsResponse.data.data
+          : [];
         const currentUserFromApi = users.find((u) => u.id === user.id);
         const orgId = currentUserFromApi?.organization_id;
-        
+
         if (!orgId) {
           setOrganizationUserNames(new Set());
           return;
         }
 
         const orgUsers = users.filter((u) => u.organization_id === orgId);
-        const normalizedNames = new Set(
-          orgUsers.map((u) => normalizeName(u.name))
-        );
+        const orgDepartments = departments.filter((d) => d.organization_id === orgId);
+        const normalizedNames = new Set<string>();
+        orgUsers.forEach((u) => normalizedNames.add(normalizeName(u.name)));
+        orgDepartments.forEach((d) => d.name && normalizedNames.add(normalizeName(d.name)));
         setOrganizationUserNames(normalizedNames);
       } catch (error) {
         setOrganizationUserNames(new Set());
       }
     };
 
-    fetchUsers();
+    fetchData();
   }, [user]);
 
   const filteredIncidents = useMemo(() => {
@@ -139,13 +147,116 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     };
   }, [filteredIncidents]);
 
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
+
+  const isSameDay = (incident: Incident, date: Date): boolean => {
+    const incidentDate =
+      incident.timestamp instanceof Date
+        ? incident.timestamp
+        : new Date(incident.timestamp);
+    return (
+      incidentDate.getDate() === date.getDate() &&
+      incidentDate.getMonth() === date.getMonth() &&
+      incidentDate.getFullYear() === date.getFullYear()
+    );
+  };
+
+  const formatDateLabel = (date: Date): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today.getTime() - d.getTime()) / (24 * 60 * 60 * 1000));
+    if (diffDays === 0) return "Hôm nay";
+    if (diffDays === 1) return "Hôm qua";
+    if (diffDays > 1 && diffDays < 7) return `${diffDays} ngày trước`;
+    return d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
+
+  const getCallType = (incident: Incident): string | undefined => {
+    const ct = (incident as any).callType;
+    if (ct) return typeof ct === "string" ? ct.toLowerCase() : undefined;
+    const msg = (incident.message || "").toLowerCase();
+    const type = (incident as any).type;
+    if (type === "call_accepted" || msg.includes("đã xác nhận")) return "accepted";
+    if (msg.includes("không liên lạc")) return "timeout";
+    if (msg.includes("hủy") || msg.includes("từ chối")) return "cancelled";
+    if (type === "call_outgoing") return "outgoing";
+    return undefined;
+  };
+
+  const statsByDay = useMemo(() => {
+    const dayIncidents = filteredIncidents.filter((inc) => isSameDay(inc, selectedDate));
+    const outgoing = dayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "outgoing" || ct === "pending";
+    }).length;
+    const accepted = dayIncidents.filter((i) => getCallType(i) === "accepted").length;
+    const cancelled = dayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "cancelled" || ct === "rejected";
+    }).length;
+    const timeout = dayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "timeout" || ct === "unreachable";
+    }).length;
+    return {
+      total: dayIncidents.length,
+      outgoing,
+      accepted,
+      cancelled,
+      timeout,
+    };
+  }, [filteredIncidents, selectedDate]);
+
+  const statusByDay = useMemo(() => {
+    const online = statsByDay.outgoing;
+    const status = online < 5 ? "OK" : online < 10 ? "WARNING" : "ERROR";
+    const statusColor =
+      status === "OK"
+        ? "bg-green-500/90"
+        : status === "WARNING"
+        ? "bg-amber-500/90"
+        : "bg-red-500/90";
+    return { status, statusColor };
+  }, [statsByDay.outgoing]);
+
   const todayStats = useMemo(() => {
     const todayIncidents = filteredIncidents.filter((inc) => isToday(inc));
-    const pending = todayIncidents.filter((i) => (i as any).callType === "outgoing" || (i as any).callType === "pending").length;
-    const resolved = todayIncidents.filter((i) => (i as any).callType === "accepted" || i.status === "resolved").length;
-    const cancelled = todayIncidents.filter((i) => (i as any).callType === "cancelled" || (i as any).callType === "rejected").length;
-    return { total: todayIncidents.length, pending, resolved, cancelled };
+    const pending = todayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "outgoing" || ct === "pending";
+    }).length;
+    const resolved = todayIncidents.filter((i) => getCallType(i) === "accepted" || i.status === "resolved").length;
+    const cancelled = todayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "cancelled" || ct === "rejected";
+    }).length;
+    const timeout = todayIncidents.filter((i) => {
+      const ct = getCallType(i);
+      return ct === "timeout" || ct === "unreachable";
+    }).length;
+    return { total: todayIncidents.length, pending, resolved, cancelled, timeout };
   }, [filteredIncidents]);
+
+  const goPrevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d);
+  };
+  const goNextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d);
+  };
+  const isTodaySelected =
+    selectedDate.getDate() === new Date().getDate() &&
+    selectedDate.getMonth() === new Date().getMonth() &&
+    selectedDate.getFullYear() === new Date().getFullYear();
 
   if (compact && onToggleExpand) {
     return (
@@ -157,10 +268,10 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
         <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
           <span className="text-blue-100 text-xs sm:text-sm font-medium whitespace-nowrap">Hôm nay:</span>
           <div className="flex gap-3 sm:gap-5 flex-wrap">
-            <span><strong>{todayStats.total}</strong> sự cố</span>
-            <span className="text-amber-200"><strong>{todayStats.pending}</strong> chờ</span>
-            <span className="text-green-300"><strong>{todayStats.resolved}</strong> xử lý</span>
+            <span><strong>{todayStats.pending}</strong> gọi tới</span>
+            <span className="text-green-300"><strong>{todayStats.resolved}</strong> chấp nhận</span>
             <span className="text-red-200"><strong>{todayStats.cancelled}</strong> hủy</span>
+            <span className="text-amber-200"><strong>{todayStats.timeout}</strong> không liên lạc</span>
           </div>
           <span className={`px-2 py-0.5 rounded text-xs font-bold ${
             stats.status === "OK" ? "bg-green-500/80" : stats.status === "WARNING" ? "bg-amber-500/80" : "bg-red-500/80"
@@ -180,37 +291,59 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
       </div>
       <div className="relative p-5 flex flex-col flex-1 min-h-0">
         <h3 className="text-blue-100 text-sm font-semibold uppercase flex-shrink-0">
-          Hoạt động hôm nay
+          Hoạt động theo ngày
         </h3>
+        <div className="flex items-center gap-2 mt-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={goPrevDay}
+            className="p-1.5 rounded-lg bg-blue-600/50 hover:bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Ngày trước"
+          >
+            <i className="bi bi-chevron-left text-lg" />
+          </button>
+          <span className="flex-1 text-center font-medium text-sm md:text-base min-w-0 truncate">
+            {formatDateLabel(selectedDate)}
+          </span>
+          <button
+            type="button"
+            onClick={goNextDay}
+            disabled={isTodaySelected}
+            className="p-1.5 rounded-lg bg-blue-600/50 hover:bg-blue-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Ngày sau"
+          >
+            <i className="bi bi-chevron-right text-lg" />
+          </button>
+        </div>
         <div className="flex items-end gap-2 mt-2 flex-shrink-0">
-          <span className="text-4xl md:text-5xl font-bold">{todayStats.total}</span>
+          <span className="text-4xl md:text-5xl font-bold">{statsByDay.total}</span>
           <span className="text-base md:text-lg mb-1">sự cố</span>
         </div>
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-blue-600/50 flex-shrink-0">
-          <div className="text-center">
-            <div className="text-xl md:text-2xl font-bold">{todayStats.pending}</div>
-            <div className="text-xs text-blue-200">Đang chờ</div>
+        <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-blue-600/50 flex-shrink-0">
+          <div className="text-center p-2 rounded-lg bg-blue-600/30">
+            <div className="text-xl md:text-2xl font-bold">{statsByDay.outgoing}</div>
+            <div className="text-xs text-blue-200">Sự cố gọi tới</div>
           </div>
-          <div className="text-center">
-            <div className="text-xl md:text-2xl font-bold text-green-300">{todayStats.resolved}</div>
-            <div className="text-xs text-blue-200">Đã xử lý</div>
+          <div className="text-center p-2 rounded-lg bg-blue-600/30">
+            <div className="text-xl md:text-2xl font-bold text-green-300">{statsByDay.accepted}</div>
+            <div className="text-xs text-blue-200">Sự cố được chấp nhận</div>
           </div>
-          <div className="text-center">
-            <div className="text-xl md:text-2xl font-bold text-red-300">{todayStats.cancelled}</div>
-            <div className="text-xs text-blue-200">Hủy</div>
+          <div className="text-center p-2 rounded-lg bg-blue-600/30">
+            <div className="text-xl md:text-2xl font-bold text-red-300">{statsByDay.cancelled}</div>
+            <div className="text-xs text-blue-200">Sự cố đã hủy</div>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-blue-600/30">
+            <div className="text-xl md:text-2xl font-bold text-amber-300">{statsByDay.timeout}</div>
+            <div className="text-xs text-blue-200">Sự cố không liên lạc được</div>
           </div>
         </div>
         <div
-          className={`rounded-lg px-3 md:px-4 py-2 md:py-3 flex items-center justify-between flex-shrink-0 mt-4 ${
-            stats.status === "OK"
-              ? "bg-green-500/90"
-              : stats.status === "WARNING"
-              ? "bg-amber-500/90"
-              : "bg-red-500/90"
-          }`}
+          className={`rounded-lg px-3 md:px-4 py-2 md:py-3 flex items-center justify-between flex-shrink-0 mt-4 ${statusByDay.statusColor}`}
         >
-          <span className="text-white text-xs md:text-sm font-medium">Trạng thái</span>
-          <span className="text-white text-base md:text-lg font-bold">{stats.status}</span>
+          <span className="text-white text-xs md:text-sm font-medium">
+            Trạng thái
+          </span>
+          <span className="text-white text-base md:text-lg font-bold">{statusByDay.status}</span>
         </div>
       </div>
     </div>

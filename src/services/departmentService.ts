@@ -8,8 +8,12 @@ export interface IDepartment {
   organization_id?: number | null;
 }
 
-export const getDepartments = () =>
-  API.get<{ success: boolean; data: IDepartment[] }>("/api/departments");
+export const getDepartments = (params?: { organization_id?: number }) => {
+  const query = params?.organization_id != null
+    ? `?organization_id=${params.organization_id}`
+    : "";
+  return API.get<{ success: boolean; data: IDepartment[] }>(`/api/departments${query}`);
+};
 export const getDepartment = (id: number) =>
   API.get<{ success: boolean; data: IDepartment }>(`/api/departments/${id}`);
 export const createDepartment = (data: Partial<IDepartment>) =>

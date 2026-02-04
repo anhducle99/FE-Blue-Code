@@ -5,12 +5,13 @@ export interface IUser {
   password?: string;
   phone: string;
   organization_id: number;
+  organization_name?: string | null;
   department_id: number | null;
   department_name?: string | null;
   is_department_account: boolean;
   is_admin_view: boolean;
   is_floor_account?: boolean;
-  role: "Admin" | "User";
+  role: "Admin" | "User" | "SuperAdmin";
 }
 
 import API from "./api";
@@ -25,7 +26,7 @@ export interface IUserForm {
   is_department_account: boolean;
   is_admin_view: boolean;
   is_floor_account?: boolean;
-  role?: "Admin" | "User";
+  role?: "Admin" | "User" | "SuperAdmin";
   departmentName?: string;
 }
 
@@ -35,9 +36,16 @@ function getRoleByDepartmentName(
   return departmentName.toLowerCase().includes("lãnh đạo") ? "Admin" : "User";
 }
 
-export async function getUsers(): Promise<{ data: IUser[] }> {
-  const res = await API.get<{ data: IUser[] }>("/api/users");
-  return res.data;
+export async function getUsers(params?: { organization_id?: number }): Promise<{ data: IUser[] }> {
+  const searchParams = new URLSearchParams();
+  if (params?.organization_id != null) {
+    searchParams.set("organization_id", String(params.organization_id));
+  }
+  const query = searchParams.toString();
+  const url = query ? `/api/users?${query}` : "/api/users";
+  const res = await API.get<{ success: boolean; data: IUser[] }>(url);
+  const data = res.data?.data ?? (Array.isArray(res.data) ? res.data : []);
+  return { data };
 }
 
 export async function createUser(data: IUserForm): Promise<IUser> {

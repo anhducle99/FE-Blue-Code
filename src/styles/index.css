@@ -45,4 +45,26 @@ body {
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
 }
-  
+
+/* Select "Lọc theo tổ chức" trên màn Lịch sử - giống ô Input, thẳng hàng */
+.history-org-select.ant-select {
+  height: 40px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+.history-org-select.ant-select .ant-select-selector {
+  height: 40px !important;
+  min-height: 40px !important;
+  border: 1px solid #9ca3af !important;
+  border-radius: 0.25rem !important;
+  padding: 0 12px !important;
+  align-items: center !important;
+}
+.history-org-select.ant-select:hover .ant-select-selector {
+  border-color: #9ca3af !important;
+}
+.history-org-select.ant-select.ant-select-focused .ant-select-selector {
+  border-color: #3b82f6 !important;
+  outline: 1px solid #3b82f6;
+  outline-offset: -1px;
+}

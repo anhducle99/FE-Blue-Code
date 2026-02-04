@@ -34,6 +34,7 @@ export const useIncidents = (): IncidentContextType => {
 const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
   const incidents: Incident[] = [];
   const createdAt = new Date(callLog.created_at);
+  const status = typeof callLog.status === "string" ? callLog.status.toLowerCase().trim() : "";
 
   incidents.push({
     id: `call-outgoing-${callLog.id}`,
@@ -53,25 +54,25 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
     callLog.message ? ` - ${callLog.message}` : ""
   }`;
 
-  if (callLog.status === "accepted" || callLog.accepted_at) {
+  if (status === "accepted" || callLog.accepted_at) {
     receiverCallType = "accepted";
     receiverIncidentType = "call_accepted";
     receiverMessage = `Đã xác nhận cuộc gọi từ ${callLog.sender}${
       callLog.message ? ` - ${callLog.message}` : ""
     }`;
-  } else if (callLog.status === "cancelled") {
+  } else if (status === "cancelled") {
     receiverCallType = "cancelled";
     receiverIncidentType = "call_rejected";
     receiverMessage = `Cuộc gọi từ ${callLog.sender} đã bị hủy${
       callLog.message ? ` - ${callLog.message}` : ""
     }`;
-  } else if (callLog.status === "timeout" || callLog.status === "unreachable") {
+  } else if (status === "timeout" || status === "unreachable") {
     receiverCallType = "timeout";
     receiverIncidentType = "call_rejected";
     receiverMessage = `Không liên lạc được cuộc gọi từ ${callLog.sender}${
       callLog.message ? ` - ${callLog.message}` : ""
     }`;
-  } else if (callLog.status === "rejected" || callLog.rejected_at) {
+  } else if (status === "rejected" || callLog.rejected_at) {
     receiverCallType = "rejected";
     receiverIncidentType = "call_rejected";
     receiverMessage = `Từ chối cuộc gọi từ ${callLog.sender}${
@@ -83,7 +84,7 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
     ? new Date(callLog.accepted_at)
     : callLog.rejected_at
     ? new Date(callLog.rejected_at)
-    : callLog.status === "cancelled" && callLog.rejected_at
+    : status === "cancelled" && callLog.rejected_at
     ? new Date(callLog.rejected_at)
     : createdAt;
 

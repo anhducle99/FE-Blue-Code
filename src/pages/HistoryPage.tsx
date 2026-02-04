@@ -1,26 +1,47 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { HistoryTable } from "../components/HistoryTable";
 import { PageHeader } from "../components/PageHeader";
-import { Input, Button } from "antd";
+import { Input, Button, Select } from "antd";
+import { useAuth } from "../contexts/AuthContext";
+import { getOrganizations } from "../services/organizationService";
+import type { IOrganization } from "../services/organizationService";
 
 export const HistoryPage: React.FC = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SuperAdmin";
+  const [organizations, setOrganizations] = useState<IOrganization[]>([]);
   const [filters, setFilters] = useState({
     nguoi_gui: "",
     nguoi_nhan: "",
     bat_dau: "",
     ket_thuc: "",
+    organization_id: "" as number | string | "",
   });
   const [appliedFilters, setAppliedFilters] = useState<typeof filters>({
     ...filters,
   });
 
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getOrganizations()
+        .then((data) => setOrganizations(Array.isArray(data) ? data : []))
+        .catch(() => setOrganizations([]));
+    }
+  }, [isSuperAdmin]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const handleOrgChange = (value: number | string | null) => {
+    setFilters({ ...filters, organization_id: value ?? "" });
   };
 
   const handleSearch = () => {
     setAppliedFilters({ ...filters });
   };
+
+  const appliedOrgId = appliedFilters.organization_id === "" ? undefined : appliedFilters.organization_id;
 
   return (
     <>
@@ -28,7 +49,23 @@ export const HistoryPage: React.FC = () => {
         <PageHeader title="Lịch sử" />
       </div>
       <div className="mx-2 sm:mx-4 mt-2 bg-white rounded shadow-sm p-3 sm:p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4 items-end mb-4 sm:mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4 items-center mb-4 sm:mb-6">
+          {isSuperAdmin && (
+            <Select
+              placeholder="Lọc theo tổ chức"
+              allowClear
+              className="col-span-1 sm:col-span-1 lg:col-span-2 w-full history-org-select"
+              value={filters.organization_id === "" ? undefined : filters.organization_id}
+              onChange={handleOrgChange}
+              options={[
+                { value: "", label: "Tất cả tổ chức" },
+                ...organizations.map((org) => ({
+                  value: org.id!,
+                  label: org.name,
+                })),
+              ]}
+            />
+          )}
           <Input
             type="text"
             name="nguoi_gui"
@@ -70,7 +107,7 @@ export const HistoryPage: React.FC = () => {
         </div>
 
         <div>
-          <HistoryTable filters={appliedFilters} />
+          <HistoryTable filters={{ ...appliedFilters, organization_id: appliedOrgId }} />
         </div>
       </div>
     </>

@@ -1,13 +1,18 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useIncidents } from "../contexts/IncidentContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Incident, IncidentFilter } from "../types/incident";
 import { getUsers, IUser } from "../services/userService";
 import { getDepartments, IDepartment } from "../services/departmentService";
+import { getOrganizations } from "../services/organizationService";
+import type { IOrganization } from "../services/organizationService";
 
 interface IncidentSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Khi có: dùng chung state lọc tổ chức với App (1. Vị trí sự cố, 2. Chọn sự cố) */
+  superAdminOrgFilterId?: number | "";
+  onSuperAdminOrgFilterChange?: (id: number | "") => void;
 }
 
 const normalizeName = (name: string): string => {
@@ -22,30 +27,85 @@ const normalizeName = (name: string): string => {
 const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   isOpen,
   onClose,
+  superAdminOrgFilterId: propFilterOrgId,
+  onSuperAdminOrgFilterChange,
 }) => {
   const { incidents, filter, setFilter, clearIncidents } = useIncidents();
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SuperAdmin";
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [organizationNames, setOrganizationNames] = useState<Set<string>>(new Set());
+  const [organizations, setOrganizations] = useState<IOrganization[]>([]);
+  const [localFilterOrgId, setLocalFilterOrgId] = useState<number | "">("");
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  const isControlled = onSuperAdminOrgFilterChange != null && propFilterOrgId !== undefined;
+  const filterOrgId = isControlled ? propFilterOrgId : localFilterOrgId;
+  const setFilterOrgId = isControlled
+    ? (id: number | "") => { onSuperAdminOrgFilterChange(id); }
+    : setLocalFilterOrgId;
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getOrganizations()
+        .then((data) => setOrganizations(Array.isArray(data) ? data : []))
+        .catch(() => setOrganizations([]));
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setOpenFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
 
       try {
+        const orgIdForFetch = isSuperAdmin && filterOrgId !== ""
+          ? (filterOrgId as number)
+          : null;
+
+        if (isSuperAdmin && filterOrgId === "") {
+          setOrganizationNames(new Set());
+          return;
+        }
+
         const [usersResponse, departmentsResponse] = await Promise.all([
-          getUsers(),
-          getDepartments(),
+          getUsers(orgIdForFetch != null ? { organization_id: orgIdForFetch } : undefined),
+          getDepartments(orgIdForFetch != null ? { organization_id: orgIdForFetch } : undefined),
         ]);
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
         const departments = Array.isArray(departmentsResponse.data.data)
           ? departmentsResponse.data.data
           : [];
-        
+
+        if (isSuperAdmin && filterOrgId !== "") {
+          const normalizedNames = new Set<string>();
+          users.forEach((u) => {
+            normalizedNames.add(normalizeName(u.name));
+            if (u.department_name) {
+              normalizedNames.add(normalizeName(u.department_name));
+            }
+          });
+          departments.forEach((d) => {
+            normalizedNames.add(normalizeName(d.name));
+          });
+          setOrganizationNames(normalizedNames);
+          return;
+        }
+
         const currentUserFromApi = users.find((u) => u.id === user.id);
         const orgId = currentUserFromApi?.organization_id;
-        
+
         if (!orgId) {
           setOrganizationNames(new Set());
           return;
@@ -55,14 +115,12 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
         const orgDepartments = departments.filter((d) => d.organization_id === orgId);
 
         const normalizedNames = new Set<string>();
-        
         orgUsers.forEach((u) => {
           normalizedNames.add(normalizeName(u.name));
           if (u.department_name) {
             normalizedNames.add(normalizeName(u.department_name));
           }
         });
-        
         orgDepartments.forEach((d) => {
           normalizedNames.add(normalizeName(d.name));
         });
@@ -74,7 +132,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     };
 
     fetchData();
-  }, [user]);
+  }, [user, isSuperAdmin, filterOrgId]);
 
   const organizationFilteredIncidents = useMemo(() => {
     if (organizationNames.size === 0) return incidents;
@@ -85,10 +143,21 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     });
   }, [incidents, organizationNames]);
 
+  const matchesCallFilter = (incident: Incident, filterValue: IncidentFilter): boolean => {
+    const callType = (incident as any).callType;
+    if (!callType) return filterValue === "all";
+    if (filterValue === "all") return true;
+    if (filterValue === "outgoing") return callType === "outgoing" || callType === "pending";
+    if (filterValue === "accepted") return callType === "accepted";
+    if (filterValue === "cancelled") return callType === "cancelled" || callType === "rejected";
+    if (filterValue === "timeout") return callType === "timeout" || callType === "unreachable";
+    return true;
+  };
+
   const filteredIncidents = useMemo(() => {
     const orgFiltered = organizationFilteredIncidents;
     if (filter === "all") return orgFiltered;
-    return orgFiltered.filter((incident) => incident.status === filter);
+    return orgFiltered.filter((incident) => matchesCallFilter(incident, filter));
   }, [organizationFilteredIncidents, filter]);
 
   const paginatedIncidents = useMemo(() => {
@@ -103,11 +172,13 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     const d = new Date(date);
     const day = String(d.getDate()).padStart(2, "0");
     const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
     const hours = String(d.getHours()).padStart(2, "0");
     const minutes = String(d.getMinutes()).padStart(2, "0");
     return {
-      date: `${day}-${month}`,
+      date: `${day}/${month}/${year}`,
       time: `${hours}:${minutes}`,
+      dateTime: `${day}/${month}/${year} ${hours}:${minutes}`,
     };
   };
 
@@ -144,10 +215,10 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
 
   const filterOptions: { value: IncidentFilter; label: string }[] = [
     { value: "all", label: "Tất cả" },
-    { value: "error", label: "Lỗi" },
-    { value: "warning", label: "Cảnh báo" },
-    { value: "resolved", label: "Đã xử lý" },
-    { value: "info", label: "Thông tin" },
+    { value: "outgoing", label: "Sự cố gọi tới" },
+    { value: "accepted", label: "Sự cố được chấp nhận" },
+    { value: "cancelled", label: "Sự cố đã hủy" },
+    { value: "timeout", label: "Sự cố không liên lạc được" },
   ];
 
   const getCardStyle = (incident: Incident, index: number) => {
@@ -175,21 +246,67 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full animate-pulse flex-shrink-0">● Live</span>
       </div>
 
-      <div className="flex items-center gap-2 px-2 sm:px-3 py-2 border-b border-gray-100 flex-shrink-0 bg-white min-w-0">
+      <div className="flex flex-row items-center gap-2 px-2 sm:px-3 py-2 border-b border-gray-100 flex-shrink-0 bg-white min-w-0">
+        {isSuperAdmin && organizations.length > 0 && (
+          <div className="relative flex-shrink-0" ref={filterDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
+              className="flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-gray-200 text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium min-h-[36px] whitespace-nowrap"
+            >
+              <i className="bi bi-funnel-fill text-xs" />
+              Lọc theo tổ chức
+              <i className={`bi bi-caret-down-fill text-xs transition-transform ${openFilterDropdown ? "rotate-180" : ""}`} />
+            </button>
+            {openFilterDropdown && (
+              <div className="absolute left-0 mt-1 w-48 max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterOrgId("");
+                    setOpenFilterDropdown(false);
+                    setCurrentPage(1);
+                  }}
+                  className={`flex items-center w-full px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors ${
+                    filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                  }`}
+                >
+                  Tất cả tổ chức
+                </button>
+                {organizations.map((org) => (
+                  <button
+                    key={org.id}
+                    type="button"
+                    onClick={() => {
+                      setFilterOrgId(org.id ?? "");
+                      setOpenFilterDropdown(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`flex items-center w-full px-3 py-2 text-left text-xs hover:bg-blue-50 transition-colors border-t border-gray-100 ${
+                      filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                    }`}
+                  >
+                    {org.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         <select
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value as IncidentFilter);
             setCurrentPage(1);
           }}
-          className="text-gray-700 px-2 py-1.5 rounded-lg border border-gray-200 text-xs bg-white focus:ring-2 focus:ring-tthBlue/20 focus:border-tthBlue min-h-[44px] sm:min-h-0 w-full max-w-full"
+          className="text-gray-700 px-2 py-1.5 rounded-lg border border-gray-200 text-xs bg-white focus:ring-2 focus:ring-tthBlue/20 focus:border-tthBlue min-h-[44px] sm:min-h-0 flex-1 min-w-0"
         >
             {filterOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label} (
                 {filter === option.value
                   ? filteredIncidents.length
-                  : organizationFilteredIncidents.filter((i) => i.status === option.value).length}
+                  : organizationFilteredIncidents.filter((i) => matchesCallFilter(i, option.value)).length}
                 )
               </option>
             ))}
@@ -203,7 +320,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
           </div>
         ) : (
           paginatedIncidents.map((incident, index) => {
-            const { time } = formatDate(incident.timestamp);
+            const { date, time, dateTime } = formatDate(incident.timestamp);
             const callType = (incident as any).callType;
             const isNewest = index === 0;
             const isOutgoing = callType === "outgoing" || callType === "pending";
@@ -235,7 +352,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
                       {incident.source}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500">{time}</span>
+                  <span className="text-xs text-gray-500 whitespace-nowrap" title={dateTime}>{date} {time}</span>
                 </div>
                 <div className="mt-2">
                   {isResolved && (

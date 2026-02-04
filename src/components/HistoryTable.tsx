@@ -11,6 +11,7 @@ interface Props {
     nguoi_nhan?: string;
     bat_dau?: string;
     ket_thuc?: string;
+    organization_id?: number | string;
   };
 }
 
