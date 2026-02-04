@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Incident } from "../types/incident";
 import { getUsers } from "../services/userService";
 import { getDepartments } from "../services/departmentService";
+import { getCallHistory, ICallLog } from "../services/historyService";
 
 const isToday = (incident: Incident): boolean => {
   const incidentDate =
@@ -32,22 +33,33 @@ interface IncidentStatusWidgetProps {
   compact?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
+  /** Khi có: dùng chung state lọc tổ chức với App (cho SuperAdmin) */
+  superAdminOrgFilterId?: number | "";
 }
 
 const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   compact = false,
   isExpanded = true,
   onToggleExpand,
+  superAdminOrgFilterId,
 }) => {
   const { incidents } = useIncidents();
   const { user } = useAuth();
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
+  const [callLogs, setCallLogs] = useState<ICallLog[]>([]);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
 
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
 
       try {
+        const isSuperAdmin = user.role === "SuperAdmin";
+        
         const [usersResponse, departmentsResponse] = await Promise.all([
           getUsers(),
           getDepartments(),
@@ -56,21 +68,30 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
         const departments = Array.isArray(departmentsResponse.data?.data)
           ? departmentsResponse.data.data
           : [];
-        const currentUserFromApi = users.find((u) => u.id === user.id);
-        const orgId = currentUserFromApi?.organization_id;
+        
+        if (isSuperAdmin) {
+          const normalizedNames = new Set<string>();
+          users.forEach((u) => normalizedNames.add(normalizeName(u.name)));
+          departments.forEach((d) => d.name && normalizedNames.add(normalizeName(d.name)));
+          setOrganizationUserNames(normalizedNames);
+        } else {
+          const currentUserFromApi = users.find((u) => u.id === user.id);
+          const orgId = currentUserFromApi?.organization_id;
 
-        if (!orgId) {
-          setOrganizationUserNames(new Set());
-          return;
+          if (!orgId) {
+            setOrganizationUserNames(new Set());
+            return;
+          }
+
+          const orgUsers = users.filter((u) => u.organization_id === orgId);
+          const orgDepartments = departments.filter((d) => d.organization_id === orgId);
+          const normalizedNames = new Set<string>();
+          orgUsers.forEach((u) => normalizedNames.add(normalizeName(u.name)));
+          orgDepartments.forEach((d) => d.name && normalizedNames.add(normalizeName(d.name)));
+          setOrganizationUserNames(normalizedNames);
         }
-
-        const orgUsers = users.filter((u) => u.organization_id === orgId);
-        const orgDepartments = departments.filter((d) => d.organization_id === orgId);
-        const normalizedNames = new Set<string>();
-        orgUsers.forEach((u) => normalizedNames.add(normalizeName(u.name)));
-        orgDepartments.forEach((d) => d.name && normalizedNames.add(normalizeName(d.name)));
-        setOrganizationUserNames(normalizedNames);
       } catch (error) {
+        console.error("Error fetching users/departments:", error);
         setOrganizationUserNames(new Set());
       }
     };
@@ -78,14 +99,72 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     fetchData();
   }, [user]);
 
+  useEffect(() => {
+    const fetchCallLogs = async () => {
+      if (!user) return;
+
+      try {
+        const isSuperAdmin = user.role === "SuperAdmin";
+    
+        let orgId: number | undefined = undefined;
+        
+        if (isSuperAdmin) {
+          if (superAdminOrgFilterId !== undefined && superAdminOrgFilterId !== "") {
+            orgId = typeof superAdminOrgFilterId === "number" ? superAdminOrgFilterId : parseInt(superAdminOrgFilterId);
+          }
+        } else {
+          const currentUserFromApi = await getUsers().then(res => 
+            Array.isArray(res.data) ? res.data.find((u: any) => u.id === user.id) : null
+          );
+          orgId = currentUserFromApi?.organization_id;
+
+          if (!orgId) {
+            setCallLogs([]);
+            return;
+          }
+        }
+
+        const startDate = new Date(selectedDate);
+        startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(selectedDate);
+        endDate.setHours(23, 59, 59, 999);
+
+        const filters = {
+          bat_dau: startDate.toISOString().split('T')[0],
+          ket_thuc: endDate.toISOString().split('T')[0],
+          organization_id: orgId,
+        };
+        
+        
+        const logs = await getCallHistory(filters);
+        
+        if (logs.length > 0) {
+        }
+
+        setCallLogs(logs);
+      } catch (error) {
+        console.error("Error fetching call logs:", error);
+        setCallLogs([]);
+      }
+    };
+
+    fetchCallLogs();
+  }, [user, selectedDate, superAdminOrgFilterId]);
+
   const filteredIncidents = useMemo(() => {
+    const isSuperAdmin = user?.role === "SuperAdmin";
+    
+    if (isSuperAdmin) {
+      return incidents;
+    }
+    
     if (organizationUserNames.size === 0) return incidents;
     
     return incidents.filter((incident) => {
       const normalizedSource = normalizeName(incident.source || "");
       return organizationUserNames.has(normalizedSource);
     });
-  }, [incidents, organizationUserNames]);
+  }, [incidents, organizationUserNames, user?.role]);
 
   const stats = useMemo(() => {
     const todayIncidents = filteredIncidents.filter((incident) => {
@@ -147,12 +226,6 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     };
   }, [filteredIncidents]);
 
-  const [selectedDate, setSelectedDate] = useState<Date>(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  });
-
   const isSameDay = (incident: Incident, date: Date): boolean => {
     const incidentDate =
       incident.timestamp instanceof Date
@@ -190,28 +263,50 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   };
 
   const statsByDay = useMemo(() => {
-    const dayIncidents = filteredIncidents.filter((inc) => isSameDay(inc, selectedDate));
-    const outgoing = dayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "outgoing" || ct === "pending";
-    }).length;
-    const accepted = dayIncidents.filter((i) => getCallType(i) === "accepted").length;
-    const cancelled = dayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "cancelled" || ct === "rejected";
-    }).length;
-    const timeout = dayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "timeout" || ct === "unreachable";
-    }).length;
+ 
+    const uniqueCallIds = new Set(callLogs.map(log => log.call_id));
+    const totalCalls = uniqueCallIds.size;
+
+    const outgoing = totalCalls;
+
+    const acceptedCallIds = new Set<string>();
+    callLogs.forEach(log => {
+      if (log.status === "accepted") {
+        acceptedCallIds.add(log.call_id);
+      }
+    });
+    const accepted = acceptedCallIds.size;
+
+    const cancelledCallIds = new Set<string>();
+    callLogs.forEach(log => {
+      if (log.status === "cancelled") {
+        cancelledCallIds.add(log.call_id);
+      }
+    });
+    const cancelled = cancelledCallIds.size;
+
+  
+    const unreachableCallIds = new Set<string>();
+    uniqueCallIds.forEach(callId => {
+      const logsForCall = callLogs.filter(log => log.call_id === callId);
+      const hasAccepted = logsForCall.some(log => log.status === "accepted");
+      const hasCancelled = logsForCall.some(log => log.status === "cancelled");
+      const hasRejected = logsForCall.some(log => log.status === "rejected");
+      
+      if (!hasAccepted && !hasCancelled && !hasRejected) {
+        unreachableCallIds.add(callId);
+      }
+    });
+    const timeout = unreachableCallIds.size;
+
     return {
-      total: dayIncidents.length,
+      total: totalCalls,
       outgoing,
       accepted,
       cancelled,
       timeout,
     };
-  }, [filteredIncidents, selectedDate]);
+  }, [callLogs, selectedDate]);
 
   const statusByDay = useMemo(() => {
     const online = statsByDay.outgoing;
@@ -226,22 +321,57 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   }, [statsByDay.outgoing]);
 
   const todayStats = useMemo(() => {
-    const todayIncidents = filteredIncidents.filter((inc) => isToday(inc));
-    const pending = todayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "outgoing" || ct === "pending";
-    }).length;
-    const resolved = todayIncidents.filter((i) => getCallType(i) === "accepted" || i.status === "resolved").length;
-    const cancelled = todayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "cancelled" || ct === "rejected";
-    }).length;
-    const timeout = todayIncidents.filter((i) => {
-      const ct = getCallType(i);
-      return ct === "timeout" || ct === "unreachable";
-    }).length;
-    return { total: todayIncidents.length, pending, resolved, cancelled, timeout };
-  }, [filteredIncidents]);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const todayLogs = callLogs.filter(log => {
+      const logDate = new Date(log.created_at);
+      return logDate >= today && logDate <= todayEnd;
+    });
+    
+    if (todayLogs.length > 0) {
+    }
+
+    const uniqueCallIds = new Set(todayLogs.map(log => log.call_id));
+    const totalCalls = uniqueCallIds.size;
+
+    const acceptedCallIds = new Set<string>();
+    todayLogs.forEach(log => {
+      if (log.status === "accepted") {
+        acceptedCallIds.add(log.call_id);
+      }
+    });
+
+    const cancelledCallIds = new Set<string>();
+    todayLogs.forEach(log => {
+      if (log.status === "cancelled") {
+        cancelledCallIds.add(log.call_id);
+      }
+    });
+
+    const unreachableCallIds = new Set<string>();
+    uniqueCallIds.forEach(callId => {
+      const logsForCall = todayLogs.filter(log => log.call_id === callId);
+      const hasAccepted = logsForCall.some(log => log.status === "accepted");
+      const hasCancelled = logsForCall.some(log => log.status === "cancelled");
+      const hasRejected = logsForCall.some(log => log.status === "rejected");
+      
+      if (!hasAccepted && !hasCancelled && !hasRejected) {
+        unreachableCallIds.add(callId);
+      }
+    });
+
+    return {
+      total: totalCalls,
+      pending: totalCalls, 
+      resolved: acceptedCallIds.size, 
+      cancelled: cancelledCallIds.size, 
+      timeout: unreachableCallIds.size,
+    };
+  }, [callLogs]);
 
   const goPrevDay = () => {
     const d = new Date(selectedDate);

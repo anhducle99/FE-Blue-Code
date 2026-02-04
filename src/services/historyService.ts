@@ -29,7 +29,11 @@ export const getCallHistory = async (filters: {
     params.append("organization_id", String(filters.organization_id));
   }
 
-  const res = await API.get(`/api/history?${params.toString()}`);
+  const url = `/api/history?${params.toString()}`;
+
+
+  const res = await API.get(url);
+ 
 
   const responseData = res.data;
   if (Array.isArray(responseData)) {

@@ -24,7 +24,7 @@ export interface Incident {
 
 export type IncidentFilter =
   | "all"
-  | "outgoing"   // Sự cố gọi tới (outgoing, pending)
-  | "accepted"   // Sự cố được chấp nhận
-  | "cancelled" // Sự cố đã hủy (cancelled, rejected)
-  | "timeout";  // Sự cố không liên lạc được (timeout, unreachable)
+  | "outgoing"   
+  | "accepted"  
+  | "cancelled" 
+  | "timeout";
