@@ -46,6 +46,34 @@ body {
   animation: slide-in-right 0.3s ease-out;
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
 /* Select "Lọc theo tổ chức" trên màn Lịch sử - giống ô Input, thẳng hàng */
 .history-org-select.ant-select {
   height: 40px !important;

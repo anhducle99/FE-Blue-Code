@@ -49,14 +49,14 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
     }
 
     timeoutRef.current = setTimeout(() => {
-      if (user?.department_id && user?.department_name) {
+      if (user?.department_id && user?.name) {
         socket.emit("callTimeout", {
           callId: incomingCall.callId,
-          from: user.department_name,
+          toDept: user.name, 
         });
 
         addIncident({
-          source: user.department_name.toUpperCase(),
+          source: (user.department_name || user.name || "").toUpperCase(),
           type: "call_rejected",
           status: "info",
           message: `Không phản hồi cuộc gọi từ ${incomingCall.fromDept}${
@@ -80,13 +80,19 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
 
     const handleCallStatusUpdate = (data: {
       callId: string;
-      toDept: string;
+      toDept?: string;
+      toUser?: string;
       status: "accepted" | "rejected" | "timeout" | "cancelled";
     }) => {
-      if (
-        data.callId === incomingCall.callId &&
-        (data.status === "cancelled" || data.status === "rejected")
-      ) {
+      if (data.callId !== incomingCall.callId) return;
+
+      const targetUser = data.toUser || data.toDept;
+      const isCurrentUser = targetUser && user?.name && (
+        targetUser === user.name || 
+        targetUser.toLowerCase().trim() === user.name.toLowerCase().trim()
+      );
+      
+      if (data.status === "cancelled" || (data.status === "rejected" && isCurrentUser)) {
         stopAudio();
         
         if (timeoutRef.current) {
@@ -96,14 +102,18 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
 
         setIncomingCall();
 
-        if (user?.department_name) {
+        if (user?.department_name || user?.name) {
           addIncident({
-            source: user.department_name.toUpperCase(),
+            source: (user.department_name || user.name || "").toUpperCase(),
             type: "call_rejected",
             status: "info",
-            message: `Cuộc gọi từ ${incomingCall.fromDept} đã bị hủy${
-              incomingCall.message ? ` - ${incomingCall.message}` : ""
-            }`,
+            message: data.status === "cancelled" 
+              ? `Cuộc gọi từ ${incomingCall.fromDept} đã bị hủy${
+                  incomingCall.message ? ` - ${incomingCall.message}` : ""
+                }`
+              : `Bạn đã từ chối cuộc gọi từ ${incomingCall.fromDept}${
+                  incomingCall.message ? ` - ${incomingCall.message}` : ""
+                }`,
             callType: "rejected",
           });
         }
@@ -121,16 +131,16 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       !incomingCall ||
       !socket ||
       !user?.department_id ||
-      !user?.department_name
+      !user?.name
     )
       return;
     socket.emit("callAccepted", {
       callId: incomingCall.callId,
-      toDept: user.department_name,
+      toDept: user.name,
     });
 
     addIncident({
-      source: user.department_name.toUpperCase(),
+      source: (user.department_name || user.name || "").toUpperCase(),
       type: "call_accepted",
       status: "info",
       message: `Đã xác nhận cuộc gọi từ ${incomingCall.fromDept}${
@@ -145,6 +155,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
     incomingCall,
     socket,
     user?.department_id,
+    user?.name,
     user?.department_name,
     setIncomingCall,
     addIncident,
@@ -155,16 +166,16 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       !incomingCall ||
       !socket ||
       !user?.department_id ||
-      !user?.department_name
+      !user?.name
     )
       return;
     socket.emit("callRejected", {
       callId: incomingCall.callId,
-      toDept: user.department_name,
+      toDept: user.name, 
     });
 
     addIncident({
-      source: user.department_name.toUpperCase(),
+      source: (user.department_name || user.name || "").toUpperCase(),
       type: "call_rejected",
       status: "info",
       message: `Từ chối cuộc gọi từ ${incomingCall.fromDept}${
@@ -179,6 +190,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
     incomingCall,
     socket,
     user?.department_id,
+    user?.name,
     user?.department_name,
     setIncomingCall,
     addIncident,

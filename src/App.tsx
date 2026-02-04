@@ -30,6 +30,15 @@ import { FaHeartCrack, FaLungsVirus, FaBrain, FaUserInjured } from "react-icons/
 
 const DEPT_ICONS = [FaHeartCrack, FaLungsVirus, FaBrain, FaUserInjured];
 
+const normalizeName = (name: string): string => {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
+};
+
 export default function App() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/login";
@@ -135,7 +144,6 @@ export default function App() {
   useEffect(() => {
     if (user && user.id && refreshUser) {
       refreshUser().catch((err) => {
-        console.error("⚠️ [App] Failed to refresh user data:", err);
       });
     }
   }, []); 
@@ -157,6 +165,8 @@ export default function App() {
   const [waitingModalOpen, setWaitingModalOpen] = useState(false);
   const [lastCallId, setLastCallId] = useState<string | null>(null);
   const [callTargets, setCallTargets] = useState<string[]>([]);
+  const [departmentName, setDepartmentName] = useState<string>("");
+  const [departmentId, setDepartmentId] = useState<number | undefined>(undefined);
   const networkStatus = useNetworkStatus();
   const { pendingCount, processQueue } = useOfflineQueue();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -240,19 +250,43 @@ export default function App() {
         const { callId } = res.data;
 
         const name = selectedKey.split("_")[0];
-        setCallTargets([name]);
+      
+        
+        const departmentUsers: string[] = [];
+        let deptName = name;
+        try {
+          const deptFromApi = allDepartmentsFromApi.find(
+            (d) => d.name === name || normalizeName(d.name) === normalizeName(name)
+          );
+          
+          if (deptFromApi) {
+            deptName = deptFromApi.name;
+            const usersInDept = allUsers.filter(
+              (u) => u.department_id === deptFromApi.id && u.department_id != null
+            );
+            departmentUsers.push(...usersInDept.map((u) => u.name));
+            setDepartmentId(deptFromApi.id);
+          } else {
+            departmentUsers.push(name);
+          }
+        } catch (error) {
+          departmentUsers.push(name);
+        }
+        
+        setCallTargets(departmentUsers.length > 0 ? departmentUsers : [name]);
+        setDepartmentName(deptName);
 
         socket?.emit("startCall", {
           callId,
           from: fromDept,
-          targets: [name],
+          targets: departmentUsers.length > 0 ? departmentUsers : [name],
         });
 
         addIncident({
           source: fromDept.toUpperCase(),
           type: "call_outgoing",
           status: "info",
-          message: `Đang gọi ${name}${tempMessage ? ` - ${tempMessage}` : ""}`,
+          message: `Sự cố đã gửi tới nhóm ${name}${tempMessage ? ` - ${tempMessage}` : ""}`,
           callType: "outgoing",
         });
 
@@ -261,7 +295,7 @@ export default function App() {
         setSelectedKey(null);
         setTempMessage("");
         setShowConfirm(false);
-        showSuccess("Cuộc gọi đã được khởi tạo thành công!");
+        showSuccess("Sự cố đã được gửi tới nhóm xử lý!");
       } else {
         showError(res.data.message || "Có lỗi khi gọi!");
       }
@@ -465,7 +499,7 @@ export default function App() {
           {isAdmin && (
             <>
               <div className="hidden lg:block min-h-0 lg:row-start-1 lg:row-end-2 lg:col-start-2 lg:col-end-3 min-w-0">
-                <IncidentStatusWidget />
+                <IncidentStatusWidget superAdminOrgFilterId={superAdminOrgFilterId} />
               </div>
               <div className="hidden lg:flex min-h-0 lg:row-start-2 lg:row-end-3 lg:col-start-2 lg:col-end-3 min-w-0 flex-col overflow-hidden">
                 <IncidentSidebar
@@ -482,6 +516,7 @@ export default function App() {
                     compact
                     isExpanded={false}
                     onToggleExpand={() => setAdminPanelExpanded(true)}
+                    superAdminOrgFilterId={superAdminOrgFilterId}
                   />
                 ) : (
                   <div className="flex flex-col gap-2">
@@ -496,7 +531,7 @@ export default function App() {
                       </button>
                     </div>
                     <div className="min-h-[160px]">
-                      <IncidentStatusWidget />
+                      <IncidentStatusWidget superAdminOrgFilterId={superAdminOrgFilterId} />
                     </div>
                     <div className="flex flex-col overflow-hidden min-h-[240px] rounded-xl border border-gray-200">
                       <IncidentSidebar
@@ -535,6 +570,8 @@ export default function App() {
         socket={socket}
         callId={lastCallId || undefined}
         fromDept={user?.department_name || user?.name || ""}
+        departmentName={departmentName}
+        departmentId={departmentId}
       />
     </div>
   );
