@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Button, Input, message, Checkbox } from "antd";
+import { Button, Input, message, Checkbox, Select } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
 import {
@@ -10,8 +10,11 @@ import {
   IOrganization,
 } from "../services/organizationService";
 import { useOrganizations } from "../contexts/OrganizationContext";
+import { useAuth } from "../contexts/AuthContext";
 
 export const OrganizationManagementPage: React.FC = () => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SuperAdmin";
   const { refreshOrganizations } = useOrganizations();
   const [openDropdown, setOpenDropdown] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
@@ -21,6 +24,8 @@ export const OrganizationManagementPage: React.FC = () => {
   });
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
   const [data, setData] = useState<IOrganization[]>([]);
+  const [filterOrgId, setFilterOrgId] = useState<number | "">("");
+  const defaultFilterSetRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [openModal, setOpenModal] = useState(false);
@@ -30,6 +35,13 @@ export const OrganizationManagementPage: React.FC = () => {
   useEffect(() => {
     fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    if (isSuperAdmin && data.length > 0 && !defaultFilterSetRef.current) {
+      setFilterOrgId(data[0].id ?? "");
+      defaultFilterSetRef.current = true;
+    }
+  }, [isSuperAdmin, data]);
 
   const fetchOrganizations = async () => {
     try {
@@ -46,6 +58,11 @@ export const OrganizationManagementPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const filteredData =
+    isSuperAdmin && filterOrgId !== ""
+      ? data.filter((o) => o.id === filterOrgId)
+      : data;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -90,6 +107,10 @@ export const OrganizationManagementPage: React.FC = () => {
         await updateOrganization(selectedOrg.id, { name: updated.name });
         message.success("Cập nhật tổ chức thành công!");
       } else {
+        if (!isSuperAdmin) {
+          message.error("Chỉ tài khoản SuperAdmin mới được tạo tổ chức.");
+          return;
+        }
         await createOrganization({ name: updated.name });
         message.success("Thêm tổ chức thành công!");
       }
@@ -118,7 +139,7 @@ export const OrganizationManagementPage: React.FC = () => {
       <div className="mx-4">
         <PageHeader
           title="Quản lý tổ chức"
-          createButton={
+          createButton={isSuperAdmin ? (
             <Button
               type="primary"
               shape="circle"
@@ -127,7 +148,7 @@ export const OrganizationManagementPage: React.FC = () => {
             >
               <i className="bi bi-plus text-white" />
             </Button>
-          }
+          ) : undefined}
         />
         <div className="bg-white rounded shadow-sm p-4 mt-2 text-center">
           <div>Đang tải...</div>
@@ -141,7 +162,7 @@ export const OrganizationManagementPage: React.FC = () => {
       <div className="mx-4">
         <PageHeader
           title="Quản lý tổ chức"
-          createButton={
+          createButton={isSuperAdmin ? (
             <Button
               type="primary"
               shape="circle"
@@ -150,7 +171,7 @@ export const OrganizationManagementPage: React.FC = () => {
             >
               <i className="bi bi-plus text-white" />
             </Button>
-          }
+          ) : undefined}
         />
         <div className="bg-white rounded shadow-sm p-4 mt-2">
           <div className="text-red-600 mb-4">{error}</div>
@@ -169,7 +190,7 @@ export const OrganizationManagementPage: React.FC = () => {
     <div className="mx-4">
       <PageHeader
         title="Quản lý tổ chức"
-        createButton={
+        createButton={isSuperAdmin ? (
           <Button
             type="primary"
             shape="circle"
@@ -178,12 +199,32 @@ export const OrganizationManagementPage: React.FC = () => {
           >
             <i className="bi bi-plus text-white" />
           </Button>
-        }
+        ) : undefined}
       />
 
       <div className="bg-white rounded shadow-sm p-4 mt-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
-          <div></div>
+          <div className="flex items-center gap-2">
+            {isSuperAdmin && (
+              <>
+                <span className="text-sm font-medium text-gray-700">Lọc theo tổ chức:</span>
+                <Select
+                  placeholder="Tất cả tổ chức"
+                  allowClear
+                  className="w-56"
+                  value={filterOrgId === "" ? undefined : filterOrgId}
+                  onChange={(val) => setFilterOrgId(val ?? "")}
+                  options={[
+                    { value: "", label: "Tất cả tổ chức" },
+                    ...data.map((org) => ({
+                      value: org.id!,
+                      label: org.name,
+                    })),
+                  ]}
+                />
+              </>
+            )}
+          </div>
 
           <div className="relative">
             <Button
@@ -244,8 +285,8 @@ export const OrganizationManagementPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(data) &&
-                data.map((item, index) => (
+              {Array.isArray(filteredData) &&
+                filteredData.map((item, index) => (
                   <tr
                     key={item.id}
                     className="border-b hover:bg-gray-50 relative"
@@ -316,14 +357,14 @@ export const OrganizationManagementPage: React.FC = () => {
           </table>
         </div>
 
-        {Array.isArray(data) && data.length === 0 && (
+        {Array.isArray(filteredData) && filteredData.length === 0 && (
           <div className="text-center py-8 text-gray-500">
             Không có tổ chức nào
           </div>
         )}
 
         <div className="flex justify-between items-center text-sm text-zinc-700 pt-5">
-          <div>Tổng: {Array.isArray(data) ? data.length : 0} mục</div>
+          <div>Tổng: {Array.isArray(filteredData) ? filteredData.length : 0} mục</div>
         </div>
       </div>
 

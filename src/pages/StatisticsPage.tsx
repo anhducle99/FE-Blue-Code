@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { DepartmentBarChart } from "../components/DepartmentBarChart";
 import { Pie } from "react-chartjs-2";
 import {
@@ -18,7 +18,10 @@ import {
   IDepartmentStats,
   IGroupStats,
 } from "../services/statisticsService";
+import { getOrganizations } from "../services/organizationService";
+import type { IOrganization } from "../services/organizationService";
 import { useAuth } from "../contexts/AuthContext";
+import { Button } from "antd";
 
 ChartJS.register(
   ArcElement,
@@ -45,8 +48,39 @@ export const StatisticsPage: React.FC = () => {
   const [loadingGroup, setLoadingGroup] = useState(false);
   const [errorDept, setErrorDept] = useState<string | null>(null);
   const [errorGroup, setErrorGroup] = useState<string | null>(null);
+  const [organizations, setOrganizations] = useState<IOrganization[]>([]);
+  const [filterOrgId, setFilterOrgId] = useState<number | "">("");
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
+  const defaultFilterSetRef = useRef(false);
+  const filterDropdownRef = useRef<HTMLDivElement | null>(null);
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const isSuperAdmin = user?.role === "SuperAdmin";
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      getOrganizations()
+        .then((data) => setOrganizations(Array.isArray(data) ? data : []))
+        .catch(() => setOrganizations([]));
+    }
+  }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (isSuperAdmin && organizations.length > 0 && !defaultFilterSetRef.current) {
+      setFilterOrgId(organizations[0].id ?? "");
+      defaultFilterSetRef.current = true;
+    }
+  }, [isSuperAdmin, organizations]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setOpenFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const alertGroupColors: Record<string, string> = {
     "y tế": "#22c55e",
@@ -123,6 +157,7 @@ export const StatisticsPage: React.FC = () => {
         const res = await getDepartmentStats({
           startDate: startDateDept?.toISOString(),
           endDate: endDateDept?.toISOString(),
+          ...(filterOrgId !== "" && isSuperAdmin ? { organization_id: filterOrgId as number } : {}),
         });
      
         
@@ -149,7 +184,7 @@ export const StatisticsPage: React.FC = () => {
       }
     };
     fetchDepartment();
-  }, [startDateDept, endDateDept, token]);
+  }, [startDateDept, endDateDept, token, filterOrgId, isSuperAdmin]);
 
   useEffect(() => {
     if (!token) {
@@ -163,6 +198,7 @@ export const StatisticsPage: React.FC = () => {
         const res = await getGroupStats({
           startDate: startDateGroup?.toISOString(),
           endDate: endDateGroup?.toISOString(),
+          ...(filterOrgId !== "" && isSuperAdmin ? { organization_id: filterOrgId as number } : {}),
         });
                 
         if (!Array.isArray(res)) {
@@ -191,7 +227,7 @@ export const StatisticsPage: React.FC = () => {
       }
     };
     fetchGroup();
-  }, [startDateGroup, endDateGroup, token]);
+  }, [startDateGroup, endDateGroup, token, filterOrgId, isSuperAdmin]);
 
   const groupChartData = (type: "Gửi thông báo" | "Nhận thông báo") => {
     if (groups.length === 0) {
@@ -225,7 +261,52 @@ export const StatisticsPage: React.FC = () => {
 
   return (
     <div className="mx-2 sm:mx-4">
-      <h2 className="text-xl font-bold my-4">Thống kê</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 my-4">
+        <h2 className="text-xl font-bold">Thống kê</h2>
+        {isSuperAdmin && organizations.length > 0 && (
+          <div className="relative" ref={filterDropdownRef}>
+            <Button
+              onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
+              className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 border-0 flex items-center gap-2"
+            >
+              <i className="bi bi-funnel-fill text-xs" />
+              Lọc theo tổ chức
+              <i className="bi bi-caret-down-fill text-xs" />
+            </Button>
+            {openFilterDropdown && (
+              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilterOrgId("");
+                    setOpenFilterDropdown(false);
+                  }}
+                  className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors ${
+                    filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                  }`}
+                >
+                  Tất cả tổ chức
+                </button>
+                {organizations.map((org) => (
+                  <button
+                    key={org.id}
+                    type="button"
+                    onClick={() => {
+                      setFilterOrgId(org.id ?? "");
+                      setOpenFilterDropdown(false);
+                    }}
+                    className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors border-t border-gray-100 ${
+                      filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                    }`}
+                  >
+                    {org.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="mt-6 bg-white p-4 rounded shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">

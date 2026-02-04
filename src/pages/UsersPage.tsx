@@ -38,6 +38,7 @@ export const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
+  const [filterOrgId, setFilterOrgId] = useState<number | "">("");
   const { departments, refreshDepartments } = useDepartments();
   const {
     organizations,
@@ -51,19 +52,21 @@ export const UsersPage: React.FC = () => {
     refreshUser,
   } = useAuth();
   const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  const isSuperAdmin = currentUser?.role === "SuperAdmin";
 
   const fetchUsers = async () => {
     try {
-      const res = await getUsers();
+      const params = filterOrgId !== "" ? { organization_id: filterOrgId as number } : undefined;
+      const res = await getUsers(params);
       setUsers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       message.error("Lấy danh sách người dùng thất bại");
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [filterOrgId]);
 
   useClickOutside(
     {
@@ -206,10 +209,17 @@ export const UsersPage: React.FC = () => {
       refreshDepartments().catch(console.error),
     ]);
     formik.setValues({
-      ...user,
+      name: user.name,
+      email: user.email,
+      phone: user.phone ?? "",
+      organization_id: user.organization_id ?? 0,
+      department_id: user.department_id ?? null,
       departmentName: user.department_id
         ? departments.find((d) => d.id === user.department_id)?.name || ""
         : "",
+      is_department_account: user.is_department_account ?? false,
+      is_admin_view: user.is_admin_view ?? false,
+      is_floor_account: user.is_floor_account ?? false,
       password: "",
     });
     setIsOpen(true);
@@ -261,11 +271,32 @@ export const UsersPage: React.FC = () => {
       </div>
 
       <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
+        {isSuperAdmin && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Lọc theo tổ chức:</span>
+            <Select
+              placeholder="Tất cả tổ chức"
+              allowClear
+              className="w-56"
+              value={filterOrgId === "" ? undefined : filterOrgId}
+              onChange={(val) => setFilterOrgId(val ?? "")}
+              options={[
+                { value: "", label: "Tất cả tổ chức" },
+                ...organizations.map((org) => ({
+                  value: org.id!,
+                  label: org.name,
+                })),
+              ]}
+            />
+          </div>
+        )}
         <table className="min-w-full table-auto">
           <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
             <tr>
               <th className="px-4 py-2 text-left">Tên</th>
               <th className="px-4 py-2 text-left">Email</th>
+              <th className="px-4 py-2 text-left">Tổ chức</th>
+              <th className="px-4 py-2 text-right"></th>
             </tr>
           </thead>
           <tbody className="text-gray-700 text-sm">
@@ -274,6 +305,7 @@ export const UsersPage: React.FC = () => {
                 <tr key={u.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
+                  <td className="px-4 py-2">{u.organization_name ?? "—"}</td>
                   <td className="px-4 py-2 text-right relative">
                     <div
                       className="inline-block"
@@ -348,7 +380,7 @@ export const UsersPage: React.FC = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center py-6 text-gray-500">
+                <td colSpan={4} className="text-center py-6 text-gray-500">
                   Không có người dùng
                 </td>
               </tr>

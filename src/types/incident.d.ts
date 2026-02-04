@@ -22,4 +22,9 @@ export interface Incident {
   callType?: "outgoing" | "accepted" | "rejected" | "timeout" | "pending" | "cancelled";
 }
 
-export type IncidentFilter = "all" | "resolved" | "warning" | "error" | "info";
+export type IncidentFilter =
+  | "all"
+  | "outgoing"   // Sự cố gọi tới (outgoing, pending)
+  | "accepted"   // Sự cố được chấp nhận
+  | "cancelled" // Sự cố đã hủy (cancelled, rejected)
+  | "timeout";  // Sự cố không liên lạc được (timeout, unreachable)

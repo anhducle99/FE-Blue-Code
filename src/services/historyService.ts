@@ -18,12 +18,16 @@ export const getCallHistory = async (filters: {
   nguoi_nhan?: string;
   bat_dau?: string;
   ket_thuc?: string;
+  organization_id?: number | string;
 }): Promise<ICallLog[]> => {
   const params = new URLSearchParams();
   if (filters.nguoi_gui) params.append("sender", filters.nguoi_gui);
   if (filters.nguoi_nhan) params.append("receiver", filters.nguoi_nhan);
   if (filters.bat_dau) params.append("startDate", filters.bat_dau);
   if (filters.ket_thuc) params.append("endDate", filters.ket_thuc);
+  if (filters.organization_id !== undefined && filters.organization_id !== "" && filters.organization_id !== null) {
+    params.append("organization_id", String(filters.organization_id));
+  }
 
   const res = await API.get(`/api/history?${params.toString()}`);
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Input, Button, message, Select } from "antd";
 import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
@@ -21,6 +21,7 @@ export const DepartmentManagementPage: React.FC = () => {
   const { reloadData } = useDashboard();
   const { refreshDepartments } = useDepartments();
   const { user } = useAuth();
+  const isSuperAdmin = user?.role === "SuperAdmin";
   const {
     organizations,
     loading: organizationsLoading,
@@ -32,6 +33,10 @@ export const DepartmentManagementPage: React.FC = () => {
   const [editingDept, setEditingDept] = useState<IDepartment | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [currentUserOrgId, setCurrentUserOrgId] = useState<number | null>(null);
+  const [filterOrgId, setFilterOrgId] = useState<number | "">("");
+  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
+  const defaultFilterSetRef = useRef(false);
+  const filterDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
@@ -57,10 +62,28 @@ export const DepartmentManagementPage: React.FC = () => {
     fetchCurrentUserOrg();
   }, [user]);
 
+  useEffect(() => {
+    if (isSuperAdmin && organizations.length > 0 && !defaultFilterSetRef.current) {
+      setFilterOrgId(organizations[0].id ?? "");
+      defaultFilterSetRef.current = true;
+    }
+  }, [isSuperAdmin, organizations]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
+        setOpenFilterDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const fetchDepartments = async () => {
     try {
       setLoading(true);
-      const res = await getDepartments();
+      const params = isSuperAdmin && filterOrgId !== "" ? { organization_id: filterOrgId as number } : undefined;
+      const res = await getDepartments(params);
       if (res.data.success && Array.isArray(res.data.data)) {
         setDepartments(res.data.data);
       } else {
@@ -76,7 +99,7 @@ export const DepartmentManagementPage: React.FC = () => {
 
   useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [filterOrgId]);
 
   const handleSave = async () => {
     if (!formData.name) {
@@ -172,6 +195,51 @@ export const DepartmentManagementPage: React.FC = () => {
       </div>
 
       <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
+        {isSuperAdmin && organizations.length > 0 && (
+          <div className="mb-4 flex items-center gap-2">
+            <div className="relative" ref={filterDropdownRef}>
+              <Button
+                onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
+                className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 border-0 flex items-center gap-2"
+              >
+                <i className="bi bi-funnel-fill text-xs" />
+                Lọc theo tổ chức
+                <i className="bi bi-caret-down-fill text-xs" />
+              </Button>
+              {openFilterDropdown && (
+                <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterOrgId("");
+                      setOpenFilterDropdown(false);
+                    }}
+                    className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors ${
+                      filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                    }`}
+                  >
+                    Tất cả tổ chức
+                  </button>
+                  {organizations.map((org) => (
+                    <button
+                      key={org.id}
+                      type="button"
+                      onClick={() => {
+                        setFilterOrgId(org.id ?? "");
+                        setOpenFilterDropdown(false);
+                      }}
+                      className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors border-t border-gray-100 ${
+                        filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                      }`}
+                    >
+                      {org.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {loading ? (
           <div className="text-center py-8">Đang tải...</div>
         ) : departments.length === 0 ? (
