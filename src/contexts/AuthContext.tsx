@@ -17,6 +17,8 @@ export interface User {
   phone: string;
   department_id?: number | null;
   department_name?: string;
+  organization_id?: number | null;
+  organization_name?: string | null;
   is_admin_view?: boolean;
   is_floor_account?: boolean;
   is_department_account?: boolean;
@@ -168,6 +170,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           phone: currentUserFromBackend.phone,
           department_id: currentUserFromBackend.department_id ?? null,
           department_name: currentUserFromBackend.department_name || undefined,
+          organization_id: currentUserFromBackend.organization_id ?? null,
+          organization_name: currentUserFromBackend.organization_name ?? null,
           is_admin_view: currentUserFromBackend.is_admin_view,
           is_floor_account: currentUserFromBackend.is_floor_account || false,
           is_department_account: currentUserFromBackend.is_department_account || false,

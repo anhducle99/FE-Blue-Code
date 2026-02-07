@@ -16,6 +16,7 @@ import { DashboardProvider } from "./layouts/DashboardContext";
 import AudioPermissionWrapper from "./components/AudioPermissionWrapper";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { SuperAdminFilterProvider } from "./contexts/SuperAdminFilterContext";
 import { IncidentProvider } from "./contexts/IncidentContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import PrivateRoute from "./components/PrivateRoute";
@@ -81,63 +82,65 @@ root.render(
     <ErrorBoundary>
       <ToastProvider>
         <AuthProvider>
-          <IncidentProvider>
-            <DashboardProvider>
-              <DepartmentProvider>
-                <OrganizationProvider>
-                  <BrowserRouter>
-                    <DeepLinkHandler />
-                    <IncomingCallWrapper>
-                      <Routes>
-                        <Route
-                          path="/"
-                          element={<Navigate to="/login" replace />}
-                        />
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route
-                          path="/main"
-                          element={
-                            <PrivateRoute>
-                              <AudioPermissionWrapper>
-                                <App />
-                              </AudioPermissionWrapper>
-                            </PrivateRoute>
-                          }
-                        />
-                        <Route
-                          path="/dashboard"
-                          element={
-                            <PrivateRoute>
-                              <AudioPermissionWrapper>
-                                <DashboardLayout />
-                              </AudioPermissionWrapper>
-                            </PrivateRoute>
-                          }
-                        >
-                          <Route index element={<StatisticsPage />} />
-                          <Route path="history" element={<HistoryPage />} />
+          <SuperAdminFilterProvider>
+            <IncidentProvider>
+              <DashboardProvider>
+                <DepartmentProvider>
+                  <OrganizationProvider>
+                    <BrowserRouter>
+                      <DeepLinkHandler />
+                      <IncomingCallWrapper>
+                        <Routes>
                           <Route
-                            path="statistics"
-                            element={<StatisticsPage />}
+                            path="/"
+                            element={<Navigate to="/login" replace />}
+                          />
+                          <Route path="/login" element={<LoginPage />} />
+                          <Route
+                            path="/main"
+                            element={
+                              <PrivateRoute>
+                                <AudioPermissionWrapper>
+                                  <App />
+                                </AudioPermissionWrapper>
+                              </PrivateRoute>
+                            }
                           />
                           <Route
-                            path="managements"
-                            element={<DepartmentManagementPage />}
-                          />
-                          <Route
-                            path="organization"
-                            element={<OrganizationManagementPage />}
-                          />
-                          <Route path="usersPage" element={<UsersPage />} />
-                        </Route>
-                        <Route path="*" element={<div>404 - Not Found</div>} />
-                      </Routes>
-                    </IncomingCallWrapper>
-                  </BrowserRouter>
-                </OrganizationProvider>
-              </DepartmentProvider>
-            </DashboardProvider>
-          </IncidentProvider>
+                            path="/dashboard"
+                            element={
+                              <PrivateRoute>
+                                <AudioPermissionWrapper>
+                                  <DashboardLayout />
+                                </AudioPermissionWrapper>
+                              </PrivateRoute>
+                            }
+                          >
+                            <Route index element={<StatisticsPage />} />
+                            <Route path="history" element={<HistoryPage />} />
+                            <Route
+                              path="statistics"
+                              element={<StatisticsPage />}
+                            />
+                            <Route
+                              path="managements"
+                              element={<DepartmentManagementPage />}
+                            />
+                            <Route
+                              path="organization"
+                              element={<OrganizationManagementPage />}
+                            />
+                            <Route path="usersPage" element={<UsersPage />} />
+                          </Route>
+                          <Route path="*" element={<div>404 - Not Found</div>} />
+                        </Routes>
+                      </IncomingCallWrapper>
+                    </BrowserRouter>
+                  </OrganizationProvider>
+                </DepartmentProvider>
+              </DashboardProvider>
+            </IncidentProvider>
+          </SuperAdminFilterProvider>
         </AuthProvider>
       </ToastProvider>
     </ErrorBoundary>

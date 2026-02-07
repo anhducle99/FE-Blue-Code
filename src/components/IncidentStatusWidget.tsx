@@ -33,7 +33,6 @@ interface IncidentStatusWidgetProps {
   compact?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
-  /** Khi có: dùng chung state lọc tổ chức với App (cho SuperAdmin) */
   superAdminOrgFilterId?: number | "";
 }
 
@@ -263,48 +262,37 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   };
 
   const statsByDay = useMemo(() => {
- 
-    const uniqueCallIds = new Set(callLogs.map(log => log.call_id));
-    const totalCalls = uniqueCallIds.size;
+    const startDate = new Date(selectedDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(selectedDate);
+    endDate.setHours(23, 59, 59, 999);
 
-    const outgoing = totalCalls;
+    const dayLogs = callLogs.filter(log => {
+      const logDate = new Date(log.created_at);
+      return logDate >= startDate && logDate <= endDate;
+    });
 
+    const uniqueCallIds = new Set(dayLogs.map(log => log.call_id));
+    /* 3 nhóm: accepted, cancelled, timeout. Sự cố chỉ có reject (không có accepted) → tính vào timeout. outgoing = accepted + cancelled + timeout */
     const acceptedCallIds = new Set<string>();
-    callLogs.forEach(log => {
-      if (log.status === "accepted") {
-        acceptedCallIds.add(log.call_id);
-      }
-    });
-    const accepted = acceptedCallIds.size;
-
     const cancelledCallIds = new Set<string>();
-    callLogs.forEach(log => {
-      if (log.status === "cancelled") {
-        cancelledCallIds.add(log.call_id);
-      }
-    });
-    const cancelled = cancelledCallIds.size;
-
-  
-    const unreachableCallIds = new Set<string>();
+    const timeoutCallIds = new Set<string>();
     uniqueCallIds.forEach(callId => {
-      const logsForCall = callLogs.filter(log => log.call_id === callId);
+      const logsForCall = dayLogs.filter(log => log.call_id === callId);
       const hasAccepted = logsForCall.some(log => log.status === "accepted");
       const hasCancelled = logsForCall.some(log => log.status === "cancelled");
-      const hasRejected = logsForCall.some(log => log.status === "rejected");
-      
-      if (!hasAccepted && !hasCancelled && !hasRejected) {
-        unreachableCallIds.add(callId);
-      }
+      if (hasAccepted) acceptedCallIds.add(callId);
+      else if (hasCancelled) cancelledCallIds.add(callId);
+      else timeoutCallIds.add(callId); /* reject (không có ai accept) + không liên lạc được */
     });
-    const timeout = unreachableCallIds.size;
+    const outgoing = acceptedCallIds.size + cancelledCallIds.size + timeoutCallIds.size;
 
     return {
-      total: totalCalls,
+      total: outgoing,
       outgoing,
-      accepted,
-      cancelled,
-      timeout,
+      accepted: acceptedCallIds.size,
+      cancelled: cancelledCallIds.size,
+      timeout: timeoutCallIds.size,
     };
   }, [callLogs, selectedDate]);
 
@@ -321,7 +309,6 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   }, [statsByDay.outgoing]);
 
   const todayStats = useMemo(() => {
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
@@ -336,40 +323,25 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     }
 
     const uniqueCallIds = new Set(todayLogs.map(log => log.call_id));
-    const totalCalls = uniqueCallIds.size;
-
     const acceptedCallIds = new Set<string>();
-    todayLogs.forEach(log => {
-      if (log.status === "accepted") {
-        acceptedCallIds.add(log.call_id);
-      }
-    });
-
     const cancelledCallIds = new Set<string>();
-    todayLogs.forEach(log => {
-      if (log.status === "cancelled") {
-        cancelledCallIds.add(log.call_id);
-      }
-    });
-
-    const unreachableCallIds = new Set<string>();
+    const timeoutCallIds = new Set<string>();
     uniqueCallIds.forEach(callId => {
       const logsForCall = todayLogs.filter(log => log.call_id === callId);
       const hasAccepted = logsForCall.some(log => log.status === "accepted");
       const hasCancelled = logsForCall.some(log => log.status === "cancelled");
-      const hasRejected = logsForCall.some(log => log.status === "rejected");
-      
-      if (!hasAccepted && !hasCancelled && !hasRejected) {
-        unreachableCallIds.add(callId);
-      }
+      if (hasAccepted) acceptedCallIds.add(callId);
+      else if (hasCancelled) cancelledCallIds.add(callId);
+      else timeoutCallIds.add(callId);
     });
+    const totalCalls = acceptedCallIds.size + cancelledCallIds.size + timeoutCallIds.size;
 
     return {
       total: totalCalls,
-      pending: totalCalls, 
-      resolved: acceptedCallIds.size, 
-      cancelled: cancelledCallIds.size, 
-      timeout: unreachableCallIds.size,
+      pending: totalCalls,
+      resolved: acceptedCallIds.size,
+      cancelled: cancelledCallIds.size,
+      timeout: timeoutCallIds.size,
     };
   }, [callLogs]);
 
@@ -399,9 +371,9 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
           <span className="text-blue-100 text-xs sm:text-sm font-medium whitespace-nowrap">Hôm nay:</span>
           <div className="flex gap-3 sm:gap-5 flex-wrap">
             <span><strong>{todayStats.pending}</strong> gọi tới</span>
-            <span className="text-green-300"><strong>{todayStats.resolved}</strong> chấp nhận</span>
-            <span className="text-red-200"><strong>{todayStats.cancelled}</strong> hủy</span>
-            <span className="text-amber-200"><strong>{todayStats.timeout}</strong> không liên lạc</span>
+            <span className="text-green-300"><strong>{todayStats.resolved}</strong> đã xử lý</span>
+            <span className="text-orange-200"><strong>{todayStats.cancelled}</strong> người gọi hủy</span>
+            <span className="text-amber-200"><strong>{todayStats.timeout}</strong> không liên lạc được</span>
           </div>
           <span className={`px-2 py-0.5 rounded text-xs font-bold ${
             stats.status === "OK" ? "bg-green-500/80" : stats.status === "WARNING" ? "bg-amber-500/80" : "bg-red-500/80"
@@ -456,15 +428,15 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
           </div>
           <div className="text-center p-2 rounded-lg bg-blue-600/30">
             <div className="text-xl md:text-2xl font-bold text-green-300">{statsByDay.accepted}</div>
-            <div className="text-xs text-blue-200">Sự cố được chấp nhận</div>
+            <div className="text-xs text-blue-200">Có người đã xử lý</div>
           </div>
           <div className="text-center p-2 rounded-lg bg-blue-600/30">
-            <div className="text-xl md:text-2xl font-bold text-red-300">{statsByDay.cancelled}</div>
-            <div className="text-xs text-blue-200">Sự cố đã hủy</div>
+            <div className="text-xl md:text-2xl font-bold text-orange-300">{statsByDay.cancelled}</div>
+            <div className="text-xs text-blue-200">Sự cố người gọi hủy</div>
           </div>
           <div className="text-center p-2 rounded-lg bg-blue-600/30">
             <div className="text-xl md:text-2xl font-bold text-amber-300">{statsByDay.timeout}</div>
-            <div className="text-xs text-blue-200">Sự cố không liên lạc được</div>
+            <div className="text-xs text-blue-200">Có người không liên lạc được</div>
           </div>
         </div>
         <div

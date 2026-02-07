@@ -20,11 +20,13 @@ export interface Incident {
   message: string;
   duration?: number;
   callType?: "outgoing" | "accepted" | "rejected" | "timeout" | "pending" | "cancelled";
+  call_id?: string;
 }
 
 export type IncidentFilter =
   | "all"
-  | "outgoing"   
-  | "accepted"  
-  | "cancelled" 
-  | "timeout";
+  | "outgoing"
+  | "accepted"
+  | "timeout"
+  | "cancelled"  
+  | "rejected"; 
