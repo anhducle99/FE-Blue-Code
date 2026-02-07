@@ -43,6 +43,8 @@ export default function LoginPage() {
           phone: apiUser.phone || "",
           department_id: apiUser.department_id ?? null,
           department_name: apiUser.department_name || null,
+          organization_id: apiUser.organization_id ?? null,
+          organization_name: apiUser.organization_name ?? null,
           is_admin_view: Boolean(isAdminView),
           is_floor_account: Boolean(isFloorAccount),
         };

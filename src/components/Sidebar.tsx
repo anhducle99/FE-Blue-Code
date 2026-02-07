@@ -157,8 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                           : "text-gray-600 hover:bg-gray-100"
                       } flex items-center gap-x-3 rounded-md px-3 py-2 text-sm`}
                     >
-                      <i className="bi bi-building-fill"></i> Quản lý khoa,
-                      phòng
+                      <i className="bi bi-building-fill"></i> Quản lý đội phản ứng
                     </Link>
                   </li>
                   <li>

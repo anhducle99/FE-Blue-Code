@@ -9,6 +9,7 @@ import {
   deleteOrganization,
   IOrganization,
 } from "../services/organizationService";
+import { getUsers } from "../services/userService";
 import { useOrganizations } from "../contexts/OrganizationContext";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -31,10 +32,26 @@ export const OrganizationManagementPage: React.FC = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<IOrganization | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const [adminOrgId, setAdminOrgId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchOrganizations();
   }, []);
+
+  useEffect(() => {
+    if (isSuperAdmin || !user?.id) return;
+    if (user.organization_id != null && user.organization_id !== undefined) {
+      setAdminOrgId(Number(user.organization_id));
+      return;
+    }
+    getUsers()
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : [];
+        const me = list.find((u) => u.id === user.id);
+        if (me?.organization_id != null) setAdminOrgId(Number(me.organization_id));
+      })
+      .catch(() => {});
+  }, [isSuperAdmin, user?.id, user?.organization_id]);
 
   useEffect(() => {
     if (isSuperAdmin && data.length > 0 && !defaultFilterSetRef.current) {
@@ -59,10 +76,14 @@ export const OrganizationManagementPage: React.FC = () => {
     }
   };
 
-  const filteredData =
-    isSuperAdmin && filterOrgId !== ""
+  const effectiveAdminOrgId = adminOrgId ?? user?.organization_id ?? null;
+  const filteredData = isSuperAdmin
+    ? filterOrgId !== ""
       ? data.filter((o) => o.id === filterOrgId)
-      : data;
+      : data
+    : effectiveAdminOrgId != null
+      ? data.filter((o) => Number(o.id) === Number(effectiveAdminOrgId))
+      : [];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -10,7 +10,6 @@ import type { IOrganization } from "../services/organizationService";
 interface IncidentSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Khi có: dùng chung state lọc tổ chức với App (1. Vị trí sự cố, 2. Chọn sự cố) */
   superAdminOrgFilterId?: number | "";
   onSuperAdminOrgFilterChange?: (id: number | "") => void;
 }
@@ -39,12 +38,22 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   const [organizations, setOrganizations] = useState<IOrganization[]>([]);
   const [localFilterOrgId, setLocalFilterOrgId] = useState<number | "">("");
   const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
+  const [expandedCallIds, setExpandedCallIds] = useState<Set<string>>(new Set());
   const filterDropdownRef = useRef<HTMLDivElement | null>(null);
 
+  const toggleExpanded = (callId: string) => {
+    setExpandedCallIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(callId)) next.delete(callId);
+      else next.add(callId);
+      return next;
+    });
+  };
+
   const isControlled = onSuperAdminOrgFilterChange != null && propFilterOrgId !== undefined;
-  const filterOrgId = isControlled ? propFilterOrgId : localFilterOrgId;
+  const filterOrgId = (isControlled ? propFilterOrgId : localFilterOrgId) ?? "";
   const setFilterOrgId = isControlled
-    ? (id: number | "") => { onSuperAdminOrgFilterChange(id); }
+    ? (id: number | "") => { onSuperAdminOrgFilterChange?.(id); }
     : setLocalFilterOrgId;
 
   useEffect(() => {
@@ -135,13 +144,13 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   }, [user, isSuperAdmin, filterOrgId]);
 
   const organizationFilteredIncidents = useMemo(() => {
+    if (isSuperAdmin) return incidents;
     if (organizationNames.size === 0) return incidents;
-    
     return incidents.filter((incident) => {
       const normalizedSource = normalizeName(incident.source || "");
       return organizationNames.has(normalizedSource);
     });
-  }, [incidents, organizationNames]);
+  }, [incidents, organizationNames, isSuperAdmin]);
 
   const matchesCallFilter = (incident: Incident, filterValue: IncidentFilter): boolean => {
     const callType = (incident as any).callType;
@@ -149,8 +158,82 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     if (filterValue === "all") return true;
     if (filterValue === "outgoing") return callType === "outgoing" || callType === "pending";
     if (filterValue === "accepted") return callType === "accepted";
-    if (filterValue === "cancelled") return callType === "cancelled" || callType === "rejected";
     if (filterValue === "timeout") return callType === "timeout" || callType === "unreachable";
+    if (filterValue === "cancelled") return callType === "cancelled"; /* Người gọi hủy */
+    if (filterValue === "rejected") return callType === "rejected";   /* Người không tham gia */
+    return true;
+  };
+
+  /** Nhóm sự cố theo call_id: một cuộc gọi = một card, bấm mở ra xem ai đã xử lý / không liên lạc được */
+  interface GroupedIncident {
+    call_id: string;
+    sender: string;
+    timestamp: Date;
+    accepted: string[];
+    rejected: string[];   /* Người không tham gia (từ chối) */
+    timeout: string[];
+    pending: string[];
+    hasOutgoing: boolean;
+    hasCancelled: boolean; /* Sự cố người gọi hủy */
+  }
+
+  const groupedByCallId = useMemo(() => {
+    const withCallId = organizationFilteredIncidents.filter(
+      (i): i is Incident & { call_id: string } => Boolean((i as any).call_id)
+    );
+    const toDate = (t: Date | string): Date => (t instanceof Date ? t : new Date(t));
+    const map = new Map<string, GroupedIncident>();
+    for (const inc of withCallId) {
+      const cid = String((inc as any).call_id);
+      const callType = (inc as any).callType;
+      const incTime = toDate(inc.timestamp);
+      if (!map.has(cid)) {
+        map.set(cid, {
+          call_id: cid,
+          sender: "",
+          timestamp: incTime,
+          accepted: [],
+          rejected: [],
+          timeout: [],
+          pending: [],
+          hasOutgoing: false,
+          hasCancelled: false,
+        });
+      }
+      const g = map.get(cid)!;
+      if (callType === "outgoing" || callType === "pending") {
+        if (callType === "outgoing") g.hasOutgoing = true;
+        if (!g.sender) g.sender = inc.source ?? "";
+        if (incTime.getTime() < g.timestamp.getTime()) g.timestamp = incTime;
+      } else {
+        if (!g.sender && inc.message) {
+          const fromMatch = inc.message.match(/từ\s+([^.]+)/i);
+          if (fromMatch) g.sender = fromMatch[1].trim().toUpperCase();
+        }
+        if (incTime.getTime() < g.timestamp.getTime()) g.timestamp = incTime;
+        const name = inc.source ?? "";
+        if (callType === "accepted") g.accepted.push(name);
+        else if (callType === "rejected") g.rejected.push(name);       /* Người không tham gia */
+        else if (callType === "cancelled") g.hasCancelled = true;      /* Người gọi hủy */
+        else if (callType === "timeout") g.timeout.push(name);
+        else if (callType === "pending") g.pending.push(name);
+      }
+    }
+    const list = Array.from(map.values()).filter((g) => g.sender || g.accepted.length + g.rejected.length + g.timeout.length + g.pending.length > 0 || g.hasCancelled);
+    list.forEach((g) => {
+      if (!g.sender) g.sender = "—";
+    });
+    list.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return list;
+  }, [organizationFilteredIncidents]);
+
+  const groupMatchesFilter = (g: GroupedIncident, filterValue: IncidentFilter): boolean => {
+    if (filterValue === "all") return true;
+    if (filterValue === "outgoing") return g.hasOutgoing || g.pending.length > 0;
+    if (filterValue === "accepted") return g.accepted.length > 0;
+    if (filterValue === "timeout") return g.timeout.length > 0;
+    if (filterValue === "cancelled") return g.hasCancelled;   /* Sự cố người gọi hủy */
+    if (filterValue === "rejected") return g.rejected.length > 0; /* Người không tham gia */
     return true;
   };
 
@@ -160,16 +243,33 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     return orgFiltered.filter((incident) => matchesCallFilter(incident, filter));
   }, [organizationFilteredIncidents, filter]);
 
+  const filteredGroups = useMemo(
+    () => groupedByCallId.filter((g) => groupMatchesFilter(g, filter)),
+    [groupedByCallId, filter]
+  );
+
   const paginatedIncidents = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     const end = start + itemsPerPage;
     return filteredIncidents.slice(start, end);
   }, [filteredIncidents, currentPage, itemsPerPage]);
 
-  const totalPages = Math.ceil(filteredIncidents.length / itemsPerPage);
+  const paginatedGroups = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    return filteredGroups.slice(start, end);
+  }, [filteredGroups, currentPage, itemsPerPage]);
 
-  const formatDate = (date: Date) => {
-    const d = new Date(date);
+  const totalPagesFlat = Math.ceil(filteredIncidents.length / itemsPerPage);
+  const totalPagesGrouped = Math.ceil(filteredGroups.length / itemsPerPage);
+  const useGroupedView = filteredGroups.length > 0;
+  const totalPages = useGroupedView ? totalPagesGrouped : totalPagesFlat;
+
+  const formatDate = (date: Date | string) => {
+    const d = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(d.getTime())) {
+      return { date: "—", time: "—", dateTime: "—" };
+    }
     const day = String(d.getDate()).padStart(2, "0");
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const year = d.getFullYear();
@@ -216,9 +316,10 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   const filterOptions: { value: IncidentFilter; label: string }[] = [
     { value: "all", label: "Tất cả" },
     { value: "outgoing", label: "Sự cố gọi tới" },
-    { value: "accepted", label: "Sự cố được chấp nhận" },
-    { value: "cancelled", label: "Sự cố đã hủy" },
-    { value: "timeout", label: "Sự cố không liên lạc được" },
+    { value: "accepted", label: "Có người đã xử lý" },
+    { value: "timeout", label: "Có người không liên lạc được" },
+    { value: "rejected", label: "Người không tham gia" },
+    { value: "cancelled", label: "Sự cố người gọi hủy" },
   ];
 
   const getCardStyle = (incident: Incident, index: number) => {
@@ -305,8 +406,10 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
               <option key={option.value} value={option.value}>
                 {option.label} (
                 {filter === option.value
-                  ? filteredIncidents.length
-                  : organizationFilteredIncidents.filter((i) => matchesCallFilter(i, option.value)).length}
+                  ? (useGroupedView ? filteredGroups.length : filteredIncidents.length)
+                  : useGroupedView
+                    ? groupedByCallId.filter((g) => groupMatchesFilter(g, option.value)).length
+                    : organizationFilteredIncidents.filter((i) => matchesCallFilter(i, option.value)).length}
                 )
               </option>
             ))}
@@ -314,67 +417,165 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
-        {paginatedIncidents.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-500 p-4">
-            <p className="text-sm md:text-base">Không có sự cố nào</p>
-          </div>
+        {useGroupedView ? (
+          paginatedGroups.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500 p-4">
+              <p className="text-sm md:text-base">Không có sự cố nào</p>
+            </div>
+          ) : (
+            paginatedGroups.map((group, index) => {
+              const { date, time, dateTime } = formatDate(group.timestamp);
+              const isExpanded = expandedCallIds.has(group.call_id);
+              const isNewest = index === 0 && currentPage === 1;
+
+              return (
+                <div
+                  key={group.call_id}
+                  className={`p-3 rounded-lg border transition ${
+                    isNewest ? "bg-red-50 border-l-4 border-red-500 border-r border-t border-b border-gray-100" : "bg-white border-gray-100 hover:bg-gray-50"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(group.call_id)}
+                    className="w-full flex justify-between items-start gap-2 text-left"
+                  >
+                    <div className="min-w-0 flex-1">
+                      {isNewest && (
+                        <span className="text-xs font-bold text-red-600 bg-red-200 px-2 py-0.5 rounded">MỚI NHẤT</span>
+                      )}
+                      <h4 className="font-bold text-gray-800 mt-1">Sự cố gọi tới</h4>
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
+                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="truncate">{group.sender}</span>
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0" title={dateTime}>{date} {time}</span>
+                    <span className={`flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`}>
+                      <i className="bi bi-caret-down-fill text-gray-500 text-xs" />
+                    </span>
+                  </button>
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-2 text-sm">
+                      {group.accepted.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-green-600 font-medium flex-shrink-0 flex items-center gap-1">
+                            <i className="bi bi-check-circle-fill text-xs" />
+                            Đã xử lý:
+                          </span>
+                          <span className="text-gray-700">{group.accepted.join(", ")}</span>
+                        </div>
+                      )}
+                      {group.timeout.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-amber-600 font-medium flex-shrink-0 flex items-center gap-1">
+                            <i className="bi bi-telephone-x text-xs" />
+                            Không liên lạc được:
+                          </span>
+                          <span className="text-gray-700">{group.timeout.join(", ")}</span>
+                        </div>
+                      )}
+                      {group.hasCancelled && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-orange-600 font-medium flex-shrink-0 flex items-center gap-1">
+                            <i className="bi bi-slash-circle-fill text-xs" />
+                            Người gọi đã hủy
+                          </span>
+                        </div>
+                      )}
+                      {group.rejected.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-red-500 font-medium flex-shrink-0 flex items-center gap-1">
+                            <i className="bi bi-x-circle-fill text-xs" />
+                            Người không tham gia:
+                          </span>
+                          <span className="text-gray-700">{group.rejected.join(", ")}</span>
+                        </div>
+                      )}
+                      {group.pending.length > 0 && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-500 font-medium flex-shrink-0 flex items-center gap-1">
+                            <i className="bi bi-hourglass-split text-xs" />
+                            Chờ phản hồi:
+                          </span>
+                          <span className="text-gray-700">{group.pending.join(", ")}</span>
+                        </div>
+                      )}
+                      {group.accepted.length === 0 && group.timeout.length === 0 && group.rejected.length === 0 && group.pending.length === 0 && !group.hasCancelled && (
+                        <p className="text-gray-500 text-xs">Chưa có phản hồi</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )
         ) : (
-          paginatedIncidents.map((incident, index) => {
-            const { date, time, dateTime } = formatDate(incident.timestamp);
-            const callType = (incident as any).callType;
-            const isNewest = index === 0;
-            const isOutgoing = callType === "outgoing" || callType === "pending";
-            const isResolved = callType === "accepted" || incident.status === "resolved";
-            const isCancelled = callType === "cancelled" || callType === "rejected";
+          paginatedIncidents.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-gray-500 p-4">
+              <p className="text-sm md:text-base">Không có sự cố nào</p>
+            </div>
+          ) : (
+            paginatedIncidents.map((incident, index) => {
+              const { date, time, dateTime } = formatDate(incident.timestamp);
+              const callType = (incident as any).callType;
+              const isNewest = index === 0;
+              const isOutgoing = callType === "outgoing" || callType === "pending";
+              const isResolved = callType === "accepted" || incident.status === "resolved";
+              const isCancelled = callType === "cancelled" || callType === "rejected";
 
-            const statusDisplay = (incident as any).callType
-              ? getCallStatusText(incident)
-              : incident.message;
+              const statusDisplay = (incident as any).callType
+                ? getCallStatusText(incident)
+                : incident.message;
 
-            return (
-              <div
-                key={incident.id}
-                className={getCardStyle(incident, index)}
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    {isNewest && isOutgoing && (
-                      <span className="text-xs font-bold text-red-600 bg-red-200 px-2 py-0.5 rounded">MỚI NHẤT</span>
-                    )}
-                    <h4 className={`font-bold mt-1 ${isCancelled ? "text-gray-500 line-through" : "text-gray-800"}`}>
-                      {statusDisplay}
-                    </h4>
-                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
-                      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      {incident.source}
-                    </p>
+              return (
+                <div
+                  key={incident.id}
+                  className={getCardStyle(incident, index)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      {isNewest && isOutgoing && (
+                        <span className="text-xs font-bold text-red-600 bg-red-200 px-2 py-0.5 rounded">MỚI NHẤT</span>
+                      )}
+                      <h4 className={`font-bold mt-1 ${isCancelled ? "text-gray-500 line-through" : "text-gray-800"}`}>
+                        {statusDisplay}
+                      </h4>
+                      <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {incident.source}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-500 whitespace-nowrap" title={dateTime}>{date} {time}</span>
                   </div>
-                  <span className="text-xs text-gray-500 whitespace-nowrap" title={dateTime}>{date} {time}</span>
+                  <div className="mt-2">
+                    {isResolved && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                        Đã xử lý xong
+                      </span>
+                    )}
+                    {isCancelled && (
+                      <span className="text-xs text-red-400 flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                        Đã hủy
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-2">
-                  {isResolved && (
-                    <span className="text-xs text-green-600 flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                      Đã xử lý xong
-                    </span>
-                  )}
-                  {isCancelled && (
-                    <span className="text-xs text-red-400 flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                      Đã hủy
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })
+              );
+            })
+          )
         )}
       </div>
 
-      {filteredIncidents.length > 0 && totalPages > 1 && (
+      {(useGroupedView ? filteredGroups.length : filteredIncidents.length) > 0 && totalPages > 1 && (
         <div className="border-t border-gray-100 p-2 flex-shrink-0 bg-gray-50">
           <div className="flex items-center justify-center gap-1 flex-wrap">
             <button

@@ -8,6 +8,7 @@ import React, {
 import { Incident, IncidentFilter } from "../types/incident";
 import { getCallHistory, ICallLog } from "../services/historyService";
 import { useAuth } from "./AuthContext";
+import { useSuperAdminFilter } from "./SuperAdminFilterContext";
 import { getGlobalSocket } from "./useSocket";
 
 interface IncidentContextType {
@@ -46,6 +47,7 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
       callLog.message ? ` - ${callLog.message}` : ""
     }`,
     callType: "outgoing",
+    call_id: callLog.call_id,
   });
 
   let receiverCallType: "accepted" | "rejected" | "timeout" | "pending" | "cancelled" = "pending";
@@ -96,6 +98,7 @@ const convertCallLogToIncidents = (callLog: ICallLog): Incident[] => {
     status: "info",
     message: receiverMessage,
     callType: receiverCallType,
+    call_id: callLog.call_id,
   });
 
   return incidents;
@@ -108,6 +111,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [filter, setFilter] = useState<IncidentFilter>("all");
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  const { superAdminOrgFilterId } = useSuperAdminFilter();
 
   const [socket, setSocket] =
     React.useState<ReturnType<typeof getGlobalSocket>>(null);
@@ -185,10 +189,16 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
     async (isCallStatusUpdate = false) => {
       if (!user || isLoadingRef.current) return;
 
+      const isSuperAdmin = user.role === "SuperAdmin";
+      const filters: { organization_id?: number } = {};
+      if (isSuperAdmin && superAdminOrgFilterId !== "" && typeof superAdminOrgFilterId === "number") {
+        filters.organization_id = superAdminOrgFilterId;
+      }
+
       isLoadingRef.current = true;
       setIsLoading(true);
       try {
-        let callLogs = await getCallHistory({});
+        let callLogs = await getCallHistory(filters);
 
         if (!Array.isArray(callLogs)) {
           callLogs = [];
@@ -322,9 +332,10 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     },
-    [user?.id]
+    [user?.id, superAdminOrgFilterId]
   );
 
+  const lastSuperAdminFilterRef = React.useRef<number | "">("");
   useEffect(() => {
     if (user) {
       const currentUserId = user.id || null;
@@ -332,6 +343,10 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
       if (loadedUserIdRef.current !== currentUserId) {
         hasLoadedRef.current = false;
         loadedUserIdRef.current = null;
+      }
+      if (user.role === "SuperAdmin" && lastSuperAdminFilterRef.current !== superAdminOrgFilterId) {
+        hasLoadedRef.current = false;
+        lastSuperAdminFilterRef.current = superAdminOrgFilterId;
       }
 
       if (
@@ -346,7 +361,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
       isLoadingRef.current = false;
       setIncidents([]);
     }
-  }, [user?.id, loadCallHistory]);
+  }, [user?.id, user?.role, superAdminOrgFilterId, loadCallHistory]);
 
   useEffect(() => {
     if (!user || !socket) return;

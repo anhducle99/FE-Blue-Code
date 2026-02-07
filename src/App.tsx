@@ -5,6 +5,7 @@ import { useDashboard } from "./layouts/DashboardContext";
 import { useAuth } from "./contexts/AuthContext";
 import { useToast } from "./contexts/ToastContext";
 import { useIncidents } from "./contexts/IncidentContext";
+import { useSuperAdminFilter } from "./contexts/SuperAdminFilterContext";
 import { getOrganizations } from "./services/organizationService";
 import type { IOrganization } from "./services/organizationService";
 import DepartmentButton from "./components/DepartmentButton";
@@ -73,7 +74,7 @@ export default function App() {
 
   const isSuperAdmin = user?.role === "SuperAdmin";
   const [organizations, setOrganizations] = useState<IOrganization[]>([]);
-  const [superAdminOrgFilterId, setSuperAdminOrgFilterId] = useState<number | "">("");
+  const { superAdminOrgFilterId, setSuperAdminOrgFilterId } = useSuperAdminFilter();
   const [openOrgFilterDropdown, setOpenOrgFilterDropdown] = useState(false);
   const orgFilterDropdownRef = useRef<HTMLDivElement | null>(null);
 

@@ -22,7 +22,8 @@ const COLUMN_WIDTHS = {
   KhoaGui: "200px",
   KhoaNhan: "200px",
   NguoiNhan: "200px",
-  TrangThai: "180px",
+  NguoiTuChoi: "200px",
+  NguoiKhongLienLacDuoc: "200px",
   ThoiGianGui: "180px",
   ThoiGianXacNhan: "180px",
 };
@@ -97,6 +98,21 @@ const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString("vi-VN", { hour12: false });
 };
 
+const isRejectedStatus = (status: string): boolean => {
+  const s = (status || "").toLowerCase().trim();
+  return s === "rejected" || s === "từ chối";
+};
+
+const isUnreachableStatus = (status: string): boolean => {
+  const s = (status || "").toLowerCase().trim();
+  return (
+    s === "timeout" ||
+    s === "pending" ||
+    s === "unreachable" ||
+    s === "không liên lạc được"
+  );
+};
+
 const normalizeName = (name: string): string => {
   return name
     .toLowerCase()
@@ -142,17 +158,33 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
     return currentUserFromApi?.organization_id || null;
   }, [user, allUsers]);
 
+  const effectiveOrgIdForDisplay = useMemo(() => {
+    if (user?.role === "SuperAdmin") {
+      const fid = filters.organization_id;
+      if (fid !== undefined && fid !== null && fid !== "") {
+        const num = typeof fid === "number" ? fid : parseInt(String(fid), 10);
+        return !isNaN(num) ? num : null;
+      }
+      return null;
+    }
+    return currentOrganizationId;
+  }, [user?.role, filters.organization_id, currentOrganizationId]);
+
   const organizationUsers = useMemo(() => {
-    if (!currentOrganizationId) return [];
-    return allUsers.filter((u) => u.organization_id === currentOrganizationId);
-  }, [allUsers, currentOrganizationId]);
+    if (effectiveOrgIdForDisplay === null) {
+      return user?.role === "SuperAdmin" ? allUsers : [];
+    }
+    return allUsers.filter((u) => u.organization_id === effectiveOrgIdForDisplay);
+  }, [allUsers, effectiveOrgIdForDisplay, user?.role]);
 
   const organizationDepartments = useMemo(() => {
-    if (!currentOrganizationId) return [];
+    if (effectiveOrgIdForDisplay === null) {
+      return user?.role === "SuperAdmin" ? allDepartments : [];
+    }
     return allDepartments.filter(
-      (d) => d.organization_id === currentOrganizationId
+      (d) => d.organization_id === effectiveOrgIdForDisplay
     );
-  }, [allDepartments, currentOrganizationId]);
+  }, [allDepartments, effectiveOrgIdForDisplay, user?.role]);
 
   const userMapByName = useMemo(() => {
     const map = new Map<string, IUser>();
@@ -182,20 +214,35 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   }, [organizationUsers, organizationDepartments]);
 
   const filteredData = useMemo(() => {
+    if (user?.role === "SuperAdmin") {
+      return data;
+    }
     if (!currentOrganizationId || organizationNames.size === 0) {
       return data;
     }
-    
     return data.filter((log) => {
       const normalizedSender = normalizeName(log.sender);
       const normalizedReceiver = normalizeName(log.receiver);
-      
       return (
         organizationNames.has(normalizedSender) ||
         organizationNames.has(normalizedReceiver)
       );
     });
-  }, [data, currentOrganizationId, organizationNames]);
+  }, [data, currentOrganizationId, organizationNames, user?.role]);
+
+  /** Nhóm theo call_id (một cuộc gọi = một Sự cố), gộp Người xử lý / Người từ chối / Không liên lạc được theo Sự cố */
+  interface GroupedRow {
+    call_id: string;
+    id: number;
+    sender: string;
+    departmentName: string;
+    created_at: string;
+    accepted_at?: string | null;
+    rejected_at?: string | null;
+    acceptedNames: string[];
+    rejectedNames: string[];
+    unreachableNames: string[];
+  }
 
   const getReceiverInfo = useCallback(
     (receiver: string) => {
@@ -229,6 +276,50 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
     },
     [departmentMapByName, userMapByName, organizationUsers, organizationDepartments]
   );
+
+  const groupedByIncident = useMemo(() => {
+    const byCallId = new Map<string, ICallLog[]>();
+    for (const log of filteredData) {
+      const list = byCallId.get(log.call_id) || [];
+      list.push(log);
+      byCallId.set(log.call_id, list);
+    }
+    const rows: GroupedRow[] = Array.from(byCallId.entries()).map(
+      ([callId, logs]) => {
+        const first = logs[0];
+        const deptName = getReceiverInfo(first.receiver).departmentName;
+        const acceptedNames = logs
+          .filter((l) => l.status === "accepted")
+          .map((l) => getReceiverInfo(l.receiver).userName || l.receiver)
+          .filter(Boolean);
+        const rejectedNames = logs
+          .filter((l) => isRejectedStatus(l.status))
+          .map((l) => getReceiverInfo(l.receiver).userName || l.receiver)
+          .filter(Boolean);
+        const unreachableNames = logs
+          .filter((l) => isUnreachableStatus(l.status))
+          .map((l) => getReceiverInfo(l.receiver).userName || l.receiver)
+          .filter(Boolean);
+        const withTime = logs.find((l) => l.accepted_at || l.rejected_at);
+        return {
+          call_id: callId,
+          id: first.id,
+          sender: first.sender,
+          departmentName: deptName,
+          created_at: first.created_at,
+          accepted_at: withTime?.accepted_at ?? first.accepted_at,
+          rejected_at: withTime?.rejected_at ?? first.rejected_at,
+          acceptedNames,
+          rejectedNames,
+          unreachableNames,
+        };
+      }
+    );
+    return rows.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [filteredData, getReceiverInfo]);
 
   const identifier = useMemo(() => {
     if (!user) return null;
@@ -279,8 +370,11 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   }, [socket, fetchData]);
 
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const currentData = filteredData.slice(startIndex, startIndex + PAGE_SIZE);
-  const totalPages = Math.ceil(filteredData.length / PAGE_SIZE);
+  const currentData = groupedByIncident.slice(
+    startIndex,
+    startIndex + PAGE_SIZE
+  );
+  const totalPages = Math.ceil(groupedByIncident.length / PAGE_SIZE);
 
   const handlePreviousPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -317,11 +411,14 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
     }),
   });
 
-  const getConfirmationTime = (row: ICallLog) => {
+  const getConfirmationTime = (row: GroupedRow) => {
     if (row.accepted_at) return formatDate(row.accepted_at);
     if (row.rejected_at) return formatDate(row.rejected_at);
     return "";
   };
+
+  const joinNames = (names: string[]) =>
+    names.length ? names.join(", ") : "-";
 
   const getButtonClass = (isDisabled: boolean) =>
     `px-4 py-2 rounded border ${
@@ -334,14 +431,13 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
     <div className="md:hidden space-y-3">
       {currentData.map((row, idx) => (
         <div
-          key={row.id}
+          key={row.call_id}
           className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
         >
           <div className="flex justify-between items-start mb-3">
             <div className="text-sm font-semibold text-gray-500">
               #{startIndex + idx + 1}
             </div>
-            <div>{renderStatus(row.status)}</div>
           </div>
           <div className="space-y-2 text-sm">
             <div className="flex items-start">
@@ -355,7 +451,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 Sự cố:
               </span>
               <span className="text-gray-800 flex-1">
-                {getReceiverInfo(row.receiver).departmentName}
+                {row.departmentName}
               </span>
             </div>
             <div className="flex items-start">
@@ -363,9 +459,23 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 Người xử lý:
               </span>
               <span className="text-gray-800 flex-1">
-                {row.status === "accepted" 
-                  ? getReceiverInfo(row.receiver).userName || "-"
-                  : "-"}
+                {joinNames(row.acceptedNames)}
+              </span>
+            </div>
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Người từ chối xử lý:
+              </span>
+              <span className="text-gray-800 flex-1">
+                {joinNames(row.rejectedNames)}
+              </span>
+            </div>
+            <div className="flex items-start">
+              <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                Không liên lạc được:
+              </span>
+              <span className="text-gray-800 flex-1">
+                {joinNames(row.unreachableNames)}
               </span>
             </div>
             <div className="flex items-start">
@@ -417,7 +527,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
                   style={{ width: COLUMN_WIDTHS.KhoaGui }}
                 >
-                  Tầng phòng
+                  Vị trí sự cố
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
@@ -433,9 +543,15 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
-                  style={{ width: COLUMN_WIDTHS.TrangThai }}
+                  style={{ width: COLUMN_WIDTHS.NguoiTuChoi }}
                 >
-                  Trạng thái
+                  Người từ chối tham gia
+                </th>
+                <th
+                  className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
+                  style={{ width: COLUMN_WIDTHS.NguoiKhongLienLacDuoc }}
+                >
+                  Không liên lạc được
                 </th>
                 <th
                   className="border px-3 sm:px-4 py-2 text-left text-xs sm:text-sm"
@@ -454,7 +570,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
             <tbody>
               {currentData.length > 0 ? (
                 currentData.map((row, idx) => (
-                  <tr key={row.id} className="hover:bg-gray-50">
+                  <tr key={row.call_id} className="hover:bg-gray-50">
                     <td
                       className="border px-3 sm:px-4 py-2 text-center text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.STT)}
@@ -471,28 +587,30 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.KhoaNhan, true)}
-                      title={getReceiverInfo(row.receiver).departmentName}
+                      title={row.departmentName}
                     >
-                      {getReceiverInfo(row.receiver).departmentName}
+                      {row.departmentName}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
                       style={getCellStyle(COLUMN_WIDTHS.NguoiNhan, true)}
-                      title={row.status === "accepted" 
-                        ? getReceiverInfo(row.receiver).userName || "-"
-                        : "-"}
+                      title={joinNames(row.acceptedNames)}
                     >
-                      {row.status === "accepted" 
-                        ? getReceiverInfo(row.receiver).userName || "-"
-                        : "-"}
+                      {joinNames(row.acceptedNames)}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
-                      style={getCellStyle(COLUMN_WIDTHS.TrangThai)}
+                      style={getCellStyle(COLUMN_WIDTHS.NguoiTuChoi, true)}
+                      title={joinNames(row.rejectedNames)}
                     >
-                      <div className="flex justify-center">
-                        {renderStatus(row.status)}
-                      </div>
+                      {joinNames(row.rejectedNames)}
+                    </td>
+                    <td
+                      className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
+                      style={getCellStyle(COLUMN_WIDTHS.NguoiKhongLienLacDuoc, true)}
+                      title={joinNames(row.unreachableNames)}
+                    >
+                      {joinNames(row.unreachableNames)}
                     </td>
                     <td
                       className="border px-3 sm:px-4 py-2 text-xs sm:text-sm"
@@ -510,7 +628,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-gray-500">
+                  <td colSpan={8} className="text-center py-4 text-gray-500">
                     Không có dữ liệu
                   </td>
                 </tr>
@@ -520,10 +638,10 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
         </div>
       </div>
 
-      {filteredData.length > 0 && (
+      {groupedByIncident.length > 0 && (
         <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
           <div className="text-sm text-gray-700 order-2 sm:order-1">
-            Tổng: <span className="font-semibold">{filteredData.length}</span> mục
+            Tổng: <span className="font-semibold">{groupedByIncident.length}</span> sự cố
             {totalPages > 1 && (
               <span className="ml-2">
                 (Trang {currentPage}/{totalPages})

@@ -17,6 +17,7 @@ import {
 } from "../services/userService";
 
 const { Option } = Select;
+const PAGE_SIZE = 10;
 
 function useClickOutside(
   ref: React.RefObject<HTMLElement>,
@@ -38,6 +39,7 @@ export const UsersPage: React.FC = () => {
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [filterOrgId, setFilterOrgId] = useState<number | "">("");
   const { departments, refreshDepartments } = useDepartments();
   const {
@@ -66,6 +68,10 @@ export const UsersPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+  }, [filterOrgId]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [filterOrgId]);
 
   useClickOutside(
@@ -252,6 +258,29 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const paginatedUsers = users.slice(startIndex, startIndex + PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (totalPages >= 1 && currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [totalPages, currentPage]);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((p) => p - 1);
+      setDropdownIndex(null);
+    }
+  };
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((p) => p + 1);
+      setDropdownIndex(null);
+    }
+  };
+
   return (
     <>
       <div className="mx-4">
@@ -300,8 +329,8 @@ export const UsersPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="text-gray-700 text-sm">
-            {users.length > 0 ? (
-              users.map((u, index) => (
+            {paginatedUsers.length > 0 ? (
+              paginatedUsers.map((u, index) => (
                 <tr key={u.id} className="border-t hover:bg-gray-50">
                   <td className="px-4 py-2">{u.name}</td>
                   <td className="px-4 py-2">{u.email}</td>
@@ -387,6 +416,47 @@ export const UsersPage: React.FC = () => {
             )}
           </tbody>
         </table>
+
+        {users.length > 0 && (
+          <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
+            <div className="text-sm text-gray-700 order-2 sm:order-1">
+              Tổng: <span className="font-semibold">{users.length}</span> người dùng
+              {totalPages > 1 && (
+                <span className="ml-2">
+                  (Trang {currentPage}/{totalPages})
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2 order-1 sm:order-2">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded border text-xs sm:text-sm ${
+                  currentPage === 1
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <span className="hidden sm:inline">Trang trước</span>
+                <span className="sm:hidden">Trước</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages}
+                className={`px-4 py-2 rounded border text-xs sm:text-sm ${
+                  currentPage >= totalPages
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <span className="hidden sm:inline">Trang sau</span>
+                <span className="sm:hidden">Sau</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal
