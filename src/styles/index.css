@@ -17,14 +17,12 @@ body,
   min-height: -webkit-fill-available;
 }
 
-/* Safe area cho notch / home indicator trên mobile */
 body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Touch-friendly: tránh zoom khi double-tap trên iOS (trừ .ant-switch để giữ dạng ngang) */
 @media (pointer: coarse) {
   button:not(.ant-switch), a, [role="button"]:not(.ant-switch) {
     min-height: 44px;
@@ -74,7 +72,6 @@ body {
   animation: slideUp 0.3s ease-out;
 }
 
-/* Select "Lọc theo tổ chức" trên màn Lịch sử - giống ô Input, thẳng hàng */
 .history-org-select.ant-select {
   height: 40px !important;
   display: flex !important;
@@ -97,7 +94,6 @@ body {
   outline-offset: -1px;
 }
 
-/* Ant Design Switch: bắt buộc dạng NGANG (pill), không vuông */
 .ant-switch {
   width: 44px !important;
   min-width: 44px !important;

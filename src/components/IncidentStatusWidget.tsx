@@ -273,7 +273,6 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     });
 
     const uniqueCallIds = new Set(dayLogs.map(log => log.call_id));
-    /* 3 nhóm: accepted, cancelled, timeout. Sự cố chỉ có reject (không có accepted) → tính vào timeout. outgoing = accepted + cancelled + timeout */
     const acceptedCallIds = new Set<string>();
     const cancelledCallIds = new Set<string>();
     const timeoutCallIds = new Set<string>();
@@ -283,7 +282,7 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
       const hasCancelled = logsForCall.some(log => log.status === "cancelled");
       if (hasAccepted) acceptedCallIds.add(callId);
       else if (hasCancelled) cancelledCallIds.add(callId);
-      else timeoutCallIds.add(callId); /* reject (không có ai accept) + không liên lạc được */
+      else timeoutCallIds.add(callId);
     });
     const outgoing = acceptedCallIds.size + cancelledCallIds.size + timeoutCallIds.size;
 

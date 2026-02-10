@@ -350,7 +350,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto modal-fade-in">
       <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-2xl w-full max-w-[600px] max-h-[90vh] overflow-hidden flex flex-col border border-gray-200 relative my-auto modal-slide-up">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
@@ -377,7 +376,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           </button>
         </div>
 
-        {/* User List */}
         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="space-y-3">
             {targets.length === 0 ? (
@@ -407,7 +405,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
                   >
                     <div className="p-4 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        {/* Avatar */}
                         <div className="relative flex-shrink-0">
                           <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md ${
                             status === "Đã xác nhận"
@@ -427,7 +424,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
                           )}
                         </div>
                         
-                        {/* User Info */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold text-gray-800 truncate">{userName}</h3>
@@ -449,7 +445,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
                         </div>
                       </div>
                       
-                      {/* Status Badge */}
                       <div className="flex-shrink-0">
                         {getStatusBadge(status)}
                       </div>
@@ -461,7 +456,6 @@ const CallStatusModal: React.FC<CallStatusModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-6 pt-4 border-t border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             {!isCallCancelled && (
