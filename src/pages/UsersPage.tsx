@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Modal, Input, Select, Switch, Button, message } from "antd";
 import { PageHeader } from "../components/PageHeader";
-import { MoreVertical } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { useDepartments } from "../contexts/DepartmentContext";
@@ -38,6 +37,7 @@ export const UsersPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
   const [users, setUsers] = useState<IUser[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [filterOrgId, setFilterOrgId] = useState<number | "">("");
@@ -83,6 +83,40 @@ export const UsersPage: React.FC = () => {
     } as any,
     () => setDropdownIndex(null)
   );
+
+  const updateDropdownPosition = () => {
+    if (dropdownIndex === null) {
+      setDropdownCoords(null);
+      return;
+    }
+    const el = dropdownRefs.current[dropdownIndex];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const DROPDOWN_WIDTH = 176;
+    const DROPDOWN_HEIGHT = 160;
+    const gap = 8;
+    let top = rect.bottom + gap;
+    let left = rect.right - DROPDOWN_WIDTH;
+    if (top + DROPDOWN_HEIGHT > window.innerHeight - gap) top = rect.top - DROPDOWN_HEIGHT - gap;
+    if (left < gap) left = gap;
+    if (left + DROPDOWN_WIDTH > window.innerWidth - gap) left = window.innerWidth - DROPDOWN_WIDTH - gap;
+    if (top < gap) top = gap;
+    setDropdownCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    updateDropdownPosition();
+  }, [dropdownIndex]);
+
+  useEffect(() => {
+    if (dropdownIndex === null) return;
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    window.addEventListener("resize", updateDropdownPosition);
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+      window.removeEventListener("resize", updateDropdownPosition);
+    };
+  }, [dropdownIndex]);
 
   const userSchema = Yup.object().shape({
     organization_id: Yup.number()
@@ -288,175 +322,175 @@ export const UsersPage: React.FC = () => {
           title="Người dùng và phân quyền"
           createButton={
             <Button
-              className="!bg-[#0365af] !border-[#0365af] !text-white !shadow-none hover:!bg-[#02508c] hover:!border-[#02508c]"
               type="primary"
               shape="circle"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !w-10 !h-10 !min-w-10 !min-h-10 !p-0 !aspect-square shrink-0 flex items-center justify-center"
               onClick={handleOpenCreate}
             >
               <i className="bi bi-plus text-white" />
             </Button>
           }
         />
-      </div>
 
-      <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
-        {isSuperAdmin && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Lọc theo tổ chức:</span>
-            <Select
-              placeholder="Tất cả tổ chức"
-              allowClear
-              className="w-56"
-              value={filterOrgId === "" ? undefined : filterOrgId}
-              onChange={(val) => setFilterOrgId(val ?? "")}
-              options={[
-                { value: "", label: "Tất cả tổ chức" },
-                ...organizations.map((org) => ({
-                  value: org.id!,
-                  label: org.name,
-                })),
-              ]}
-            />
+        <div className="bg-white rounded shadow-sm p-4 mt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
+            <div className="flex items-center gap-2">
+              {isSuperAdmin && (
+                <>
+                  <span className="text-sm font-medium text-gray-700">Lọc theo tổ chức:</span>
+                  <Select
+                    placeholder="Tất cả tổ chức"
+                    allowClear
+                    className="w-56"
+                    value={filterOrgId === "" ? undefined : filterOrgId}
+                    onChange={(val) => setFilterOrgId(val ?? "")}
+                    options={[
+                      { value: "", label: "Tất cả tổ chức" },
+                      ...organizations.map((org) => ({
+                        value: org.id!,
+                        label: org.name,
+                      })),
+                    ]}
+                  />
+                </>
+              )}
+            </div>
           </div>
-        )}
-        <table className="min-w-full table-auto">
-          <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
-            <tr>
-              <th className="px-4 py-2 text-left">Tên</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2 text-left">Tổ chức</th>
-              <th className="px-4 py-2 text-right"></th>
-            </tr>
-          </thead>
-          <tbody className="text-gray-700 text-sm">
-            {paginatedUsers.length > 0 ? (
-              paginatedUsers.map((u, index) => (
-                <tr key={u.id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{u.name}</td>
-                  <td className="px-4 py-2">{u.email}</td>
-                  <td className="px-4 py-2">{u.organization_name ?? "—"}</td>
-                  <td className="px-4 py-2 text-right relative">
-                    <div
-                      className="inline-block"
-                      ref={(el) => (dropdownRefs.current[index] = el)}
-                    >
-                      <Button
-                        onClick={() =>
-                          setDropdownIndex(
-                            dropdownIndex === index ? null : index
-                          )
-                        }
-                        className="p-2 rounded-full hover:bg-gray-100"
-                      >
-                        <MoreVertical className="w-4 h-4 text-gray-500" />
-                      </Button>
 
-                      {dropdownIndex === index && (
-                        <div className="absolute left-0 mt-2 w-44 bg-white border rounded shadow-md z-50">
+          <div className="border rounded overflow-x-auto">
+            <table className="min-w-[520px] w-full text-sm table-fixed">
+              <colgroup>
+                <col className="w-1/4" />
+                <col className="w-1/4" />
+                <col className="w-1/4" />
+                <col className="w-1/4" />
+              </colgroup>
+              <thead className="bg-gray-100">
+                <tr className="text-left border-b">
+                  <th className="px-4 py-3">Tên</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Tổ chức</th>
+                  <th className="px-4 py-3 text-right"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.length > 0 ? (
+                  paginatedUsers.map((u, index) => (
+                    <tr key={u.id} className="border-b hover:bg-gray-50 relative">
+                      <td className="px-4 py-3">{u.name}</td>
+                      <td className="px-4 py-3">{u.email}</td>
+                      <td className="px-4 py-3">{u.organization_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-right relative">
+                        <div
+                          className="relative inline-block"
+                          ref={(el) => (dropdownRefs.current[index] = el)}
+                        >
                           <Button
-                            onClick={() => handleResetPassword(u.id, u.name)}
-                            style={{
-                              border: "none",
-                              boxShadow: "none",
-                              background: "transparent",
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              padding: "0.5rem 1rem",
-                            }}
-                            className="hover:bg-transparent"
+                            onClick={() =>
+                              setDropdownIndex(
+                                dropdownIndex === index ? null : index
+                              )
+                            }
+                            className="!p-0 !w-9 !h-9 !min-w-9 !min-h-9 rounded-full hover:!bg-gray-100 shrink-0 aspect-square flex items-center justify-center"
                           >
-                            Cấp lại mật khẩu
+                            <i className="bi bi-three-dots-vertical text-lg shrink-0" />
                           </Button>
 
-                          <Button
+                      {dropdownIndex === index && dropdownCoords && (
+                        <div
+                          className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 w-36 max-w-[calc(100vw-2rem)] overflow-hidden"
+                          style={{
+                            top: dropdownCoords.top,
+                            left: dropdownCoords.left,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleResetPassword(u.id, u.name)}
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-150"
+                          >
+                            <i className="bi bi-key mr-3 text-base" />
+                            <span className="font-medium">Cấp lại mật khẩu</span>
+                          </button>
+                          <div className="border-t border-gray-100 my-1" />
+                          <button
+                            type="button"
                             onClick={() => {
                               handleOpenEdit(u);
                               setDropdownIndex(null);
                             }}
-                            style={{
-                              border: "none",
-                              boxShadow: "none",
-                              background: "transparent",
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              padding: "0.5rem 1rem",
-                            }}
-                            className="hover:bg-transparent"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-150"
                           >
-                            Sửa
-                          </Button>
-
-                          <Button
+                            <i className="bi bi-pencil mr-3 text-base" />
+                            <span className="font-medium">Sửa</span>
+                          </button>
+                          <div className="border-t border-gray-100 my-1" />
+                          <button
+                            type="button"
                             onClick={() => handleDelete(u.id, u.name)}
-                            style={{
-                              border: "none",
-                              boxShadow: "none",
-                              background: "transparent",
-                              color: "red",
-                              width: "100%",
-                              justifyContent: "flex-start",
-                              padding: "0.5rem 1rem",
-                            }}
-                            className="hover:bg-transparent"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-150"
                           >
-                            Xóa
-                          </Button>
+                            <i className="bi bi-trash mr-3 text-base" />
+                            <span className="font-medium">Xóa</span>
+                          </button>
                         </div>
                       )}
                     </div>
                   </td>
                 </tr>
               ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="text-center py-6 text-gray-500">
-                  Không có người dùng
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+            ) : null}
+              </tbody>
+            </table>
+          </div>
 
-        {users.length > 0 && (
-          <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0">
-            <div className="text-sm text-gray-700 order-2 sm:order-1">
-              Tổng: <span className="font-semibold">{users.length}</span> người dùng
+          {users.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              Không có người dùng
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-0 text-sm text-zinc-700 pt-5">
+            <div className="order-2 sm:order-1">
+              Tổng: {users.length} người dùng
               {totalPages > 1 && (
                 <span className="ml-2">
                   (Trang {currentPage}/{totalPages})
                 </span>
               )}
             </div>
-            <div className="flex gap-2 order-1 sm:order-2">
-              <button
-                type="button"
-                onClick={handlePreviousPage}
-                disabled={currentPage === 1}
-                className={`px-4 py-2 rounded border text-xs sm:text-sm ${
-                  currentPage === 1
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <span className="hidden sm:inline">Trang trước</span>
-                <span className="sm:hidden">Trước</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleNextPage}
-                disabled={currentPage >= totalPages}
-                className={`px-4 py-2 rounded border text-xs sm:text-sm ${
-                  currentPage >= totalPages
-                    ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <span className="hidden sm:inline">Trang sau</span>
-                <span className="sm:hidden">Sau</span>
-              </button>
-            </div>
+            {users.length > 0 && totalPages > 1 && (
+              <div className="flex gap-2 order-1 sm:order-2">
+                <button
+                  type="button"
+                  onClick={handlePreviousPage}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded border text-xs sm:text-sm ${
+                    currentPage === 1
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-zinc-700 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="hidden sm:inline">Trang trước</span>
+                  <span className="sm:hidden">Trước</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages}
+                  className={`px-4 py-2 rounded border text-xs sm:text-sm ${
+                    currentPage >= totalPages
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      : "bg-white text-zinc-700 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="hidden sm:inline">Trang sau</span>
+                  <span className="sm:hidden">Sau</span>
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       <Modal
@@ -652,7 +686,7 @@ export const UsersPage: React.FC = () => {
                   }
                 }}
                 allowClear={!formik.values.is_department_account}
-                disabled={false}
+                disabled={formik.values.is_floor_account || formik.values.is_admin_view}
                 className="w-full"
                 status={
                   formik.touched.department_id && formik.errors.department_id
@@ -680,55 +714,75 @@ export const UsersPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center">
-              <Switch
-                checked={formik.values.is_department_account}
-                onChange={(val) => {
-                  formik.setFieldValue("is_department_account", val);
-                  if (val) {
-                    formik.setFieldValue("is_floor_account", false);
-                    if (!formik.values.department_id) {
-                      message.warning(
-                        "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
-                      );
-                    }
-                  } else {
-                    formik.setFieldValue("department_id", null);
-                    formik.setFieldValue("departmentName", "");
-                  }
-                }}
-                disabled={formik.values.is_floor_account}
-              />
-              <span className="ml-2 text-gray-700 font-medium">
-                Tài khoản xử lý sự cố
-              </span>
+          <div className="mt-6 border-t border-gray-100 pt-4">
+            <div className="bg-orange-50/80 border border-orange-100 rounded-lg px-4 py-2.5 mb-4">
+              <p className="text-sm font-semibold text-gray-800">Quyền & loại tài khoản</p>
             </div>
-            <div className="flex items-center">
-              <Switch
-                checked={formik.values.is_floor_account || false}
-                onChange={(val) => {
-                  formik.setFieldValue("is_floor_account", val);
-                  if (val) {
-                    formik.setFieldValue("is_department_account", false);
-                    formik.setFieldValue("department_id", null);
-                    formik.setFieldValue("departmentName", "");
-                  }
-                }}
-                disabled={formik.values.is_department_account}
-              />
-              <span className="ml-2 text-gray-700 font-medium">
-                Tầng phòng
-              </span>
-            </div>
-            <div className="flex items-center">
-              <Switch
-                checked={formik.values.is_admin_view}
-                onChange={(val) => formik.setFieldValue("is_admin_view", val)}
-              />
-              <span className="ml-2 text-gray-700 font-medium">
-                Có quyền xem toàn bộ dữ liệu
-              </span>
+            <div className="space-y-1">
+              <label className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg cursor-pointer select-none hover:bg-gray-50 transition-colors">
+                <span className="shrink-0 inline-flex items-center [&_.ant-switch]:!min-w-[44px] [&_.ant-switch]:!h-6">
+                  <Switch
+                    checked={formik.values.is_department_account}
+                    onChange={(val) => {
+                      formik.setFieldValue("is_department_account", val);
+                      if (val) {
+                        formik.setFieldValue("is_floor_account", false);
+                        formik.setFieldValue("is_admin_view", false);
+                        if (!formik.values.department_id) {
+                          message.warning(
+                            "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
+                          );
+                        }
+                      } else {
+                        formik.setFieldValue("department_id", null);
+                        formik.setFieldValue("departmentName", "");
+                      }
+                    }}
+                    disabled={formik.values.is_floor_account}
+                  />
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  Tài khoản xử lý sự cố
+                </span>
+              </label>
+              <label className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg cursor-pointer select-none hover:bg-gray-50 transition-colors">
+                <span className="shrink-0 inline-flex items-center [&_.ant-switch]:!min-w-[44px] [&_.ant-switch]:!h-6">
+                  <Switch
+                    checked={formik.values.is_floor_account || false}
+                    onChange={(val) => {
+                      formik.setFieldValue("is_floor_account", val);
+                      if (val) {
+                        formik.setFieldValue("is_department_account", false);
+                        formik.setFieldValue("is_admin_view", false);
+                        formik.setFieldValue("department_id", null);
+                        formik.setFieldValue("departmentName", "");
+                      }
+                    }}
+                    disabled={formik.values.is_department_account}
+                  />
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  Tầng phòng
+                </span>
+              </label>
+              <label className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg cursor-pointer select-none hover:bg-gray-50 transition-colors">
+                <span className="shrink-0 inline-flex items-center [&_.ant-switch]:!min-w-[44px] [&_.ant-switch]:!h-6">
+                  <Switch
+                    checked={formik.values.is_admin_view}
+                    onChange={(val) => {
+                      formik.setFieldValue("is_admin_view", val);
+                      if (val) {
+                        formik.setFieldValue("department_id", null);
+                        formik.setFieldValue("departmentName", "");
+                      }
+                    }}
+                    disabled={formik.values.is_floor_account || formik.values.is_department_account}
+                  />
+                </span>
+                <span className="text-sm font-medium text-gray-700">
+                  Có quyền xem toàn bộ dữ liệu
+                </span>
+              </label>
             </div>
           </div>
         </form>

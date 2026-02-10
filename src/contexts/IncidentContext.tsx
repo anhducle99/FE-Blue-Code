@@ -18,6 +18,8 @@ interface IncidentContextType {
   clearIncidents: () => void;
   filter: IncidentFilter;
   setFilter: (filter: IncidentFilter) => void;
+  /** Cập nhật mỗi khi có event real-time từ socket (để widget/sidebar refetch) */
+  lastSocketUpdate: number;
 }
 
 const IncidentContext = createContext<IncidentContextType | undefined>(
@@ -110,6 +112,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [filter, setFilter] = useState<IncidentFilter>("all");
   const [isLoading, setIsLoading] = useState(false);
+  const [lastSocketUpdate, setLastSocketUpdate] = useState(0);
   const { user } = useAuth();
   const { superAdminOrgFilterId } = useSuperAdminFilter();
 
@@ -118,15 +121,16 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const globalSocketInstance = getGlobalSocket();
-    const hasValidUser = user && (user.department_id || user.is_floor_account);
+    const hasValidUser = user && (
+      user.department_id != null ||
+      user.is_floor_account === true ||
+      user.role === "SuperAdmin"
+    );
 
     setSocket(
       hasValidUser && globalSocketInstance ? globalSocketInstance : null
     );
-
-    if (process.env.NODE_ENV === "development") {
-    }
-  }, [user?.id, user?.department_id, user?.is_floor_account]);
+  }, [user?.id, user?.department_id, user?.is_floor_account, user?.role]);
 
   const addIncident = useCallback(
     (incidentData: Omit<Incident, "id" | "timestamp">) => {
@@ -326,6 +330,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
 
           return deduplicated;
         });
+        setLastSocketUpdate(Date.now());
       } catch (err) {
       } finally {
         isLoadingRef.current = false;
@@ -388,7 +393,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         clearTimeout(debounceTimer);
         debounceTimer = null;
       }
-
+      setLastSocketUpdate(Date.now());
       if (!isLoadingRef.current) {
         lastCallStatusUpdateRef.current = Date.now();
         loadCallHistory(true);
@@ -473,18 +478,12 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
               );
               hasRealTimeUpdate = true;
               lastSyncTime = now;
-              
-              if (process.env.NODE_ENV === "development") {
-              
-              }
-              
+              setLastSocketUpdate(now);
               return deduplicated;
             }
-            
             return prev;
           });
         } catch (err) {
-         
         }
       }
 
@@ -535,6 +534,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
             return sorted;
           });
           lastSyncTime = Date.now();
+          setLastSocketUpdate(Date.now());
         } catch (err) {
         }
       }
@@ -563,6 +563,7 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         clearIncidents,
         filter,
         setFilter,
+        lastSocketUpdate,
       }}
     >
       {children}

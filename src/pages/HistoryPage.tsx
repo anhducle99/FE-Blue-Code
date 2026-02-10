@@ -69,7 +69,7 @@ export const HistoryPage: React.FC = () => {
           <Input
             type="text"
             name="nguoi_gui"
-            placeholder="Nhập khoa gửi"
+            placeholder="Nhập vị trí sự cố"
             className="col-span-1 sm:col-span-1 lg:col-span-2 border border-gray-400 rounded px-3 py-2 outline-blue-500"
             value={filters.nguoi_gui}
             onChange={handleChange}
@@ -77,7 +77,7 @@ export const HistoryPage: React.FC = () => {
           <Input
             type="text"
             name="nguoi_nhan"
-            placeholder="Nhập khoa nhận"
+            placeholder="Nhập sự cố"
             className="col-span-1 sm:col-span-1 lg:col-span-2 border border-gray-400 rounded px-3 py-2 outline-blue-500"
             value={filters.nguoi_nhan}
             onChange={handleChange}

@@ -164,7 +164,7 @@ export const OrganizationManagementPage: React.FC = () => {
             <Button
               type="primary"
               shape="circle"
-              className="!bg-[#0365af] !border-[#0365af] !text-white"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !w-10 !h-10 !min-w-10 !min-h-10 !p-0 !aspect-square shrink-0 flex items-center justify-center"
               onClick={handleAddNew}
             >
               <i className="bi bi-plus text-white" />
@@ -187,7 +187,7 @@ export const OrganizationManagementPage: React.FC = () => {
             <Button
               type="primary"
               shape="circle"
-              className="!bg-[#0365af] !border-[#0365af] !text-white"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !w-10 !h-10 !min-w-10 !min-h-10 !p-0 !aspect-square shrink-0 flex items-center justify-center"
               onClick={handleAddNew}
             >
               <i className="bi bi-plus text-white" />
@@ -215,7 +215,7 @@ export const OrganizationManagementPage: React.FC = () => {
           <Button
             type="primary"
             shape="circle"
-            className="!bg-[#0365af] !border-[#0365af] !text-white"
+            className="!bg-[#0365af] !border-[#0365af] !text-white !w-10 !h-10 !min-w-10 !min-h-10 !p-0 !aspect-square shrink-0 flex items-center justify-center"
             onClick={handleAddNew}
           >
             <i className="bi bi-plus text-white" />
@@ -284,8 +284,13 @@ export const OrganizationManagementPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="border rounded">
-          <table className="w-full text-sm">
+        <div className="border rounded overflow-x-auto">
+          <table className="min-w-[520px] w-full text-sm table-fixed">
+            <colgroup>
+              <col className="w-1/3" />
+              <col className="w-1/3" />
+              <col className="w-1/3" />
+            </colgroup>
             <thead className="bg-gray-100">
               <tr className="text-left border-b">
                 <th
@@ -339,14 +344,14 @@ export const OrganizationManagementPage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3 text-right relative">
                       <Button
-                        className="p-2 hover:bg-gray-100 rounded-full"
+                        className="!p-0 !w-9 !h-9 !min-w-9 !min-h-9 rounded-full hover:!bg-gray-100 shrink-0 aspect-square flex items-center justify-center"
                         onClick={() =>
                           setOpenMenuIndex(
                             openMenuIndex === index ? null : index
                           )
                         }
                       >
-                        <i className="bi bi-three-dots-vertical text-lg"></i>
+                        <i className="bi bi-three-dots-vertical text-lg shrink-0"></i>
                       </Button>
 
                       {openMenuIndex === index && (

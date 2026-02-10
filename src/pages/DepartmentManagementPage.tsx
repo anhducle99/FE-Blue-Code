@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Modal, Input, Button, message, Select } from "antd";
-import { MoreVertical } from "lucide-react";
 import { PageHeader } from "../components/PageHeader";
 import {
   IDepartment,
@@ -34,9 +33,7 @@ export const DepartmentManagementPage: React.FC = () => {
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
   const [currentUserOrgId, setCurrentUserOrgId] = useState<number | null>(null);
   const [filterOrgId, setFilterOrgId] = useState<number | "">("");
-  const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
   const defaultFilterSetRef = useRef(false);
-  const filterDropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
@@ -68,16 +65,6 @@ export const DepartmentManagementPage: React.FC = () => {
       defaultFilterSetRef.current = true;
     }
   }, [isSuperAdmin, organizations]);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) {
-        setOpenFilterDropdown(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const fetchDepartments = async () => {
     try {
@@ -185,125 +172,123 @@ export const DepartmentManagementPage: React.FC = () => {
             <Button
               type="primary"
               shape="circle"
-              className="!bg-[#0365af] !border-[#0365af] !text-white"
+              className="!bg-[#0365af] !border-[#0365af] !text-white !w-10 !h-10 !min-w-10 !min-h-10 !p-0 !aspect-square shrink-0 flex items-center justify-center"
               onClick={handleAdd}
             >
               <i className="bi bi-plus text-white" />
             </Button>
           }
         />
-      </div>
 
-      <div className="mx-4 mt-4 bg-white rounded shadow-sm p-4">
-        {isSuperAdmin && organizations.length > 0 && (
-          <div className="mb-4 flex items-center gap-2">
-            <div className="relative" ref={filterDropdownRef}>
-              <Button
-                onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
-                className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 border-0 flex items-center gap-2"
-              >
-                <i className="bi bi-funnel-fill text-xs" />
-                Lọc theo tổ chức
-                <i className="bi bi-caret-down-fill text-xs" />
-              </Button>
-              {openFilterDropdown && (
-                <div className="absolute left-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFilterOrgId("");
-                      setOpenFilterDropdown(false);
-                    }}
-                    className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors ${
-                      filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
-                    }`}
-                  >
-                    Tất cả tổ chức
-                  </button>
-                  {organizations.map((org) => (
-                    <button
-                      key={org.id}
-                      type="button"
-                      onClick={() => {
-                        setFilterOrgId(org.id ?? "");
-                        setOpenFilterDropdown(false);
-                      }}
-                      className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors border-t border-gray-100 ${
-                        filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
-                      }`}
-                    >
-                      {org.name}
-                    </button>
-                  ))}
-                </div>
+        <div className="bg-white rounded shadow-sm p-4 mt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mb-4">
+            <div className="flex items-center gap-2">
+              {isSuperAdmin && (
+                <>
+                  <span className="text-sm font-medium text-gray-700">Lọc theo tổ chức:</span>
+                  <Select
+                    placeholder="Tất cả tổ chức"
+                    allowClear
+                    className="w-56"
+                    value={filterOrgId === "" ? undefined : filterOrgId}
+                    onChange={(val) => setFilterOrgId(val ?? "")}
+                    options={[
+                      { value: "", label: "Tất cả tổ chức" },
+                      ...organizations.map((org) => ({
+                        value: org.id!,
+                        label: org.name,
+                      })),
+                    ]}
+                  />
+                </>
               )}
             </div>
           </div>
-        )}
-        {loading ? (
-          <div className="text-center py-8">Đang tải...</div>
-        ) : departments.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            Chưa có đội phản ứng nào
-          </div>
-        ) : (
-          <table className="min-w-full table-auto">
-            <thead className="bg-gray-50 text-gray-600 text-sm font-medium">
-              <tr>
-                <th className="px-4 py-2 text-left">Đội Phản Ứng</th>
-                <th className="px-4 py-2 text-left">Tổ chức</th>
-                <th className="px-4 py-2 text-left">Điện thoại</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-700 text-sm">
-              {departments.map((d, index) => {
-                const org = organizations.find((o) => o.id === d.organization_id);
-                return (
-                  <tr key={d.id} className="border-t">
-                    <td className="px-4 py-2">{d.name}</td>
-                    <td className="px-4 py-2">{org?.name || "-"}</td>
-                    <td className="px-4 py-2">{d.phone}</td>
-                  <td className="px-4 py-2 text-right relative">
-                    <Button
-                      type="text"
-                      icon={<MoreVertical className="w-4 h-4 text-gray-500" />}
-                      onClick={() =>
-                        setDropdownIndex(dropdownIndex === index ? null : index)
-                      }
-                    />
-                    {dropdownIndex === index && (
-                      <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden">
-                        <button
-                          onClick={() => {
-                            handleEdit(d);
-                            setDropdownIndex(null);
-                          }}
-                          className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
-                        >
-                          <i className="bi bi-pencil mr-3 text-base"></i>
-                          <span className="font-medium">Sửa</span>
-                        </button>
-                        <div className="border-t border-gray-100 my-1"></div>
-                        <button
-                          onClick={() => {
-                            handleDelete(d.id);
-                            setDropdownIndex(null);
-                          }}
-                          className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
-                        >
-                          <i className="bi bi-trash mr-3 text-base"></i>
-                          <span className="font-medium">Xóa</span>
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+
+          {loading ? (
+            <div className="text-center py-8">Đang tải...</div>
+          ) : (
+            <>
+              <div className="border rounded overflow-x-auto">
+                <table className="min-w-[520px] w-full text-sm table-fixed">
+                  <colgroup>
+                    <col className="w-1/4" />
+                    <col className="w-1/4" />
+                    <col className="w-1/4" />
+                    <col className="w-1/4" />
+                  </colgroup>
+                  <thead className="bg-gray-100">
+                    <tr className="text-left border-b">
+                      <th className="px-4 py-3">Đội Phản Ứng</th>
+                      <th className="px-4 py-3">Tổ chức</th>
+                      <th className="px-4 py-3">Điện thoại</th>
+                      <th className="px-4 py-3 text-right"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {departments.map((d, index) => {
+                      const org = organizations.find((o) => o.id === d.organization_id);
+                      return (
+                        <tr key={d.id} className="border-b hover:bg-gray-50 relative">
+                          <td className="px-4 py-3">{d.name}</td>
+                          <td className="px-4 py-3">{org?.name || "-"}</td>
+                          <td className="px-4 py-3">{d.phone}</td>
+                          <td className="px-4 py-3 text-right relative">
+                            <Button
+                              className="!p-0 !w-9 !h-9 !min-w-9 !min-h-9 rounded-full hover:!bg-gray-100 shrink-0 aspect-square flex items-center justify-center"
+                              onClick={() =>
+                                setDropdownIndex(dropdownIndex === index ? null : index)
+                              }
+                            >
+                              <i className="bi bi-three-dots-vertical text-lg shrink-0" />
+                            </Button>
+                            {dropdownIndex === index && (
+                              <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleEdit(d);
+                                    setDropdownIndex(null);
+                                  }}
+                                  className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
+                                >
+                                  <i className="bi bi-pencil mr-3 text-base" />
+                                  <span className="font-medium">Sửa</span>
+                                </button>
+                                <div className="border-t border-gray-100 my-1" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleDelete(d.id);
+                                    setDropdownIndex(null);
+                                  }}
+                                  className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
+                                >
+                                  <i className="bi bi-trash mr-3 text-base" />
+                                  <span className="font-medium">Xóa</span>
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {departments.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  Chưa có đội phản ứng nào
+                </div>
+              )}
+
+              <div className="flex justify-between items-center text-sm text-zinc-700 pt-5">
+                <div>Tổng: {departments.length} mục</div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <Modal

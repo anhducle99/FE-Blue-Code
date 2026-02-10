@@ -42,7 +42,7 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   onToggleExpand,
   superAdminOrgFilterId,
 }) => {
-  const { incidents } = useIncidents();
+  const { incidents, lastSocketUpdate } = useIncidents();
   const { user } = useAuth();
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
   const [callLogs, setCallLogs] = useState<ICallLog[]>([]);
@@ -148,7 +148,7 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     };
 
     fetchCallLogs();
-  }, [user, selectedDate, superAdminOrgFilterId]);
+  }, [user, selectedDate, superAdminOrgFilterId, lastSocketUpdate]);
 
   const filteredIncidents = useMemo(() => {
     const isSuperAdmin = user?.role === "SuperAdmin";
