@@ -6,6 +6,15 @@ import { getUsers, IUser } from "../services/userService";
 import { getDepartments, IDepartment } from "../services/departmentService";
 import { getOrganizations } from "../services/organizationService";
 import type { IOrganization } from "../services/organizationService";
+import {
+  getIncidentCases,
+  IIncidentCase,
+  acceptIncident,
+  releaseIncident,
+  HandlerStatus,
+} from "../services/incidentCaseService";
+import { getGlobalSocket } from "../contexts/useSocket";
+import { message } from "antd";
 
 interface IncidentSidebarProps {
   isOpen: boolean;
@@ -29,7 +38,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   superAdminOrgFilterId: propFilterOrgId,
   onSuperAdminOrgFilterChange,
 }) => {
-  const { incidents, filter, setFilter, clearIncidents } = useIncidents();
+  const { incidents, filter, setFilter, clearIncidents, lastSocketUpdate } = useIncidents();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SuperAdmin";
   const [currentPage, setCurrentPage] = useState(1);
@@ -40,6 +49,11 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
   const [expandedCallIds, setExpandedCallIds] = useState<Set<string>>(new Set());
   const filterDropdownRef = useRef<HTMLDivElement | null>(null);
+  const [incidentCases, setIncidentCases] = useState<IIncidentCase[]>([]);
+  const [loadingIncidentCases, setLoadingIncidentCases] = useState(false);
+  const [expandedIncidentIds, setExpandedIncidentIds] = useState<Set<number>>(new Set());
+  const [acceptingId, setAcceptingId] = useState<number | null>(null);
+  const [releasingKey, setReleasingKey] = useState<string | null>(null);
 
   const toggleExpanded = (callId: string) => {
     setExpandedCallIds((prev) => {
@@ -143,6 +157,52 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     fetchData();
   }, [user, isSuperAdmin, filterOrgId]);
 
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    if (isSuperAdmin && filterOrgId === "") {
+      setIncidentCases([]);
+      return;
+    }
+    const orgId = isSuperAdmin && filterOrgId !== "" ? (filterOrgId as number) : undefined;
+    setLoadingIncidentCases(true);
+    getIncidentCases({ organization_id: orgId })
+      .then((list) => setIncidentCases(list))
+      .catch((err) => {
+        setIncidentCases([]);
+        const msg = err?.response?.data?.message || err?.message;
+        if (msg) message.error(msg);
+      })
+      .finally(() => setLoadingIncidentCases(false));
+  }, [isOpen, user, isSuperAdmin, filterOrgId, lastSocketUpdate]);
+
+  useEffect(() => {
+    const socket = getGlobalSocket();
+    if (!socket) return;
+    const handle = (payload: { handlerKey: string; incidentCaseId: number | null; status: HandlerStatus }) => {
+      setIncidentCases((prev) =>
+        prev.map((c) => ({
+          ...c,
+          handlers: c.handlers.map((h) => {
+            if (h.handlerKey !== payload.handlerKey) return h;
+            if (payload.status === "available") return { ...h, status: "available" as HandlerStatus };
+            if (payload.incidentCaseId === c.id) return { ...h, status: "handling_this_incident" as HandlerStatus };
+            return { ...h, status: "handling_other_incident" as HandlerStatus };
+          }),
+        }))
+      );
+    };
+    socket.on("handlerStatusChange", handle);
+    return () => {
+      socket.off("handlerStatusChange", handle);
+    };
+  }, []);
+
+  const getHandlerStatusLabel = (status: HandlerStatus): string => {
+    if (status === "available") return "đang rảnh";
+    if (status === "handling_this_incident") return "đang xử lý sự cố này";
+    return "đang xử lý sự cố khác";
+  };
+
   const organizationFilteredIncidents = useMemo(() => {
     if (isSuperAdmin) return incidents;
     if (organizationNames.size === 0) return incidents;
@@ -159,22 +219,21 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     if (filterValue === "outgoing") return callType === "outgoing" || callType === "pending";
     if (filterValue === "accepted") return callType === "accepted";
     if (filterValue === "timeout") return callType === "timeout" || callType === "unreachable";
-    if (filterValue === "cancelled") return callType === "cancelled"; /* Người gọi hủy */
-    if (filterValue === "rejected") return callType === "rejected";   /* Người không tham gia */
+    if (filterValue === "cancelled") return callType === "cancelled";
+    if (filterValue === "rejected") return callType === "rejected";
     return true;
   };
 
-  /** Nhóm sự cố theo call_id: một cuộc gọi = một card, bấm mở ra xem ai đã xử lý / không liên lạc được */
   interface GroupedIncident {
     call_id: string;
     sender: string;
     timestamp: Date;
     accepted: string[];
-    rejected: string[];   /* Người không tham gia (từ chối) */
+    rejected: string[];  
     timeout: string[];
     pending: string[];
     hasOutgoing: boolean;
-    hasCancelled: boolean; /* Sự cố người gọi hủy */
+    hasCancelled: boolean;
   }
 
   const groupedByCallId = useMemo(() => {
@@ -213,8 +272,8 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
         if (incTime.getTime() < g.timestamp.getTime()) g.timestamp = incTime;
         const name = inc.source ?? "";
         if (callType === "accepted") g.accepted.push(name);
-        else if (callType === "rejected") g.rejected.push(name);       /* Người không tham gia */
-        else if (callType === "cancelled") g.hasCancelled = true;      /* Người gọi hủy */
+        else if (callType === "rejected") g.rejected.push(name);       
+        else if (callType === "cancelled") g.hasCancelled = true;    
         else if (callType === "timeout") g.timeout.push(name);
         else if (callType === "pending") g.pending.push(name);
       }
@@ -232,8 +291,8 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
     if (filterValue === "outgoing") return g.hasOutgoing || g.pending.length > 0;
     if (filterValue === "accepted") return g.accepted.length > 0;
     if (filterValue === "timeout") return g.timeout.length > 0;
-    if (filterValue === "cancelled") return g.hasCancelled;   /* Sự cố người gọi hủy */
-    if (filterValue === "rejected") return g.rejected.length > 0; /* Người không tham gia */
+    if (filterValue === "cancelled") return g.hasCancelled;   
+    if (filterValue === "rejected") return g.rejected.length > 0; 
     return true;
   };
 
@@ -417,6 +476,137 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2">
+        {incidentCases.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-semibold text-gray-500 px-1">Sự cố gộp (nhiều người báo = 1 incident)</p>
+            {loadingIncidentCases ? (
+              <p className="text-sm text-gray-500 p-2">Đang tải...</p>
+            ) : (
+              incidentCases.map((ic) => {
+                const isExpanded = expandedIncidentIds.has(ic.id);
+                const createdAt = new Date(ic.createdAt);
+                const dateStr = `${String(createdAt.getDate()).padStart(2, "0")}/${String(createdAt.getMonth() + 1).padStart(2, "0")}/${createdAt.getFullYear()} ${String(createdAt.getHours()).padStart(2, "0")}:${String(createdAt.getMinutes()).padStart(2, "0")}`;
+                const isHandler = user && ic.handlerKeys.some((k) => normalizeName(k) === normalizeName(user.name) || normalizeName(user.department_name || "") === normalizeName(k));
+                const myHandlerKey = user && ic.handlers.find((h) => normalizeName(h.handlerKey) === normalizeName(user.name) || normalizeName(user.department_name || "") === normalizeName(h.handlerKey))?.handlerKey;
+                const myStatus = myHandlerKey ? ic.handlers.find((h) => h.handlerKey === myHandlerKey)?.status : null;
+                return (
+                  <div
+                    key={ic.id}
+                    className="p-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedIncidentIds((s) => (s.has(ic.id) ? new Set([...s].filter((x) => x !== ic.id)) : new Set([...s, ic.id])))}
+                      className="w-full text-left"
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <span className="text-xs text-gray-500">Người báo: {ic.reporters.length ? ic.reporters.join(", ") : "—"}</span>
+                          <span className="text-xs text-gray-400 ml-2">({ic.reportCount} báo)</span>
+                        </div>
+                        <span className="text-xs text-gray-500 flex-shrink-0">{dateStr}</span>
+                      </div>
+                      {(ic.calls && ic.calls.length > 0) && (
+                        <div className="mt-1.5 space-y-1">
+                          {ic.calls.map((call, idx) => {
+                            const callTime = call.createdAt ? new Date(call.createdAt) : null;
+                            const timeStr = callTime ? `${String(callTime.getHours()).padStart(2, "0")}:${String(callTime.getMinutes()).padStart(2, "0")}` : "";
+                            return (
+                              <div key={idx} className="text-xs text-gray-600 flex items-center gap-2">
+                                <span className="font-medium text-gray-700">Cuộc gọi {idx + 1}:</span>
+                                <span>{call.fromUser || "—"}</span>
+                                {timeStr && <span className="text-gray-400">{timeStr}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <div className="mt-2 space-y-1">
+                        {ic.handlers.map((h) => (
+                          <div key={h.handlerKey} className="text-sm text-gray-700">
+                            <span className="font-medium">{h.handlerKey}</span>
+                            <span> {getHandlerStatusLabel(h.status)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <span className={`inline-block mt-1 text-xs text-gray-400 ${isExpanded ? "rotate-180" : ""}`}>
+                        <i className="bi bi-caret-down-fill" />
+                      </span>
+                    </button>
+                    {isExpanded && isHandler && myHandlerKey && (
+                      <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                        {myStatus === "available" ? (
+                          <button
+                            type="button"
+                            disabled={acceptingId !== null}
+                            onClick={async () => {
+                              setAcceptingId(ic.id);
+                              try {
+                                await acceptIncident(ic.id, myHandlerKey);
+                                message.success("Đã nhận xử lý sự cố");
+                                setIncidentCases((prev) =>
+                                  prev.map((c) =>
+                                    c.id === ic.id
+                                      ? {
+                                          ...c,
+                                          handlers: c.handlers.map((h) =>
+                                            h.handlerKey === myHandlerKey
+                                              ? { ...h, status: "handling_this_incident" as HandlerStatus }
+                                              : h
+                                          ),
+                                        }
+                                      : c
+                                  )
+                                );
+                              } catch (e: any) {
+                                const msg = e?.response?.data?.message || e?.message || "Không thể nhận";
+                                message.error(msg);
+                              } finally {
+                                setAcceptingId(null);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            {acceptingId === ic.id ? "Đang xử lý..." : "Nhận xử lý"}
+                          </button>
+                        ) : myStatus === "handling_this_incident" ? (
+                          <button
+                            type="button"
+                            disabled={releasingKey !== null}
+                            onClick={async () => {
+                              setReleasingKey(myHandlerKey);
+                              try {
+                                await releaseIncident(myHandlerKey);
+                                message.success("Đã thôi xử lý");
+                                setIncidentCases((prev) =>
+                                  prev.map((c) => ({
+                                    ...c,
+                                    handlers: c.handlers.map((h) =>
+                                      h.handlerKey === myHandlerKey
+                                        ? { ...h, status: "available" as HandlerStatus }
+                                        : h
+                                    ),
+                                  }))
+                                );
+                              } catch (e: any) {
+                                message.error(e?.response?.data?.message || e?.message || "Không thể thôi xử lý");
+                              } finally {
+                                setReleasingKey(null);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+                          >
+                            {releasingKey === myHandlerKey ? "Đang xử lý..." : "Thôi xử lý"}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
         {useGroupedView ? (
           paginatedGroups.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-500 p-4">

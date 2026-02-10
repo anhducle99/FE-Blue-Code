@@ -48,13 +48,18 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       audio.play().catch(() => {});
     }
 
+    const callIdsToUse = incomingCall.callIds && incomingCall.callIds.length > 0
+      ? incomingCall.callIds
+      : [incomingCall.callId];
+
     timeoutRef.current = setTimeout(() => {
       if (user?.department_id && user?.name) {
-        socket.emit("callTimeout", {
-          callId: incomingCall.callId,
-          toDept: user.name, 
-        });
-
+        for (const cid of callIdsToUse) {
+          socket.emit("callTimeout", {
+            callId: cid,
+            toDept: user.name,
+          });
+        }
         addIncident({
           source: (user.department_name || user.name || "").toUpperCase(),
           type: "call_rejected",
@@ -66,7 +71,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         });
       }
       stopAudio();
-      setIncomingCall();
+      setIncomingCall(); // clear toàn bộ nếu user không thao tác gì
     }, 15000);
 
     return () => {
@@ -78,13 +83,16 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (!socket || !incomingCall) return;
 
+    const callIdsToMatch = incomingCall.callIds?.length
+      ? incomingCall.callIds
+      : [incomingCall.callId];
     const handleCallStatusUpdate = (data: {
       callId: string;
       toDept?: string;
       toUser?: string;
       status: "accepted" | "rejected" | "timeout" | "cancelled";
     }) => {
-      if (data.callId !== incomingCall.callId) return;
+      if (!callIdsToMatch.includes(data.callId)) return;
 
       const targetUser = data.toUser || data.toDept;
       const isCurrentUser = targetUser && user?.name && (
@@ -93,27 +101,55 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       );
       
       if (data.status === "cancelled" || (data.status === "rejected" && isCurrentUser)) {
-        stopAudio();
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
+        // Cập nhật trạng thái cuộc gọi tương ứng; nếu không còn cuộc pending thì đóng modal
+        setIncomingCall((prev) => {
+          if (!prev) return null;
+          const prevCallers =
+            prev.callers && prev.callers.length > 0
+              ? prev.callers
+              : [{ callId: prev.callId, fromDept: prev.fromDept, status: "pending" }];
 
-        setIncomingCall();
+          const updated = prevCallers.map((c) =>
+            c.callId === data.callId
+              ? {
+                  ...c,
+                  status: data.status === "cancelled" ? "cancelled" : "rejected",
+                }
+              : c
+          );
+
+          const hasPending = updated.some(
+            (c) => !c.status || c.status === "pending"
+          );
+
+          if (!hasPending) {
+            stopAudio();
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+            }
+            return null;
+          }
+          return {
+            ...prev,
+            callIds: updated.map((c) => c.callId),
+            callers: updated,
+          };
+        });
 
         if (user?.department_name || user?.name) {
           addIncident({
             source: (user.department_name || user.name || "").toUpperCase(),
             type: "call_rejected",
             status: "info",
-            message: data.status === "cancelled" 
-              ? `Cuộc gọi từ ${incomingCall.fromDept} đã bị hủy${
-                  incomingCall.message ? ` - ${incomingCall.message}` : ""
-                }`
-              : `Bạn đã từ chối cuộc gọi từ ${incomingCall.fromDept}${
-                  incomingCall.message ? ` - ${incomingCall.message}` : ""
-                }`,
+            message:
+              data.status === "cancelled"
+                ? `Cuộc gọi đã bị hủy${
+                    incomingCall.message ? ` - ${incomingCall.message}` : ""
+                  }`
+                : `Bạn đã từ chối một cuộc gọi${
+                    incomingCall.message ? ` - ${incomingCall.message}` : ""
+                  }`,
             callType: "rejected",
           });
         }
@@ -126,75 +162,115 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       socket.off("callStatusUpdate", handleCallStatusUpdate);
     };
   }, [socket, incomingCall, user, addIncident, setIncomingCall]);
-  const handleAccept = useCallback(() => {
-    if (
-      !incomingCall ||
-      !socket ||
-      !user?.department_id ||
-      !user?.name
-    )
-      return;
-    socket.emit("callAccepted", {
-      callId: incomingCall.callId,
-      toDept: user.name,
-    });
+  const handleAccept = useCallback(
+    (callId: string) => {
+      if (!incomingCall || !socket || !user?.department_id || !user?.name)
+        return;
 
-    addIncident({
-      source: (user.department_name || user.name || "").toUpperCase(),
-      type: "call_accepted",
-      status: "info",
-      message: `Đã xác nhận cuộc gọi từ ${incomingCall.fromDept}${
-        incomingCall.message ? ` - ${incomingCall.message}` : ""
-      }`,
-      callType: "accepted",
-    });
+      const callerName =
+        incomingCall.callers?.find((c) => c.callId === callId)?.fromDept ||
+        incomingCall.fromDept;
 
-    stopAudio();
-    setIncomingCall();
-  }, [
-    incomingCall,
-    socket,
-    user?.department_id,
-    user?.name,
-    user?.department_name,
-    setIncomingCall,
-    addIncident,
-  ]);
+      socket.emit("callAccepted", {
+        callId,
+        toDept: user.name,
+      });
 
-  const handleReject = useCallback(() => {
-    if (
-      !incomingCall ||
-      !socket ||
-      !user?.department_id ||
-      !user?.name
-    )
-      return;
-    socket.emit("callRejected", {
-      callId: incomingCall.callId,
-      toDept: user.name, 
-    });
+      addIncident({
+        source: (user.department_name || user.name || "").toUpperCase(),
+        type: "call_accepted",
+        status: "info",
+        message: `Đã xác nhận cuộc gọi từ ${callerName}${
+          incomingCall.message ? ` - ${incomingCall.message}` : ""
+        }`,
+        callType: "accepted",
+      });
 
-    addIncident({
-      source: (user.department_name || user.name || "").toUpperCase(),
-      type: "call_rejected",
-      status: "info",
-      message: `Từ chối cuộc gọi từ ${incomingCall.fromDept}${
-        incomingCall.message ? ` - ${incomingCall.message}` : ""
-      }`,
-      callType: "rejected",
-    });
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
 
-    stopAudio();
-    setIncomingCall();
-  }, [
-    incomingCall,
-    socket,
-    user?.department_id,
-    user?.name,
-    user?.department_name,
-    setIncomingCall,
-    addIncident,
-  ]);
+      // Sau khi mình nhận một cuộc gọi, đóng luôn modal
+      setIncomingCall((prev) => {
+        stopAudio();
+        return null;
+      });
+    },
+    [
+      incomingCall,
+      socket,
+      user?.department_id,
+      user?.name,
+      user?.department_name,
+      setIncomingCall,
+      addIncident,
+    ]
+  );
+
+  const handleReject = useCallback(
+    (callId: string) => {
+      if (!incomingCall || !socket || !user?.department_id || !user?.name)
+        return;
+
+      const callerName =
+        incomingCall.callers?.find((c) => c.callId === callId)?.fromDept ||
+        incomingCall.fromDept;
+
+      socket.emit("callRejected", {
+        callId,
+        toDept: user.name,
+      });
+
+      addIncident({
+        source: (user.department_name || user.name || "").toUpperCase(),
+        type: "call_rejected",
+        status: "info",
+        message: `Từ chối cuộc gọi từ ${callerName}${
+          incomingCall.message ? ` - ${incomingCall.message}` : ""
+        }`,
+        callType: "rejected",
+      });
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      // Cập nhật trạng thái: gạch/xám cuộc gọi bị từ chối, các cuộc còn lại vẫn bấm được
+      setIncomingCall((prev) => {
+        if (!prev) return null;
+        const prevCallers =
+          prev.callers && prev.callers.length > 0
+            ? prev.callers
+            : [{ callId: prev.callId, fromDept: prev.fromDept, status: "pending" }];
+        const updated = prevCallers.map((c) =>
+          c.callId === callId ? { ...c, status: "rejected" } : c
+        );
+        const hasPending = updated.some(
+          (c) => !c.status || c.status === "pending"
+        );
+        if (!hasPending) {
+          stopAudio();
+          return null;
+        }
+        return {
+          ...prev,
+          callIds: updated.map((c) => c.callId),
+          callers: updated,
+        };
+      });
+    },
+    [
+      incomingCall,
+      socket,
+      user?.department_id,
+      user?.name,
+      user?.department_name,
+      setIncomingCall,
+      addIncident,
+    ]
+  );
 
   return (
     <>

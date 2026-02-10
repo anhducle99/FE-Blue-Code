@@ -9,7 +9,6 @@ import DepartmentButton from "./DepartmentButton";
 import SupportButton from "./SupportButton";
 
 export interface FloorAccountPanelProps {
-  /** Chỉ truyền khi user là SuperAdmin; dùng để lọc theo tổ chức (null = tất cả) */
   effectiveOrgId?: number | null;
   isSuperAdmin?: boolean;
   organizations?: IOrganization[];

@@ -3,8 +3,8 @@ import { IncomingCallData } from "../contexts/useSocket";
 
 interface IncomingCallModalProps {
   incomingCall: IncomingCallData | null;
-  onAccept: () => void;
-  onReject: () => void;
+  onAccept: (callId: string) => void;
+  onReject: (callId: string) => void;
 }
 
 const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
@@ -13,6 +13,21 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
   onReject,
 }) => {
   if (!incomingCall) return null;
+
+  const callers =
+    incomingCall.callers && incomingCall.callers.length > 0
+      ? incomingCall.callers
+      : [{ callId: incomingCall.callId, fromDept: incomingCall.fromDept }];
+  const names = callers.map((c) => c.fromDept);
+  const hasMultiple = names.length > 1;
+  let namesLabel = names[0] || "";
+  if (names.length === 2) {
+    namesLabel = `${names[0]} và ${names[1]}`;
+  } else if (names.length > 2) {
+    namesLabel = `${names.slice(0, -1).join(", ")} và ${
+      names[names.length - 1]
+    }`;
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -38,11 +53,60 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
 
         <div className="mb-4">
           <p className="text-gray-700 text-base mb-1">
-            <span className="font-bold text-blue-600">
-              {incomingCall.fromDept}
-            </span>{" "}
-            đang gọi bạn
+            <span className="font-bold text-blue-600">{namesLabel}</span>{" "}
+            {hasMultiple
+              ? "đang gọi bạn (nhiều cuộc gọi cùng sự cố)"
+              : "đang gọi bạn"}
           </p>
+          <div className="mt-2 space-y-1 text-sm text-gray-700 text-left">
+            {callers.map((c, idx) => {
+              const isDisabled =
+                c.status === "rejected" || c.status === "cancelled";
+              return (
+                <div
+                  key={c.callId || idx}
+                  className="flex items-center gap-2 justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`font-semibold ${
+                        isDisabled ? "text-gray-400 line-through" : "text-gray-800"
+                      }`}
+                    >
+                      Cuộc gọi {idx + 1}:
+                    </span>
+                    <span
+                      className={isDisabled ? "text-gray-400 line-through" : ""}
+                    >
+                      {c.fromDept}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isDisabled ? (
+                      <span className="text-xs text-gray-400 font-medium">
+                        {c.status === "cancelled" ? "Đã hủy" : "Đã từ chối"}
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-sm"
+                          onClick={() => onAccept(c.callId)}
+                        >
+                          Nhận
+                        </button>
+                        <button
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm"
+                          onClick={() => onReject(c.callId)}
+                        >
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           {incomingCall.message && (
             <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
               <p className="text-sm text-gray-700">
@@ -65,21 +129,6 @@ const IncomingCallModal: React.FC<IncomingCallModalProps> = ({
               </p>
             </div>
           )}
-        </div>
-
-        <div className="flex justify-center gap-3">
-          <button
-            className="px-6 py-2.5 rounded-lg font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-md"
-            onClick={onAccept}
-          >
-            Nhận
-          </button>
-          <button
-            className="px-6 py-2.5 rounded-lg font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-md"
-            onClick={onReject}
-          >
-            Từ chối
-          </button>
         </div>
       </div>
     </div>

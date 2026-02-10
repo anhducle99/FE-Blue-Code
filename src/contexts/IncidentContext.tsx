@@ -18,7 +18,6 @@ interface IncidentContextType {
   clearIncidents: () => void;
   filter: IncidentFilter;
   setFilter: (filter: IncidentFilter) => void;
-  /** Cập nhật mỗi khi có event real-time từ socket (để widget/sidebar refetch) */
   lastSocketUpdate: number;
 }
 

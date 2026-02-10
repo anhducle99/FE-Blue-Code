@@ -13,6 +13,8 @@ export interface IncomingCallData {
   message?: string;
   fromDept: string;
   image?: string;
+  callIds?: string[];
+  callers?: { callId: string; fromDept: string; status?: string }[];
 }
 
 let globalSocket: Socket | null = null;
@@ -94,10 +96,12 @@ const cleanupSocket = (): void => {
 
 export const useSocket = (user: RegisterData | null) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(
+  // state thực tế của incomingCall
+  const [incomingCall, setIncomingCallState] = useState<IncomingCallData | null>(
     null
   );
   const [isConnected, setIsConnected] = useState(false);
+  const lastIncomingTimeRef = useRef(0);
   const handlersRef = useRef<{
     incomingCall?: (data: IncomingCallData) => void;
   }>({});
@@ -165,8 +169,40 @@ export const useSocket = (user: RegisterData | null) => {
     setSocket(socketInstance);
     setIsConnected(socketInstance.connected);
 
+    const MERGE_WINDOW_MS = 15000;
     const handleIncomingCall = (data: IncomingCallData) => {
-      setIncomingCall(data);
+      const now = Date.now();
+      setIncomingCallState((prev) => {
+        const shouldMerge =
+          prev && now - lastIncomingTimeRef.current < MERGE_WINDOW_MS;
+        lastIncomingTimeRef.current = now;
+
+        // Cuộc gọi đầu tiên hoặc ngoài window gộp -> reset danh sách
+        if (!prev || !shouldMerge) {
+          return {
+            ...data,
+            callIds: [data.callId],
+            callers: [{ callId: data.callId, fromDept: data.fromDept, status: "pending" }],
+          };
+        }
+
+        const prevCallers =
+          prev.callers && prev.callers.length > 0
+            ? prev.callers
+            : [{ callId: prev.callId, fromDept: prev.fromDept, status: "pending" }];
+        // Tránh trùng callId nếu server gửi lại
+        const exists = prevCallers.some((c) => c.callId === data.callId);
+        const mergedCallers = exists
+          ? prevCallers
+          : [...prevCallers, { callId: data.callId, fromDept: data.fromDept, status: "pending" }];
+        const mergedCallIds = mergedCallers.map((c) => c.callId);
+
+        return {
+          ...prev,
+          callIds: mergedCallIds,
+          callers: mergedCallers,
+        };
+      });
     };
     handlersRef.current.incomingCall = handleIncomingCall;
     socketInstance.on("incomingCall", handleIncomingCall);
@@ -192,14 +228,25 @@ export const useSocket = (user: RegisterData | null) => {
     });
   }, [user, socket]);
 
-  const clearIncomingCall = useCallback(() => {
-    setIncomingCall(null);
-  }, []);
+  const setIncomingCall = useCallback(
+    (
+      updater?: (
+        prev: IncomingCallData | null
+      ) => IncomingCallData | null
+    ) => {
+      if (!updater) {
+        setIncomingCallState(null);
+      } else {
+        setIncomingCallState((prev) => updater(prev));
+      }
+    },
+    []
+  );
 
   return {
     socket,
     incomingCall,
-    setIncomingCall: clearIncomingCall,
+    setIncomingCall,
     isConnected,
   };
 };
