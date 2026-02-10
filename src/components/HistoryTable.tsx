@@ -230,7 +230,6 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
     });
   }, [data, currentOrganizationId, organizationNames, user?.role]);
 
-  /** Nhóm theo call_id (một cuộc gọi = một Sự cố), gộp Người xử lý / Người từ chối / Không liên lạc được theo Sự cố */
   interface GroupedRow {
     call_id: string;
     id: number;
@@ -442,7 +441,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
           <div className="space-y-2 text-sm">
             <div className="flex items-start">
               <span className="font-medium text-gray-600 w-24 flex-shrink-0">
-                Khoa gửi:
+                Vị trí sự cố:
               </span>
               <span className="text-gray-800 flex-1">{row.sender}</span>
             </div>
@@ -464,7 +463,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
             </div>
             <div className="flex items-start">
               <span className="font-medium text-gray-600 w-24 flex-shrink-0">
-                Người từ chối xử lý:
+                Người từ chối tham gia:
               </span>
               <span className="text-gray-800 flex-1">
                 {joinNames(row.rejectedNames)}

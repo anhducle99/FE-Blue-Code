@@ -59,26 +59,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         } fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:flex lg:flex-col`}
       >
         <div className="flex grow flex-col gap-y-5 relative">
-          <div className="pt-5 border-b pb-3 px-6 flex items-center justify-between">
+          <div className="pt-5 pb-4 px-5 border-b border-gray-100 flex items-center justify-between gap-3">
             <Link
               to="/main"
               onClick={onClose}
-              className="flex items-center gap-4 font-bold text-primary"
+              className="flex items-center gap-3 min-w-0 flex-1 font-bold text-primary"
             >
               <img
-                className="sm:h-12 sm:w-12 w-10 object-contain"
+                className="h-10 w-10 sm:h-11 sm:w-11 object-contain shrink-0"
                 src="/img/logophanmem.png"
                 alt="logo"
               />
-              <span className="text-sm leading-tight text-[#0365af]">
-                Tập Đoàn Y Khoa <br /> TTH Group 
+              <span className="text-sm leading-snug text-[#0365af]">
+                Tập Đoàn Y Khoa <br /> TTH Group
               </span>
             </Link>
             <Button
               onClick={onClose}
-              className="lg:hidden text-gray-500 hover:text-gray-700"
+              className="lg:hidden !w-9 !h-9 !min-w-9 !min-h-9 !p-0 !rounded-lg !border !border-gray-200 !bg-white !shadow-sm text-gray-500 hover:!text-[#0365af] hover:!bg-gray-50 hover:!border-[#0365af]/30 active:!scale-95 transition-all duration-200 flex items-center justify-center shrink-0"
             >
-              <i className="bi bi-x-lg text-xl" />
+              <i className="bi bi-x-lg text-lg" />
             </Button>
           </div>
 
@@ -88,7 +88,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="bg-[#0365af] text-white rounded-full w-8 h-8 flex items-center justify-center font-bold text-xs">
+                <div className="bg-[#0365af] text-white rounded-full w-8 h-8 min-w-8 min-h-8 flex items-center justify-center font-bold text-xs shrink-0 aspect-square">
                   {avatarText}
                 </div>
                 <span className="text-sm font-medium text-gray-500">

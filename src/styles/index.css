@@ -24,9 +24,9 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Touch-friendly: tránh zoom khi double-tap trên iOS */
+/* Touch-friendly: tránh zoom khi double-tap trên iOS (trừ .ant-switch để giữ dạng ngang) */
 @media (pointer: coarse) {
-  button, a, [role="button"] {
+  button:not(.ant-switch), a, [role="button"]:not(.ant-switch) {
     min-height: 44px;
   }
 }
@@ -95,4 +95,27 @@ body {
   border-color: #3b82f6 !important;
   outline: 1px solid #3b82f6;
   outline-offset: -1px;
+}
+
+/* Ant Design Switch: bắt buộc dạng NGANG (pill), không vuông */
+.ant-switch {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  line-height: 0 !important;
+}
+.ant-switch .ant-switch-handle {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  border-radius: 50% !important;
+  top: 2px !important;
+}
+.ant-switch .ant-switch-inner {
+  margin: 0 !important;
 }

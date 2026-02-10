@@ -22,6 +22,7 @@ import { getOrganizations } from "../services/organizationService";
 import type { IOrganization } from "../services/organizationService";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "antd";
+import { PageHeader } from "../components/PageHeader";
 
 ChartJS.register(
   ArcElement,
@@ -261,52 +262,54 @@ export const StatisticsPage: React.FC = () => {
 
   return (
     <div className="mx-2 sm:mx-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 my-4">
-        <h2 className="text-xl font-bold">Thống kê</h2>
-        {isSuperAdmin && organizations.length > 0 && (
-          <div className="relative" ref={filterDropdownRef}>
-            <Button
-              onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
-              className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 border-0 flex items-center gap-2"
-            >
-              <i className="bi bi-funnel-fill text-xs" />
-              Lọc theo tổ chức
-              <i className="bi bi-caret-down-fill text-xs" />
-            </Button>
-            {openFilterDropdown && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilterOrgId("");
-                    setOpenFilterDropdown(false);
-                  }}
-                  className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors ${
-                    filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
-                  }`}
-                >
-                  Tất cả tổ chức
-                </button>
-                {organizations.map((org) => (
+      <PageHeader
+        title="Thống kê"
+        createButton={
+          isSuperAdmin && organizations.length > 0 ? (
+            <div className="relative" ref={filterDropdownRef}>
+              <Button
+                onClick={() => setOpenFilterDropdown(!openFilterDropdown)}
+                className="h-9 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 border-0 flex items-center gap-2"
+              >
+                <i className="bi bi-funnel-fill text-xs" />
+                Lọc theo tổ chức
+                <i className="bi bi-caret-down-fill text-xs" />
+              </Button>
+              {openFilterDropdown && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
                   <button
-                    key={org.id}
                     type="button"
                     onClick={() => {
-                      setFilterOrgId(org.id ?? "");
+                      setFilterOrgId("");
                       setOpenFilterDropdown(false);
                     }}
-                    className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors border-t border-gray-100 ${
-                      filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                    className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors ${
+                      filterOrgId === "" ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
                     }`}
                   >
-                    {org.name}
+                    Tất cả tổ chức
                   </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+                  {organizations.map((org) => (
+                    <button
+                      key={org.id}
+                      type="button"
+                      onClick={() => {
+                        setFilterOrgId(org.id ?? "");
+                        setOpenFilterDropdown(false);
+                      }}
+                      className={`flex items-center w-full px-4 py-2.5 text-sm text-left hover:bg-blue-50 transition-colors border-t border-gray-100 ${
+                        filterOrgId === org.id ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"
+                      }`}
+                    >
+                      {org.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : undefined
+        }
+      />
 
       <div className="mt-6 bg-white p-4 rounded shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b pb-3">
