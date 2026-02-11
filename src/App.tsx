@@ -173,10 +173,13 @@ export default function App() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!sessionStorage.getItem("audio-permission") && !isLoginPage) {
+    if (isLoginPage || !user) return;
+    if (["Admin", "SuperAdmin"].includes(user.role || "") || user.is_floor_account === true)
+      return;
+    if (!sessionStorage.getItem("audio-permission")) {
       setAudioModalOpen(true);
     }
-  }, [isLoginPage]);
+  }, [isLoginPage, user]);
 
   useEffect(() => {
     const removeListener = appService.addStateListener(() => { });
@@ -560,7 +563,11 @@ export default function App() {
       </div>
 
       <AudioPermissionModal
-        isOpen={audioModalOpen}
+        isOpen={
+          audioModalOpen &&
+          !["Admin", "SuperAdmin"].includes(user?.role || "") &&
+          user?.is_floor_account !== true
+        }
         onConfirm={handleConfirmAudioPermission}
       />
 

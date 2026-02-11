@@ -13,14 +13,27 @@ export const useNetworkStatus = (): UseNetworkStatusReturn => {
   });
 
   useEffect(() => {
-    networkService.getStatus().then(setStatus);
+    const applyStatus = (newStatus: NetworkStatus) => {
+      setStatus((prev) =>
+        prev.connected !== newStatus.connected || prev.connectionType !== newStatus.connectionType
+          ? newStatus
+          : prev
+      );
+    };
 
-    const removeListener = networkService.addListener((newStatus) => {
-      setStatus(newStatus);
-    });
+    networkService.getStatus().then(applyStatus);
+
+    const removeListener = networkService.addListener(applyStatus);
+
+    // Polling: trình duyệt thường không fire "offline" khi mất mạng (WiFi vẫn bật nhưng mất internet)
+    const pollMs = 2000;
+    const interval = setInterval(() => {
+      networkService.getStatus().then(applyStatus);
+    }, pollMs);
 
     return () => {
       removeListener();
+      clearInterval(interval);
     };
   }, []);
 

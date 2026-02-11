@@ -10,6 +10,11 @@ const AudioPermissionWrapper: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (!user) return;
+    if (
+      ["Admin", "SuperAdmin"].includes(user.role || "") ||
+      user.is_floor_account === true
+    )
+      return;
 
     const navEntry = performance.getEntriesByType(
       "navigation"
