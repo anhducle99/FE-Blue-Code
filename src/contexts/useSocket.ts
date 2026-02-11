@@ -96,7 +96,6 @@ const cleanupSocket = (): void => {
 
 export const useSocket = (user: RegisterData | null) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  // state thực tế của incomingCall
   const [incomingCall, setIncomingCallState] = useState<IncomingCallData | null>(
     null
   );
@@ -177,7 +176,6 @@ export const useSocket = (user: RegisterData | null) => {
           prev && now - lastIncomingTimeRef.current < MERGE_WINDOW_MS;
         lastIncomingTimeRef.current = now;
 
-        // Cuộc gọi đầu tiên hoặc ngoài window gộp -> reset danh sách
         if (!prev || !shouldMerge) {
           return {
             ...data,
@@ -190,7 +188,6 @@ export const useSocket = (user: RegisterData | null) => {
           prev.callers && prev.callers.length > 0
             ? prev.callers
             : [{ callId: prev.callId, fromDept: prev.fromDept, status: "pending" }];
-        // Tránh trùng callId nếu server gửi lại
         const exists = prevCallers.some((c) => c.callId === data.callId);
         const mergedCallers = exists
           ? prevCallers

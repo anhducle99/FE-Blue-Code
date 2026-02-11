@@ -71,7 +71,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         });
       }
       stopAudio();
-      setIncomingCall(); // clear toàn bộ nếu user không thao tác gì
+      setIncomingCall();
     }, 15000);
 
     return () => {
@@ -101,7 +101,6 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       );
       
       if (data.status === "cancelled" || (data.status === "rejected" && isCurrentUser)) {
-        // Cập nhật trạng thái cuộc gọi tương ứng; nếu không còn cuộc pending thì đóng modal
         setIncomingCall((prev) => {
           if (!prev) return null;
           const prevCallers =
@@ -191,7 +190,6 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         timeoutRef.current = null;
       }
 
-      // Sau khi mình nhận một cuộc gọi, đóng luôn modal
       setIncomingCall((prev) => {
         stopAudio();
         return null;
@@ -237,7 +235,6 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         timeoutRef.current = null;
       }
 
-      // Cập nhật trạng thái: gạch/xám cuộc gọi bị từ chối, các cuộc còn lại vẫn bấm được
       setIncomingCall((prev) => {
         if (!prev) return null;
         const prevCallers =
