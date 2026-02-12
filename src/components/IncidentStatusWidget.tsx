@@ -45,6 +45,8 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   const { incidents, lastSocketUpdate } = useIncidents();
   const { user } = useAuth();
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
+  /** Cache orgId từ lần fetch users/departments để không gọi getUsers() trong mỗi lần fetch callHistory. */
+  const [resolvedOrgId, setResolvedOrgId] = useState<number | undefined>(undefined);
   const [callLogs, setCallLogs] = useState<ICallLog[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const d = new Date();
@@ -58,24 +60,30 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
 
       try {
         const isSuperAdmin = user.role === "SuperAdmin";
-        
+
         const [usersResponse, departmentsResponse] = await Promise.all([
-          getUsers(),
-          getDepartments(),
+          getUsers(isSuperAdmin && superAdminOrgFilterId !== undefined && superAdminOrgFilterId !== ""
+            ? { organization_id: typeof superAdminOrgFilterId === "number" ? superAdminOrgFilterId : Number(superAdminOrgFilterId) }
+            : undefined),
+          getDepartments(isSuperAdmin && superAdminOrgFilterId !== undefined && superAdminOrgFilterId !== ""
+            ? { organization_id: typeof superAdminOrgFilterId === "number" ? superAdminOrgFilterId : Number(superAdminOrgFilterId) }
+            : undefined),
         ]);
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : [];
         const departments = Array.isArray(departmentsResponse.data?.data)
           ? departmentsResponse.data.data
           : [];
-        
+
         if (isSuperAdmin) {
           const normalizedNames = new Set<string>();
           users.forEach((u) => normalizedNames.add(normalizeName(u.name)));
           departments.forEach((d) => d.name && normalizedNames.add(normalizeName(d.name)));
           setOrganizationUserNames(normalizedNames);
+          setResolvedOrgId(undefined);
         } else {
           const currentUserFromApi = users.find((u) => u.id === user.id);
           const orgId = currentUserFromApi?.organization_id;
+          setResolvedOrgId(orgId);
 
           if (!orgId) {
             setOrganizationUserNames(new Set());
@@ -92,11 +100,12 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
       } catch (error) {
         console.error("Error fetching users/departments:", error);
         setOrganizationUserNames(new Set());
+        setResolvedOrgId(undefined);
       }
     };
 
     fetchData();
-  }, [user]);
+  }, [user, superAdminOrgFilterId]);
 
   useEffect(() => {
     const fetchCallLogs = async () => {
@@ -104,20 +113,16 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
 
       try {
         const isSuperAdmin = user.role === "SuperAdmin";
-    
-        let orgId: number | undefined = undefined;
-        
-        if (isSuperAdmin) {
-          if (superAdminOrgFilterId !== undefined && superAdminOrgFilterId !== "") {
-            orgId = typeof superAdminOrgFilterId === "number" ? superAdminOrgFilterId : parseInt(superAdminOrgFilterId);
-          }
-        } else {
-          const currentUserFromApi = await getUsers().then(res => 
-            Array.isArray(res.data) ? res.data.find((u: any) => u.id === user.id) : null
-          );
-          orgId = currentUserFromApi?.organization_id;
 
-          if (!orgId) {
+        let orgId: number | undefined;
+
+        if (isSuperAdmin) {
+          orgId = superAdminOrgFilterId !== undefined && superAdminOrgFilterId !== ""
+            ? (typeof superAdminOrgFilterId === "number" ? superAdminOrgFilterId : parseInt(String(superAdminOrgFilterId), 10))
+            : undefined;
+        } else {
+          orgId = resolvedOrgId;
+          if (orgId === undefined) {
             setCallLogs([]);
             return;
           }
@@ -129,17 +134,12 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
         endDate.setHours(23, 59, 59, 999);
 
         const filters = {
-          bat_dau: startDate.toISOString().split('T')[0],
-          ket_thuc: endDate.toISOString().split('T')[0],
+          bat_dau: startDate.toISOString().split("T")[0],
+          ket_thuc: endDate.toISOString().split("T")[0],
           organization_id: orgId,
         };
-        
-        
-        const logs = await getCallHistory(filters);
-        
-        if (logs.length > 0) {
-        }
 
+        const logs = await getCallHistory(filters);
         setCallLogs(logs);
       } catch (error) {
         console.error("Error fetching call logs:", error);
@@ -148,7 +148,7 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
     };
 
     fetchCallLogs();
-  }, [user, selectedDate, superAdminOrgFilterId, lastSocketUpdate]);
+  }, [user, selectedDate, superAdminOrgFilterId, lastSocketUpdate, resolvedOrgId]);
 
   const filteredIncidents = useMemo(() => {
     const isSuperAdmin = user?.role === "SuperAdmin";

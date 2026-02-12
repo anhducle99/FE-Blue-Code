@@ -100,7 +100,7 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         targetUser.toLowerCase().trim() === user.name.toLowerCase().trim()
       );
       
-      if (data.status === "cancelled" || (data.status === "rejected" && isCurrentUser)) {
+      if (data.status === "cancelled" || data.status === "rejected") {
         setIncomingCall((prev) => {
           if (!prev) return null;
           const prevCallers =
@@ -137,20 +137,27 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
         });
 
         if (user?.department_name || user?.name) {
-          addIncident({
-            source: (user.department_name || user.name || "").toUpperCase(),
-            type: "call_rejected",
-            status: "info",
-            message:
-              data.status === "cancelled"
-                ? `Cuộc gọi đã bị hủy${
-                    incomingCall.message ? ` - ${incomingCall.message}` : ""
-                  }`
-                : `Bạn đã từ chối một cuộc gọi${
-                    incomingCall.message ? ` - ${incomingCall.message}` : ""
-                  }`,
-            callType: "rejected",
-          });
+          if (data.status === "cancelled") {
+            addIncident({
+              source: (user.department_name || user.name || "").toUpperCase(),
+              type: "call_rejected",
+              status: "info",
+              message: `Cuộc gọi đã bị hủy${
+                incomingCall.message ? ` - ${incomingCall.message}` : ""
+              }`,
+              callType: "rejected",
+            });
+          } else if (isCurrentUser) {
+            addIncident({
+              source: (user.department_name || user.name || "").toUpperCase(),
+              type: "call_rejected",
+              status: "info",
+              message: `Bạn đã từ chối một cuộc gọi${
+                incomingCall.message ? ` - ${incomingCall.message}` : ""
+              }`,
+              callType: "rejected",
+            });
+          }
         }
       }
     };

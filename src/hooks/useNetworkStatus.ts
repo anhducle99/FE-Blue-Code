@@ -25,15 +25,34 @@ export const useNetworkStatus = (): UseNetworkStatusReturn => {
 
     const removeListener = networkService.addListener(applyStatus);
 
-    // Polling: trình duyệt thường không fire "offline" khi mất mạng (WiFi vẫn bật nhưng mất internet)
-    const pollMs = 2000;
-    const interval = setInterval(() => {
-      networkService.getStatus().then(applyStatus);
-    }, pollMs);
+    const pollMs = 6000;
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (intervalId != null) return;
+      intervalId = setInterval(() => {
+        if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+        networkService.getStatus().then(applyStatus);
+      }, pollMs);
+    };
+    const stopPolling = () => {
+      if (intervalId != null) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+    };
+
+    if (typeof document !== "undefined" && document.visibilityState === "visible") startPolling();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") startPolling();
+      else stopPolling();
+    };
+    document.addEventListener?.("visibilitychange", onVisibilityChange);
 
     return () => {
       removeListener();
-      clearInterval(interval);
+      stopPolling();
+      document.removeEventListener?.("visibilitychange", onVisibilityChange);
     };
   }, []);
 
