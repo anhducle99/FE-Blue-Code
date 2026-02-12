@@ -6,15 +6,7 @@ import { getUsers, IUser } from "../services/userService";
 import { getDepartments, IDepartment } from "../services/departmentService";
 import { getOrganizations } from "../services/organizationService";
 import type { IOrganization } from "../services/organizationService";
-import {
-  getIncidentCases,
-  IIncidentCase,
-  acceptIncident,
-  releaseIncident,
-  HandlerStatus,
-} from "../services/incidentCaseService";
-import { getGlobalSocket } from "../contexts/useSocket";
-import { message } from "antd";
+// import { getIncidentCases, IIncidentCase, acceptIncident, releaseIncident, HandlerStatus } from "../services/incidentCaseService";
 
 interface IncidentSidebarProps {
   isOpen: boolean;
@@ -38,7 +30,7 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   superAdminOrgFilterId: propFilterOrgId,
   onSuperAdminOrgFilterChange,
 }) => {
-  const { incidents, filter, setFilter, clearIncidents, lastSocketUpdate } = useIncidents();
+  const { incidents, filter, setFilter, clearIncidents } = useIncidents();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "SuperAdmin";
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,11 +41,6 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   const [openFilterDropdown, setOpenFilterDropdown] = useState(false);
   const [expandedCallIds, setExpandedCallIds] = useState<Set<string>>(new Set());
   const filterDropdownRef = useRef<HTMLDivElement | null>(null);
-  const [incidentCases, setIncidentCases] = useState<IIncidentCase[]>([]);
-  const [loadingIncidentCases, setLoadingIncidentCases] = useState(false);
-  const [expandedIncidentIds, setExpandedIncidentIds] = useState<Set<number>>(new Set());
-  const [acceptingId, setAcceptingId] = useState<number | null>(null);
-  const [releasingKey, setReleasingKey] = useState<string | null>(null);
 
   const toggleExpanded = (callId: string) => {
     setExpandedCallIds((prev) => {
@@ -156,52 +143,6 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
 
     fetchData();
   }, [user, isSuperAdmin, filterOrgId]);
-
-  useEffect(() => {
-    if (!isOpen || !user) return;
-    if (isSuperAdmin && filterOrgId === "") {
-      setIncidentCases([]);
-      return;
-    }
-    const orgId = isSuperAdmin && filterOrgId !== "" ? (filterOrgId as number) : undefined;
-    setLoadingIncidentCases(true);
-    getIncidentCases({ organization_id: orgId })
-      .then((list) => setIncidentCases(list))
-      .catch((err) => {
-        setIncidentCases([]);
-        const msg = err?.response?.data?.message || err?.message;
-        if (msg) message.error(msg);
-      })
-      .finally(() => setLoadingIncidentCases(false));
-  }, [isOpen, user, isSuperAdmin, filterOrgId, lastSocketUpdate]);
-
-  useEffect(() => {
-    const socket = getGlobalSocket();
-    if (!socket) return;
-    const handle = (payload: { handlerKey: string; incidentCaseId: number | null; status: HandlerStatus }) => {
-      setIncidentCases((prev) =>
-        prev.map((c) => ({
-          ...c,
-          handlers: c.handlers.map((h) => {
-            if (h.handlerKey !== payload.handlerKey) return h;
-            if (payload.status === "available") return { ...h, status: "available" as HandlerStatus };
-            if (payload.incidentCaseId === c.id) return { ...h, status: "handling_this_incident" as HandlerStatus };
-            return { ...h, status: "handling_other_incident" as HandlerStatus };
-          }),
-        }))
-      );
-    };
-    socket.on("handlerStatusChange", handle);
-    return () => {
-      socket.off("handlerStatusChange", handle);
-    };
-  }, []);
-
-  const getHandlerStatusLabel = (status: HandlerStatus): string => {
-    if (status === "available") return "đang rảnh";
-    if (status === "handling_this_incident") return "đang xử lý sự cố này";
-    return "đang xử lý sự cố khác";
-  };
 
   const organizationFilteredIncidents = useMemo(() => {
     if (isSuperAdmin) return incidents;
