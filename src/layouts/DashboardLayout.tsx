@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import { Sidebar } from "../components/Sidebar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Button } from "antd";
+import { Button, Modal } from "antd";
+import ZaloLinkButton from "../components/ZaloLinkButton";
 
 export const DashboardLayout: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [zaloModalOpen, setZaloModalOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const dropdownRef = useRef<HTMLDivElement | null>(null);
@@ -68,7 +70,17 @@ export const DashboardLayout: React.FC = () => {
               </Button>
 
               {dropdownOpen && (
-                <div className="absolute top-full right-0 mt-2 w-40 bg-white border rounded shadow z-50">
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white border rounded shadow z-50">
+                  <Button
+                    onClick={() => { setZaloModalOpen(true); setDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                    </svg>
+                    Thông báo Zalo
+                  </Button>
+                  <div className="border-t border-gray-100" />
                   <Button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
@@ -87,6 +99,16 @@ export const DashboardLayout: React.FC = () => {
           </main>
         </div>
       </div>
+
+      <Modal
+        title="Liên kết Zalo - Nhận thông báo sự cố"
+        open={zaloModalOpen}
+        onCancel={() => setZaloModalOpen(false)}
+        footer={null}
+        width={400}
+      >
+        <ZaloLinkButton />
+      </Modal>
     </div>
   );
 };

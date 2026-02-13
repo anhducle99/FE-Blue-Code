@@ -7,6 +7,7 @@ import { StatisticsPage } from "./pages/StatisticsPage";
 import { DepartmentManagementPage } from "./pages/DepartmentManagementPage";
 import { OrganizationManagementPage } from "./pages/OrganizationManagementPage";
 import { UsersPage } from "./pages/UsersPage";
+import ZaloSettingsPage from "./pages/ZaloSettingsPage";
 import { DepartmentProvider } from "./contexts/DepartmentContext";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 import LoginPage from "./pages/LoginPage";
@@ -131,6 +132,7 @@ root.render(
                               element={<OrganizationManagementPage />}
                             />
                             <Route path="usersPage" element={<UsersPage />} />
+                            <Route path="zalo" element={<ZaloSettingsPage />} />
                           </Route>
                           <Route path="*" element={<div>404 - Not Found</div>} />
                         </Routes>
