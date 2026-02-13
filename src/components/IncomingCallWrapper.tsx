@@ -101,6 +101,10 @@ const IncomingCallWrapper: React.FC<{ children: React.ReactNode }> = ({
       );
       
       if (data.status === "cancelled" || data.status === "rejected") {
+        if (data.status === "rejected" && !isCurrentUser) {
+          return;
+        }
+
         setIncomingCall((prev) => {
           if (!prev) return null;
           const prevCallers =
