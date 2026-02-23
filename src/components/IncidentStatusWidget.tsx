@@ -45,7 +45,6 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   const { incidents, lastSocketUpdate } = useIncidents();
   const { user } = useAuth();
   const [organizationUserNames, setOrganizationUserNames] = useState<Set<string>>(new Set());
-  /** Cache orgId từ lần fetch users/departments để không gọi getUsers() trong mỗi lần fetch callHistory. */
   const [resolvedOrgId, setResolvedOrgId] = useState<number | undefined>(undefined);
   const [callLogs, setCallLogs] = useState<ICallLog[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
