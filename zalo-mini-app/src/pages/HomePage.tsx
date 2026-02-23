@@ -1,11 +1,39 @@
-import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import auth from '../services/auth';
+import { getSocket } from '../services/socket';
 import { CallLog } from '../types';
 
 interface HomePageProps {
   onLogout: () => void;
+}
+
+function isSameCallList(prev: CallLog[], next: CallLog[]): boolean {
+  if (prev.length !== next.length) return false;
+
+  for (let i = 0; i < prev.length; i += 1) {
+    if (
+      prev[i].id !== next[i].id ||
+      prev[i].callId !== next[i].callId ||
+      prev[i].status !== next[i].status ||
+      prev[i].fromUser !== next[i].fromUser ||
+      prev[i].toUser !== next[i].toUser ||
+      prev[i].message !== next[i].message ||
+      prev[i].imageUrl !== next[i].imageUrl ||
+      prev[i].createdAt !== next[i].createdAt ||
+      prev[i].acceptedAt !== next[i].acceptedAt ||
+      prev[i].rejectedAt !== next[i].rejectedAt
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function normalize(value?: string | null) {
+  return (value || '').toLowerCase().trim();
 }
 
 function HomePage({ onLogout }: HomePageProps) {
@@ -13,63 +41,131 @@ function HomePage({ onLogout }: HomePageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
-  const [searchParams] = useSearchParams();
+  const [newCallAlert, setNewCallAlert] = useState(false);
+
+  const activeTabRef = useRef(activeTab);
+  const silentReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  activeTabRef.current = activeTab;
 
   const user = auth.getUser();
 
-  useEffect(() => {
-    loadCalls();
-    
-    const callId = searchParams.get('callId');
-    if (callId) {
-      window.location.href = `/call/${callId}`;
+  const loadCalls = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError('');
     }
-  }, [activeTab, searchParams]);
-
-  const loadCalls = async () => {
-    setIsLoading(true);
-    setError('');
 
     try {
-      const response = await api.getMyCalls(activeTab);
+      const response = await api.getMyCalls(activeTabRef.current);
       if (response.success) {
-        setCalls(response.data);
-      } else {
-        setError(response.message || 'Không thể tải danh sách');
+        setCalls((prev) => (isSameCallList(prev, response.data) ? prev : response.data));
+      } else if (!silent) {
+        setError(response.message || 'Khong the tai danh sach');
       }
     } catch (err: any) {
-      setError('Lỗi kết nối: ' + err.message);
+      if (!silent) {
+        setError('Loi ket noi: ' + err.message);
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const scheduleSilentReload = useCallback(() => {
+    if (silentReloadTimerRef.current) return;
+
+    silentReloadTimerRef.current = setTimeout(() => {
+      silentReloadTimerRef.current = null;
+      void loadCalls(true);
+    }, 200);
+  }, [loadCalls]);
+
+  useEffect(() => {
+    void loadCalls();
+  }, [activeTab, loadCalls]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const isMine = (target?: string | null) => {
+      const targetName = normalize(target);
+      const currentUserName = normalize(user?.name);
+      return targetName !== '' && targetName === currentUserName;
+    };
+
+    const onNewCall = (data: any) => {
+      if (isMine(data?.to_user || data?.toUser || data?.toDept)) {
+        setNewCallAlert(true);
+        scheduleSilentReload();
+      }
+    };
+
+    const onStatusUpdate = (data: any) => {
+      if (isMine(data?.to_user || data?.toUser || data?.toDept)) {
+        scheduleSilentReload();
+      }
+    };
+
+    socket.on('callLogCreated', onNewCall);
+    socket.on('callLogUpdated', onStatusUpdate);
+    socket.on('callStatusUpdate', onStatusUpdate);
+
+    return () => {
+      socket.off('callLogCreated', onNewCall);
+      socket.off('callLogUpdated', onStatusUpdate);
+      socket.off('callStatusUpdate', onStatusUpdate);
+    };
+  }, [user?.name, scheduleSilentReload]);
+
+  useEffect(() => {
+    return () => {
+      if (silentReloadTimerRef.current) {
+        clearTimeout(silentReloadTimerRef.current);
+        silentReloadTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return '#ff9800';
-      case 'accepted': return '#4caf50';
-      case 'rejected': return '#f44336';
-      case 'timeout': return '#9e9e9e';
-      case 'cancelled': return '#9e9e9e';
-      default: return '#666';
+      case 'pending':
+        return '#ff9800';
+      case 'accepted':
+        return '#4caf50';
+      case 'rejected':
+        return '#f44336';
+      case 'timeout':
+      case 'cancelled':
+        return '#9e9e9e';
+      default:
+        return '#666';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Chờ xử lý';
-      case 'accepted': return 'Đã nhận';
-      case 'rejected': return 'Đã từ chối';
-      case 'timeout': return 'Hết hạn';
-      case 'cancelled': return 'Đã hủy';
-      default: return status;
+      case 'pending':
+        return 'Cho xu ly';
+      case 'accepted':
+        return 'Da nhan';
+      case 'rejected':
+        return 'Da tu choi';
+      case 'timeout':
+        return 'Het han';
+      case 'cancelled':
+        return 'Da huy';
+      default:
+        return status;
     }
   };
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('vi-VN', {
+      hour: '2-digit',
       minute: '2-digit',
       day: '2-digit',
       month: '2-digit',
@@ -78,20 +174,18 @@ function HomePage({ onLogout }: HomePageProps) {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.headerTitle}>🚨 BlueCode</h1>
-          <p style={styles.userName}>Xin chào, {user?.name}</p>
+          <h1 style={styles.headerTitle}>BlueCode</h1>
+          <p style={styles.userName}>Xin chao, {user?.name}</p>
         </div>
         <button onClick={onLogout} style={styles.logoutBtn}>
-          Đăng xuất
+          Dang xuat
         </button>
       </div>
 
-      {/* Tabs */}
       <div style={styles.tabs}>
-        <button 
+        <button
           onClick={() => setActiveTab('pending')}
           style={{
             ...styles.tab,
@@ -99,9 +193,9 @@ function HomePage({ onLogout }: HomePageProps) {
             color: activeTab === 'pending' ? 'white' : '#666',
           }}
         >
-          Chờ xử lý {activeTab === 'pending' && calls.length > 0 && `(${calls.length})`}
+          Cho xu ly {activeTab === 'pending' && calls.length > 0 && `(${calls.length})`}
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('all')}
           style={{
             ...styles.tab,
@@ -109,65 +203,66 @@ function HomePage({ onLogout }: HomePageProps) {
             color: activeTab === 'all' ? 'white' : '#666',
           }}
         >
-          Tất cả
+          Tat ca
         </button>
       </div>
 
-      {/* Content */}
+      {newCallAlert && (
+        <div
+          onClick={() => {
+            setNewCallAlert(false);
+            scheduleSilentReload();
+          }}
+          style={styles.newCallBanner}
+        >
+          Co cuoc goi moi! Nhan de lam moi.
+        </div>
+      )}
+
       <div style={styles.content}>
         {isLoading ? (
           <div style={styles.center}>
             <div style={styles.spinner}></div>
-            <p>Đang tải...</p>
+            <p>Dang tai...</p>
           </div>
         ) : error ? (
           <div style={styles.center}>
             <p style={styles.error}>{error}</p>
-            <button onClick={loadCalls} style={styles.retryBtn}>
-              Thử lại
+            <button onClick={() => loadCalls()} style={styles.retryBtn}>
+              Thu lai
             </button>
           </div>
         ) : calls.length === 0 ? (
           <div style={styles.center}>
-            <div style={styles.emptyIcon}>📭</div>
-            <p style={styles.emptyText}>
-              {activeTab === 'pending' 
-                ? 'Không có cuộc gọi nào đang chờ' 
-                : 'Chưa có cuộc gọi nào'}
-            </p>
+            <div style={styles.emptyIcon}>No data</div>
+            <p style={styles.emptyText}>{activeTab === 'pending' ? 'Khong co cuoc goi dang cho' : 'Chua co cuoc goi nao'}</p>
           </div>
         ) : (
           <div style={styles.callList}>
             {calls.map((call) => (
-              <Link 
-                key={call.id} 
-                to={`/call/${call.callId}`}
-                style={styles.callCard}
-              >
+              <Link key={call.id} to={`/call/${call.callId}`} style={styles.callCard}>
                 <div style={styles.callHeader}>
                   <span style={styles.callId}>#{call.callId.slice(-6)}</span>
-                  <span style={{
-                    ...styles.status,
-                    background: getStatusColor(call.status),
-                  }}>
+                  <span
+                    style={{
+                      ...styles.status,
+                      background: getStatusColor(call.status),
+                    }}
+                  >
                     {getStatusText(call.status)}
                   </span>
                 </div>
-                
+
                 <div style={styles.callBody}>
                   <p style={styles.fromUser}>
-                    <strong>Từ:</strong> {call.fromUser}
+                    <strong>Tu:</strong> {call.fromUser}
                   </p>
-                  {call.message && (
-                    <p style={styles.message}>{call.message}</p>
-                  )}
+                  {call.message && <p style={styles.message}>{call.message}</p>}
                 </div>
 
                 <div style={styles.callFooter}>
                   <span style={styles.time}>{formatTime(call.createdAt)}</span>
-                  {call.status === 'pending' && (
-                    <span style={styles.actionHint}>Nhấn để xử lý →</span>
-                  )}
+                  {call.status === 'pending' && <span style={styles.actionHint}>Nhan de xu ly {'->'}</span>}
                 </div>
               </Link>
             ))}
@@ -256,7 +351,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
   },
   emptyIcon: {
-    fontSize: '48px',
+    fontSize: '24px',
     marginBottom: '16px',
   },
   emptyText: {
@@ -324,6 +419,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '12px',
     color: '#0365af',
     fontWeight: '500',
+  },
+  newCallBanner: {
+    background: '#ff5722',
+    color: 'white',
+    textAlign: 'center',
+    padding: '12px 16px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    animation: 'pulse 1.5s infinite',
   },
 };
 

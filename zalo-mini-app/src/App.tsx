@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import auth from './services/auth';
+import { connectSocket, disconnectSocket } from './services/socket';
 import HomePage from './pages/HomePage';
 import CallDetailPage from './pages/CallDetailPage';
 import LoginPage from './pages/LoginPage';
@@ -8,23 +9,40 @@ import LoginPage from './pages/LoginPage';
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [deepLinkCallId, setDeepLinkCallId] = useState<string | null>(null);
 
   useEffect(() => {
     checkAuth();
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      connectSocket();
+    } else {
+      disconnectSocket();
+    }
+    return () => { disconnectSocket(); };
+  }, [isAuthenticated]);
+
   const checkAuth = async () => {
+    const callIdFromUrl = new URLSearchParams(window.location.search).get('callId');
     const isAuth = await auth.init();
+    const pendingCallId = auth.getPendingCallId() || callIdFromUrl;
+    if (pendingCallId) setDeepLinkCallId(pendingCallId);
     setIsAuthenticated(isAuth);
     setIsLoading(false);
   };
 
   const handleLogin = () => {
+    const pendingCallId = auth.getPendingCallId();
+    if (pendingCallId) setDeepLinkCallId(pendingCallId);
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
+    disconnectSocket();
     auth.logout();
+    setDeepLinkCallId(null);
     setIsAuthenticated(false);
   };
 
@@ -44,7 +62,7 @@ function App() {
           path="/login" 
           element={
             isAuthenticated ? 
-              <Navigate to="/" replace /> : 
+              <Navigate to={deepLinkCallId ? `/call/${deepLinkCallId}` : "/"} replace /> : 
               <LoginPage onLogin={handleLogin} />
           } 
         />
@@ -52,7 +70,7 @@ function App() {
           path="/" 
           element={
             isAuthenticated ? 
-              <HomePage onLogout={handleLogout} /> : 
+              (deepLinkCallId ? <Navigate to={`/call/${deepLinkCallId}`} replace /> : <HomePage onLogout={handleLogout} />) : 
               <Navigate to="/login" replace />
           } 
         />
@@ -60,7 +78,7 @@ function App() {
           path="/call/:callId" 
           element={
             isAuthenticated ? 
-              <CallDetailPage /> : 
+              <CallDetailPage onViewed={() => setDeepLinkCallId(null)} /> : 
               <Navigate to="/login" replace />
           } 
         />

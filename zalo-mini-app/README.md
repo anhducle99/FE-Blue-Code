@@ -2,6 +2,20 @@
 
 Mini App cho phép nhận thông báo sự cố khẩn cấp và phản hồi trực tiếp từ Zalo.
 
+## Flow đăng nhập (handoff token)
+
+Mini app chạy độc lập bằng handoff token:
+
+1. Đăng nhập Dashboard Web.
+2. Mở modal `Mini App Settings` (từ menu avatar).
+3. Bấm `Tạo Link Mini App` để lấy link đăng nhập (hết hạn sau 5 phút).
+4. Mở link đó trên điện thoại → tự đăng nhập và vào thẳng cuộc gọi (nếu có callId).
+
+Endpoint dùng cho flow này:
+
+- `POST /api/mini/auth/handoff-token` (cần token web)
+- `POST /api/mini/auth/handoff` (mini app đổi handoff lấy mini token)
+
 ## 🚀 Cách chạy
 
 ### 1. Cài đặt dependencies
@@ -25,9 +39,9 @@ App sẽ chạy tại: http://localhost:3001
 
 ## 📱 Cách test
 
-### Option 1: Test trên browser (không có Zalo SDK)
-1. Mở http://localhost:3001
-2. Login sẽ tự động dùng mock mode trong development
+### Option 1: Test trên browser (handoff token)
+1. Mở Dashboard Web, tạo handoff token từ modal `Mini App Settings`.
+2. Mở link trên trình duyệt → tự đăng nhập vào mini app.
 
 ### Option 2: Test trên Zalo DevTools (có Zalo SDK đầy đủ)
 1. Cài Zalo Mini App CLI:
@@ -57,15 +71,15 @@ zmp deploy
 ## 🔗 Flow hoạt động
 
 ```
-1. Tạo Call (Dashboard Web)
+1. Đăng nhập Dashboard Web
    ↓
-2. Gửi Zalo OA message kèm deep-link
+2. Tạo handoff token (POST /api/mini/auth/handoff-token)
    ↓
-3. User click link → Mở Mini App
+3. Mở launchUrl trên điện thoại
    ↓
-4. Mini App auto-login với Zalo SDK
+4. Mini App đọc ?handoff=... từ URL → đổi lấy session token
    ↓
-5. Hiển thị call detail
+5. Hiển thị danh sách calls / call detail
    ↓
 6. User nhấn NHẬN/TỪ CHỐI
    ↓
@@ -78,7 +92,9 @@ zmp deploy
 
 | Endpoint | Method | Mô tả |
 |----------|--------|-------|
-| `/api/auth/zalo-login` | POST | Login với Zalo access token |
+| `/api/mini/auth/handoff-token` | POST | Tạo handoff token (cần web token) |
+| `/api/mini/auth/handoff` | POST | Đổi handoff token lấy mini session |
+| `/api/mini/auth/verify` | POST | Verify mini token |
 | `/api/mini/my-calls` | GET | Lấy danh sách calls |
 | `/api/mini/calls/:id` | GET | Lấy chi tiết call |
 | `/api/mini/calls/:id/accept` | POST | Nhận cuộc gọi |
@@ -94,6 +110,6 @@ Output trong thư mục `dist/`, upload lên Zalo Mini App Portal để deploy.
 
 ## 📝 Lưu ý
 
-- User cần **liên kết Zalo** trong Dashboard Web trước khi dùng Mini App
-- Mini App chỉ hoạt động với users đã link Zalo (`zaloVerified: true`)
+- Mini App sử dụng handoff token từ Dashboard Web
+- Handoff token hết hạn sau 5 phút, cần tạo mới nếu hết hạn
 - Trong development, mock mode tự động bật nếu không chạy trong Zalo environment

@@ -36,6 +36,13 @@ class ApiService {
     return response.data;
   }
 
+  async handoffLogin(handoffToken: string) {
+    const response = await this.client.post('/mini/auth/handoff', {
+      handoffToken,
+    });
+    return response.data;
+  }
+
   async verifyToken() {
     const response = await this.client.post('/mini/auth/verify');
     return response.data;

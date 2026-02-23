@@ -6,9 +6,10 @@ import { Button } from "antd";
 export interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenMiniApp?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpenMiniApp }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -105,6 +106,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
             {showDropdown && (
               <div className="absolute top-full right-0 mt-2 w-40 bg-white border rounded shadow z-50">
+                <Button
+                  onClick={() => {
+                    onOpenMiniApp?.();
+                    setShowDropdown(false);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 border-b border-gray-100"
+                >
+                  <i className="bi bi-phone" /> Mini App
+                </Button>
                 <Button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"

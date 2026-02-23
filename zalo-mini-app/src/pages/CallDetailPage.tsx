@@ -1,22 +1,68 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import auth from '../services/auth';
+import { getSocket } from '../services/socket';
 import { CallLog } from '../types';
 
-function CallDetailPage() {
+interface CallDetailPageProps {
+  onViewed?: () => void;
+}
+
+function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
   const { callId } = useParams<{ callId: string }>();
   const navigate = useNavigate();
-  
+  const user = auth.getUser();
+
   const [call, setCall] = useState<CallLog | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const callRef = useRef(call);
+  callRef.current = call;
 
   useEffect(() => {
     if (callId) {
       loadCallDetail();
+      onViewed?.();
     }
   }, [callId]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket || !callId) return;
+
+    const onStatusUpdate = (data: { callId: string; toUser?: string; toDept?: string; status: string }) => {
+      if (data.callId !== callId) return;
+      const target = data.toUser || data.toDept;
+      if (target && user?.name && target.toLowerCase().trim() === user.name.toLowerCase().trim()) {
+        setCall((prev) => prev ? { ...prev, status: data.status as CallLog['status'] } : prev);
+      }
+    };
+
+    const onLogUpdated = (data: any) => {
+      if (!data) return;
+      const logCallId = data.call_id || data.callId;
+      if (logCallId !== callId) return;
+      const target = data.to_user || data.toUser;
+      if (target && user?.name && target.toLowerCase().trim() === user.name.toLowerCase().trim()) {
+        setCall((prev) => prev ? {
+          ...prev,
+          status: data.status as CallLog['status'],
+          acceptedAt: data.accepted_at || data.acceptedAt || prev.acceptedAt,
+          rejectedAt: data.rejected_at || data.rejectedAt || prev.rejectedAt,
+        } : prev);
+      }
+    };
+
+    socket.on('callStatusUpdate', onStatusUpdate);
+    socket.on('callLogUpdated', onLogUpdated);
+
+    return () => {
+      socket.off('callStatusUpdate', onStatusUpdate);
+      socket.off('callLogUpdated', onLogUpdated);
+    };
+  }, [callId, user?.name]);
 
   const loadCallDetail = async () => {
     setIsLoading(true);
@@ -137,13 +183,11 @@ function CallDetailPage() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <button onClick={() => navigate('/')} style={styles.backBtn}>← Quay lại</button>
         <h1 style={styles.headerTitle}>Chi tiết cuộc gọi</h1>
       </div>
 
-      {/* Status Banner */}
       <div style={{
         ...styles.statusBanner,
         background: getStatusColor(call.status),
@@ -151,7 +195,6 @@ function CallDetailPage() {
         <p style={styles.statusText}>{getStatusText(call.status)}</p>
       </div>
 
-      {/* Call Info */}
       <div style={styles.content}>
         <div style={styles.infoCard}>
           <div style={styles.infoRow}>
@@ -196,7 +239,6 @@ function CallDetailPage() {
           </div>
         )}
 
-        {/* Action Buttons */}
         {isPending && (
           <div style={styles.actions}>
             <p style={styles.actionText}>Vui lòng phản hồi:</p>
