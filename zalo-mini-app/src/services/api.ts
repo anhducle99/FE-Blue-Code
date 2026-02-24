@@ -23,22 +23,20 @@ class ApiService {
     });
   }
 
-  async zaloLogin(accessToken: string) {
-    const response = await this.client.post('/auth/zalo-login', { accessToken });
-    return response.data;
-  }
-
-  async miniLogin(accessToken: string, mockMode?: boolean) {
-    const response = await this.client.post('/mini/auth/login', { 
-      accessToken,
-      mockMode 
+  async linkWebAccount(linkToken: string, zaloAccessToken: string, zaloUserName?: string) {
+    const response = await this.client.post('/mini/auth/link', {
+      linkToken,
+      zaloAccessToken,
+      zaloUserName,
     });
     return response.data;
   }
 
-  async handoffLogin(handoffToken: string) {
-    const response = await this.client.post('/mini/auth/handoff', {
-      handoffToken,
+  async approveQrLogin(sessionId: string, zaloAccessToken: string, zaloUserName?: string) {
+    const response = await this.client.post('/mini/auth/qr-login/approve', {
+      sessionId,
+      zaloAccessToken,
+      zaloUserName,
     });
     return response.data;
   }

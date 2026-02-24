@@ -1,50 +1,75 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import auth from '../services/auth';
 
 interface LoginPageProps {
-  onLogin: () => void;
+  onLinked: () => void;
 }
 
-function LoginPage({ onLogin }: LoginPageProps) {
-  const [handoffToken, setHandoffToken] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isZaloLoading, setIsZaloLoading] = useState(false);
+function LoginPage({ onLinked }: LoginPageProps) {
+  const [isLinking, setIsLinking] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
 
-  const handleHandoffLogin = async () => {
-    if (!handoffToken.trim()) {
-      setError('Vui long nhap handoff token');
+  useEffect(() => {
+    const qrSession = auth.getQrSessionFromUrl();
+    if (qrSession) {
+      let active = true;
+
+      const runApproveQr = async () => {
+        setIsLinking(true);
+        setError('');
+        setSuccessMessage('');
+
+        const result = await auth.approveQrLoginSession(qrSession);
+        if (!active) return;
+
+        if (result.success) {
+          setSuccessMessage(result.message || 'Da xac nhan dang nhap tren web');
+        } else {
+          setError(result.message || 'Xac nhan dang nhap QR that bai');
+        }
+
+        setIsLinking(false);
+      };
+
+      runApproveQr();
+      return () => {
+        active = false;
+      };
+    }
+
+    const linkToken = auth.getLinkTokenFromUrl();
+    if (!linkToken) {
+      setError('Khong tim thay link token/qrSession. Hay quet QR tu Dashboard Web.');
       return;
     }
 
-    setIsLoading(true);
-    setError('');
+    let active = true;
 
-    const result = await auth.loginWithHandoffToken(handoffToken.trim());
+    const runLink = async () => {
+      setIsLinking(true);
+      setError('');
+      setSuccessMessage('');
 
-    setIsLoading(false);
+      const result = await auth.linkWebAccountWithZalo(linkToken);
+      if (!active) return;
 
-    if (result.success) {
-      onLogin();
-    } else {
-      setError(result.message || 'Dang nhap that bai');
-    }
-  };
+      if (result.success) {
+        setSuccessMessage(result.message || 'Lien ket tai khoan Zalo thanh cong');
+        onLinked();
+      } else {
+        setError(result.message || 'Lien ket tai khoan Zalo that bai');
+      }
 
-  const handleLegacyZaloLogin = async () => {
-    setIsZaloLoading(true);
-    setError('');
+      setIsLinking(false);
+    };
 
-    const result = await auth.loginWithZalo();
+    runLink();
 
-    setIsZaloLoading(false);
-
-    if (result.success) {
-      onLogin();
-    } else {
-      setError(result.message || 'Dang nhap that bai');
-    }
-  };
+    return () => {
+      active = false;
+    };
+  }, [onLinked]);
 
   return (
     <div style={styles.container}>
@@ -52,45 +77,33 @@ function LoginPage({ onLogin }: LoginPageProps) {
         <div style={styles.logo}>
           <div style={styles.icon}>!</div>
           <h1 style={styles.title}>BlueCode Mini App</h1>
-          <p style={styles.subtitle}>Flow khong phu thuoc OA</p>
+          <p style={styles.subtitle}>Lien ket tai khoan Zalo</p>
         </div>
 
         <div style={styles.info}>
-          <p>Tao handoff token tu Dashboard Web, sau do dan vao o duoi de dang nhap.</p>
+          <p>Mo mini app bang QR lien ket tu Dashboard Web de lien ket tai khoan.</p>
+          <p style={{ marginTop: 8 }}>App se tu dong lien ket khi co link token hop le.</p>
         </div>
 
+        {successMessage && <div style={styles.success}>{successMessage}</div>}
         {error && <div style={styles.error}>{error}</div>}
 
-        <input
-          value={handoffToken}
-          onChange={(e) => setHandoffToken(e.target.value)}
-          placeholder="Dan handoff token"
-          style={styles.input}
-        />
-
         <button
-          onClick={handleHandoffLogin}
-          disabled={isLoading}
+          disabled
           style={{
             ...styles.button,
-            opacity: isLoading ? 0.7 : 1,
+            opacity: 0.7,
+            cursor: 'not-allowed',
           }}
         >
-          {isLoading ? 'Dang dang nhap...' : 'Dang nhap bang token'}
+          {isLinking ? 'Dang lien ket...' : 'Dang cho QR/link lien ket...'}
         </button>
 
-        <button
-          onClick={handleLegacyZaloLogin}
-          disabled={isZaloLoading}
-          style={{
-            ...styles.secondaryButton,
-            opacity: isZaloLoading ? 0.7 : 1,
-          }}
-        >
-          {isZaloLoading ? 'Dang dang nhap...' : 'Dang nhap Zalo (legacy)'}
-        </button>
-
-        <p style={styles.note}>Handoff token co han ngan, loi thi tao token moi.</p>
+        <p style={styles.note}>
+          {isLinking
+            ? 'Dang lien ket tai khoan Zalo...'
+            : 'Neu bao loi token, hay tao QR/link moi tren Dashboard Web va quet lai.'}
+        </p>
       </div>
     </div>
   );
@@ -150,14 +163,13 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '16px',
     fontSize: '13px',
   },
-  input: {
-    width: '100%',
-    boxSizing: 'border-box',
+  success: {
+    background: '#e8f5e9',
+    color: '#2e7d32',
     padding: '12px',
-    border: '1px solid #d0d7de',
     borderRadius: '8px',
-    marginBottom: '12px',
-    fontSize: '14px',
+    marginBottom: '16px',
+    fontSize: '13px',
   },
   button: {
     width: '100%',
@@ -170,19 +182,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 'bold',
     cursor: 'pointer',
     transition: 'all 0.2s',
-  },
-  secondaryButton: {
-    width: '100%',
-    padding: '12px',
-    background: '#eef4fb',
-    color: '#0365af',
-    border: '1px solid #c8dbef',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-    marginTop: '10px',
   },
   note: {
     marginTop: '16px',

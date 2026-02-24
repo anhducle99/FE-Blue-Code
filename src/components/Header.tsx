@@ -12,6 +12,12 @@ export default function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const canOpenMiniApp =
+    user?.is_department_account === true &&
+    user?.is_floor_account !== true &&
+    user?.is_admin_view !== true &&
+    user?.role !== "Admin" &&
+    user?.role !== "SuperAdmin";
 
   const toggleDropdown = () => {
     setOpenDropdown((prev) => !prev);
@@ -33,6 +39,11 @@ export default function Header() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleNavigate = (path: string) => {
+    setOpenDropdown(false);
+    navigate(path);
   };
 
   const { isOnline } = useNetworkStatus();
@@ -70,39 +81,43 @@ export default function Header() {
             {openDropdown && (
               <div className="absolute right-0 mt-2 bg-white shadow-lg rounded-xl border border-gray-200 w-48 overflow-hidden">
                 {((user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true) && (
-                  <a
-                    href="/dashboard/history"
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("/dashboard/usersPage")}
                     className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Quan ly tai khoan
-                  </a>
+                  </button>
                 )}
 
-                <a
-                  href="/dashboard/history"
+                <button
+                  type="button"
+                  onClick={() => handleNavigate("/dashboard/history")}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                   </svg>
                   Lich su
-                </a>
-
-                <button
-                  onClick={() => {
-                    setMiniAppModalOpen(true);
-                    setOpenDropdown(false);
-                  }}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100 w-full text-left"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3" />
-                  </svg>
-                  Mini App
                 </button>
+
+                {canOpenMiniApp && (
+                  <button
+                    onClick={() => {
+                      setMiniAppModalOpen(true);
+                      setOpenDropdown(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-tthBlue transition-colors border-b border-gray-100 w-full text-left"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3" />
+                    </svg>
+                    Mini App
+                  </button>
+                )}
 
                 <button
                   onClick={handleLogout}
@@ -119,15 +134,17 @@ export default function Header() {
         </div>
       </header>
 
-      <Modal
-        title="Mini App Settings"
-        open={miniAppModalOpen}
-        onCancel={() => setMiniAppModalOpen(false)}
-        footer={null}
-        width={460}
-      >
-        <MiniAppLaunchCard />
-      </Modal>
+      {canOpenMiniApp && (
+        <Modal
+          title="Mini App Settings"
+          open={miniAppModalOpen}
+          onCancel={() => setMiniAppModalOpen(false)}
+          footer={null}
+          width={460}
+        >
+          <MiniAppLaunchCard />
+        </Modal>
+      )}
     </>
   );
 }

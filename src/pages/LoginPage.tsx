@@ -4,7 +4,6 @@ import { useAuth, User } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { Input, Button } from "antd";
 import { login as loginApi } from "../services/authService";
-import { ApiError } from "../services/api";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +12,38 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const mapApiUser = (apiUser: any): User => {
+    const isAdminView =
+      apiUser.is_admin_view === true ||
+      apiUser.is_admin_view === "true" ||
+      apiUser.is_admin_view === 1;
+
+    const isFloorAccount =
+      apiUser.is_floor_account === true ||
+      apiUser.is_floor_account === "true" ||
+      apiUser.is_floor_account === 1;
+
+    const isDepartmentAccount =
+      apiUser.is_department_account === true ||
+      apiUser.is_department_account === "true" ||
+      apiUser.is_department_account === 1;
+
+    return {
+      id: apiUser.id || 0,
+      name: apiUser.name || "",
+      email: apiUser.email || "",
+      role: (apiUser.role || "User") as "SuperAdmin" | "Admin" | "User",
+      phone: apiUser.phone || "",
+      department_id: apiUser.department_id ?? null,
+      department_name: apiUser.department_name || null,
+      organization_id: apiUser.organization_id ?? null,
+      organization_name: apiUser.organization_name ?? null,
+      is_admin_view: Boolean(isAdminView),
+      is_floor_account: Boolean(isFloorAccount),
+      is_department_account: Boolean(isDepartmentAccount),
+    };
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,46 +54,17 @@ export default function LoginPage() {
       const data = res.data;
 
       if (data.success) {
-        const apiUser = data.data.user as any;
-
-        const isAdminView =
-          apiUser.is_admin_view === true ||
-          apiUser.is_admin_view === "true" ||
-          apiUser.is_admin_view === 1;
-
-        const isFloorAccount =
-          apiUser.is_floor_account === true ||
-          apiUser.is_floor_account === "true" ||
-          apiUser.is_floor_account === 1;
-
-        const userData: User = {
-          id: apiUser.id || 0,
-          name: apiUser.name || "",
-          email: apiUser.email || "",
-          role: (apiUser.role || "User") as "SuperAdmin" | "Admin" | "User",
-          phone: apiUser.phone || "",
-          department_id: apiUser.department_id ?? null,
-          department_name: apiUser.department_name || null,
-          organization_id: apiUser.organization_id ?? null,
-          organization_name: apiUser.organization_name ?? null,
-          is_admin_view: Boolean(isAdminView),
-          is_floor_account: Boolean(isFloorAccount),
-        };
-
-        if (process.env.NODE_ENV === "development") {
-        }
-
+        const userData = mapApiUser(data.data.user as any);
         login(userData, data.data.token);
-        showSuccess("Đăng nhập thành công!");
+        showSuccess("Dang nhap thanh cong");
         navigate("/main", { replace: true });
       } else {
-        showError(data.message || "Sai email hoặc mật khẩu!");
+        showError(data.message || "Sai email hoac mat khau");
       }
     } catch (err: any) {
       const errorData = err?.response?.data;
       const errorMessage =
-        errorData?.message || err?.message || "Không thể kết nối đến server!";
-
+        errorData?.message || err?.message || "Khong the ket noi den server";
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -85,7 +87,7 @@ export default function LoginPage() {
           className="mx-auto w-full max-w-[min(100%,24rem)] sm:max-w-sm lg:w-96 bg-white p-6 sm:p-8 rounded-lg shadow-3xl shadow-gray-700"
         >
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center">
-            Đăng nhập
+            Dang nhap
           </h2>
 
           <div className="mt-4 space-y-6">
@@ -99,7 +101,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
-                          hover:border-gray-300          
+                          hover:border-gray-300
                           focus:border-blue-500 focus:ring-2 focus:ring-blue-500
                           outline-none"
               />
@@ -107,14 +109,14 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-900">
-                Mật khẩu
+                Mat khau
               </label>
               <Input.Password
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
-                          hover:border-gray-300          
+                          hover:border-gray-300
                           focus:border-blue-500 focus:ring-2 focus:ring-blue-500
                           outline-none"
               />
@@ -126,11 +128,13 @@ export default function LoginPage() {
               disabled={loading}
               className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+              {loading ? "Dang dang nhap..." : "Dang nhap"}
             </Button>
           </div>
+
         </form>
       </div>
     </div>
   );
 }
+
