@@ -15,5 +15,15 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    cssCodeSplit: false,
+    rollupOptions: {
+      output: {
+        format: 'iife',
+        inlineDynamicImports: true,
+        entryFileNames: 'assets/index.js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: 'assets/[name][extname]',
+      },
+    },
   },
 });

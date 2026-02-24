@@ -15,6 +15,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpenMiniApp
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+  const canOpenMiniApp =
+    user?.is_department_account === true &&
+    user?.is_floor_account !== true &&
+    user?.is_admin_view !== true &&
+    user?.role !== "Admin" &&
+    user?.role !== "SuperAdmin";
   
 
   useEffect(() => {
@@ -106,15 +112,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, onOpenMiniApp
 
             {showDropdown && (
               <div className="absolute top-full right-0 mt-2 w-40 bg-white border rounded shadow z-50">
-                <Button
-                  onClick={() => {
-                    onOpenMiniApp?.();
-                    setShowDropdown(false);
-                  }}
-                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 border-b border-gray-100"
-                >
-                  <i className="bi bi-phone" /> Mini App
-                </Button>
+                {canOpenMiniApp && (
+                  <Button
+                    onClick={() => {
+                      onOpenMiniApp?.();
+                      setShowDropdown(false);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 border-b border-gray-100"
+                  >
+                    <i className="bi bi-phone" /> Mini App
+                  </Button>
+                )}
                 <Button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"

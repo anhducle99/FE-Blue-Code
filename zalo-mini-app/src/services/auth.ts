@@ -1,54 +1,50 @@
-import { getUserInfo } from 'zmp-sdk';
+import { getAccessToken, getUserInfo } from 'zmp-sdk';
 import api from './api';
-import { AuthResponse, User } from '../types';
+import { User } from '../types';
 
 class AuthService {
   private user: User | null = null;
-  private pendingCallId: string | null = null;
 
-  private saveSession(response: AuthResponse): void {
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    this.user = response.data.user;
-    const callId = (response.data as any).callId;
-    if (callId) {
-      this.pendingCallId = callId;
-    }
-  }
-
-  getPendingCallId(): string | null {
-    const id = this.pendingCallId;
-    this.pendingCallId = null;
-    return id;
-  }
-
-  private getHandoffTokenFromUrl(): string | null {
+  private getParamFromCurrentUrl(paramName: string): string | null {
     if (typeof window === 'undefined') return null;
+
     const url = new URL(window.location.href);
-    return url.searchParams.get('handoff');
+    const fromSearch = url.searchParams.get(paramName);
+    if (fromSearch) return fromSearch;
+
+    // Zalo deeplink sometimes places query after hash (e.g. #/login?linkToken=...).
+    const hash = window.location.hash || '';
+    const queryIndex = hash.indexOf('?');
+    if (queryIndex === -1) return null;
+
+    const hashQuery = hash.slice(queryIndex + 1);
+    const hashParams = new URLSearchParams(hashQuery);
+    return hashParams.get(paramName);
   }
 
-  private clearHandoffParamFromUrl(): void {
+  private saveSession(data: { token: string; user: User }): void {
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    this.user = data.user;
+  }
+
+  getLinkTokenFromUrl(): string | null {
+    return this.getParamFromCurrentUrl('linkToken');
+  }
+
+  getQrSessionFromUrl(): string | null {
+    return this.getParamFromCurrentUrl('qrSession');
+  }
+
+  private clearQueryParamFromUrl(paramName: string): void {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    if (!url.searchParams.has('handoff')) return;
-    url.searchParams.delete('handoff');
+    if (!url.searchParams.has(paramName)) return;
+    url.searchParams.delete(paramName);
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }
 
   async init(): Promise<boolean> {
-    const handoffToken = this.getHandoffTokenFromUrl();
-
-    if (handoffToken) {
-      this.logout();
-      const handoffResult = await this.loginWithHandoffToken(handoffToken);
-      if (handoffResult.success) {
-        this.clearHandoffParamFromUrl();
-        return true;
-      }
-      return false;
-    }
-
     const token = localStorage.getItem('token');
     if (!token) return false;
 
@@ -66,62 +62,62 @@ class AuthService {
     }
   }
 
-  async loginWithHandoffToken(handoffToken: string): Promise<{ success: boolean; message?: string }> {
+  async linkWebAccountWithZalo(linkToken: string): Promise<{ success: boolean; message?: string }> {
     try {
-      const response: AuthResponse = await api.handoffLogin(handoffToken);
+      const { userInfo } = await getUserInfo({});
+      const rawAccessToken = await getAccessToken();
+      const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
-      if (response.success) {
-        this.saveSession(response);
-        return { success: true };
+      if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
+        return { success: false, message: 'Khong lay duoc Zalo access token' };
       }
 
-      return { success: false, message: response.message || 'Khong dang nhap duoc bang handoff token' };
+      const response = await api.linkWebAccount(linkToken, zaloAccessToken, userInfo?.name);
+      if (response.success) {
+        if (!(response?.data?.token && response?.data?.user)) {
+          return { success: false, message: 'Lien ket thanh cong nhung khong tao duoc phien dang nhap. Vui long thu lai.' };
+        }
+        this.saveSession({
+          token: response.data.token,
+          user: response.data.user as User,
+        });
+        this.clearQueryParamFromUrl('linkToken');
+        return { success: true, message: response.message || 'Lien ket thanh cong' };
+      }
+
+      return { success: false, message: response.message || 'Khong the lien ket tai khoan' };
     } catch (error: any) {
-      const message = error?.response?.data?.message || error?.message || 'Handoff token khong hop le hoac da het han';
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Khong the lien ket tai khoan Zalo';
       return { success: false, message };
     }
   }
 
-  async loginWithZalo(): Promise<{ success: boolean; message?: string }> {
+  async approveQrLoginSession(sessionId: string): Promise<{ success: boolean; message?: string }> {
     try {
       const { userInfo } = await getUserInfo({});
+      const rawAccessToken = await getAccessToken();
+      const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
-      if (import.meta.env.DEV && !userInfo.id) {
-        return this.mockLogin();
+      if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
+        return { success: false, message: 'Khong lay duoc Zalo access token' };
       }
 
-      const response: AuthResponse = await api.miniLogin(userInfo.id);
-
+      const response = await api.approveQrLogin(sessionId, zaloAccessToken, userInfo?.name);
       if (response.success) {
-        this.saveSession(response);
-        return { success: true };
+        this.clearQueryParamFromUrl('qrSession');
+        return { success: true, message: response.message || 'Da xac nhan dang nhap tren web' };
       }
 
-      return { success: false, message: response.message };
+      return { success: false, message: response.message || 'Khong the xac nhan dang nhap QR' };
     } catch (error: any) {
-      if (error.response?.data?.code === 'NOT_LINKED') {
-        return {
-          success: false,
-          message: 'Tai khoan chua duoc lien ket Zalo trong dashboard web',
-        };
-      }
-
-      return { success: false, message: error.message || 'Dang nhap that bai' };
-    }
-  }
-
-  async mockLogin(): Promise<{ success: boolean; message?: string }> {
-    try {
-      const response: AuthResponse = await api.miniLogin('mock_token', true);
-
-      if (response.success) {
-        this.saveSession(response);
-        return { success: true };
-      }
-
-      return { success: false, message: response.message };
-    } catch (error: any) {
-      return { success: false, message: error.message };
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Khong the xac nhan dang nhap QR';
+      return { success: false, message };
     }
   }
 
