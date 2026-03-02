@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { scanQRCode } from 'zmp-sdk';
 import auth from '../services/auth';
 
 interface LoginPageProps {
@@ -9,6 +10,111 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const [isLinking, setIsLinking] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
+  const [isWaitingForQr, setIsWaitingForQr] = useState(false);
+  const [manualLinkToken, setManualLinkToken] = useState('');
+  const [isScanningQr, setIsScanningQr] = useState(false);
+
+  const extractLinkToken = (rawInput: string): string => {
+    const trimmed = rawInput.trim();
+    if (!trimmed) return '';
+
+    const safeDecode = (value: string) => {
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    };
+
+    const tryGetFromParams = (source: string): string => {
+      const params = new URLSearchParams(source);
+      const tokenFromParams = params.get('linkToken');
+      return tokenFromParams ? safeDecode(tokenFromParams).trim() : '';
+    };
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      try {
+        const url = new URL(trimmed);
+        const fromSearch = url.searchParams.get('linkToken');
+        if (fromSearch) return safeDecode(fromSearch).trim();
+
+        const hash = url.hash || '';
+        const queryIndex = hash.indexOf('?');
+        if (queryIndex !== -1) {
+          const fromHashQuery = tryGetFromParams(hash.slice(queryIndex + 1));
+          if (fromHashQuery) return fromHashQuery;
+        }
+
+        const rawHash = hash.startsWith('#') ? hash.slice(1) : hash;
+        const fromRawHash = tryGetFromParams(rawHash);
+        if (fromRawHash) return fromRawHash;
+      } catch {
+      }
+    }
+
+    if (trimmed.includes('linkToken=')) {
+      const fromInline = tryGetFromParams(trimmed);
+      if (fromInline) return fromInline;
+    }
+
+    return safeDecode(trimmed);
+  };
+
+  const runLinkByToken = async (linkToken: string) => {
+    const normalizedToken = extractLinkToken(linkToken);
+    if (!normalizedToken) {
+      setError('Vui long nhap link token hop le tu Dashboard Web');
+      return;
+    }
+
+    setIsWaitingForQr(false);
+    setIsLinking(true);
+    setError('');
+    setSuccessMessage('');
+
+    const result = await auth.linkWebAccountWithZalo(normalizedToken);
+
+    if (result.success) {
+      setSuccessMessage(result.message || 'Lien ket tai khoan Zalo thanh cong');
+      setIsLinking(false);
+      onLinked();
+      return;
+    }
+
+    setIsWaitingForQr(true);
+    setError(result.message || 'Lien ket tai khoan Zalo that bai');
+    setIsLinking(false);
+  };
+
+  const handleScanLinkQr = async () => {
+    if (isLinking || isScanningQr) return;
+
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      setIsScanningQr(true);
+      const scanResult = await scanQRCode({});
+      const rawContent = scanResult?.content?.trim() || '';
+
+      if (!rawContent) {
+        setError('Khong doc duoc du lieu QR. Hay tao QR moi va thu lai.');
+        return;
+      }
+
+      setManualLinkToken(rawContent);
+      await runLinkByToken(rawContent);
+    } catch (scanError: any) {
+      const message = `${scanError?.message || scanError || ''}`.toLowerCase();
+      if (message.includes('cancel') || message.includes('huy')) {
+        setError('Ban da huy thao tac quet QR.');
+      } else {
+        setError('Quet QR that bai. Hay thu lai hoac dan token thu cong.');
+      }
+    } finally {
+      setIsScanningQr(false);
+    }
+  };
 
   useEffect(() => {
     const qrSession = auth.getQrSessionFromUrl();
@@ -40,35 +146,17 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
     const linkToken = auth.getLinkTokenFromUrl();
     if (!linkToken) {
-      setError('Khong tim thay link token/qrSession. Hay quet QR tu Dashboard Web.');
+      setIsWaitingForQr(true);
+      setSuccessMessage('Mini app da san sang. Hay quet QR lien ket tu Dashboard Web de tiep tuc.');
+      setError('');
       return;
     }
 
-    let active = true;
-
     const runLink = async () => {
-      setIsLinking(true);
-      setError('');
-      setSuccessMessage('');
-
-      const result = await auth.linkWebAccountWithZalo(linkToken);
-      if (!active) return;
-
-      if (result.success) {
-        setSuccessMessage(result.message || 'Lien ket tai khoan Zalo thanh cong');
-        onLinked();
-      } else {
-        setError(result.message || 'Lien ket tai khoan Zalo that bai');
-      }
-
-      setIsLinking(false);
+      await runLinkByToken(linkToken);
     };
 
     runLink();
-
-    return () => {
-      active = false;
-    };
   }, [onLinked]);
 
   return (
@@ -82,7 +170,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
         <div style={styles.info}>
           <p>Mo mini app bang QR lien ket tu Dashboard Web de lien ket tai khoan.</p>
-          <p style={{ marginTop: 8 }}>App se tu dong lien ket khi co link token hop le.</p>
+          <p style={{ marginTop: 8 }}>App se tu dong lien ket ngay sau khi quet QR hop le.</p>
         </div>
 
         {successMessage && <div style={styles.success}>{successMessage}</div>}
@@ -96,13 +184,49 @@ function LoginPage({ onLinked }: LoginPageProps) {
             cursor: 'not-allowed',
           }}
         >
-          {isLinking ? 'Dang lien ket...' : 'Dang cho QR/link lien ket...'}
+          {isLinking ? 'Dang lien ket...' : 'Dang cho QR lien ket...'}
         </button>
+
+        {isWaitingForQr && (
+          <div style={styles.manualTokenWrap}>
+            <button
+              onClick={handleScanLinkQr}
+              disabled={isLinking || isScanningQr}
+              style={{
+                ...styles.scanQrButton,
+                opacity: isLinking || isScanningQr ? 0.7 : 1,
+                cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isScanningQr ? 'Dang mo camera...' : 'Quet QR lien ket'}
+            </button>
+            <p style={styles.manualTokenTitle}>Hoac dan link token tu Dashboard Web:</p>
+            <textarea
+              value={manualLinkToken}
+              onChange={(e) => setManualLinkToken(e.target.value)}
+              placeholder="Dan linkToken vao day..."
+              style={styles.manualTokenInput}
+            />
+            <button
+              onClick={() => runLinkByToken(manualLinkToken)}
+              disabled={isLinking}
+              style={{
+                ...styles.manualTokenButton,
+                opacity: isLinking ? 0.6 : 1,
+                cursor: isLinking ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {isLinking ? 'Dang lien ket...' : 'Lien ket bang token'}
+            </button>
+          </div>
+        )}
 
         <p style={styles.note}>
           {isLinking
             ? 'Dang lien ket tai khoan Zalo...'
-            : 'Neu bao loi token, hay tao QR/link moi tren Dashboard Web va quet lai.'}
+            : isWaitingForQr
+              ? 'Ban co the quet QR moi tu Dashboard Web bat ky luc nao.'
+              : 'Neu quet QR that bai, hay tao QR moi tren Dashboard Web va thu lai.'}
         </p>
       </div>
     </div>
@@ -187,6 +311,47 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '16px',
     fontSize: '12px',
     color: '#999',
+  },
+  manualTokenWrap: {
+    marginTop: '14px',
+    textAlign: 'left',
+  },
+  scanQrButton: {
+    width: '100%',
+    padding: '10px',
+    background: '#0365af',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    marginBottom: '10px',
+  },
+  manualTokenTitle: {
+    margin: '0 0 8px',
+    fontSize: '12px',
+    color: '#4a4a4a',
+  },
+  manualTokenInput: {
+    width: '100%',
+    borderRadius: '8px',
+    border: '1px solid #d0d7de',
+    padding: '10px',
+    fontSize: '12px',
+    minHeight: '72px',
+    resize: 'vertical',
+    boxSizing: 'border-box',
+  },
+  manualTokenButton: {
+    marginTop: '8px',
+    width: '100%',
+    padding: '10px',
+    background: '#0a8f4d',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: 'bold',
   },
 };
 
