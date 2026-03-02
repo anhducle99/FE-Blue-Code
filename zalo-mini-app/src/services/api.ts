@@ -1,7 +1,12 @@
 import axios, { AxiosInstance } from 'axios';
 import { ApiResponse, CallLog } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const DEFAULT_API_URL = 'http://localhost:5000/api';
+const HTTP_API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim();
+const HTTPS_API_URL = (import.meta.env.VITE_API_URL_HTTPS || '').trim();
+const IS_SECURE_CONTEXT = typeof window !== 'undefined' && window.location.protocol === 'https:';
+const API_BASE_URL = IS_SECURE_CONTEXT ? (HTTPS_API_URL || HTTP_API_URL) : HTTP_API_URL;
+const IS_MIXED_CONTENT_RISK = IS_SECURE_CONTEXT && API_BASE_URL.startsWith('http://');
 
 class ApiService {
   private client: AxiosInstance;
@@ -15,6 +20,11 @@ class ApiService {
     });
 
     this.client.interceptors.request.use((config) => {
+      if (IS_MIXED_CONTENT_RISK) {
+        throw new Error(
+          'MIXED_CONTENT_BLOCKED: VITE_API_URL dang la HTTP trong khi Mini App chay HTTPS. Hay set VITE_API_URL_HTTPS toi mot endpoint HTTPS.'
+        );
+      }
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
