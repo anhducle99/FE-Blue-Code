@@ -64,7 +64,7 @@ function App() {
           element={
             isAuthenticated ? 
               <HomePage onLogout={handleLogout} /> : 
-              <LoginPage onLinked={handleLinked} />
+              <Navigate to="/login" replace />
           } 
         />
         <Route 
