@@ -1,0 +1,21 @@
+{
+  "app": {
+    "title": "BlueCode Mini App",
+    "headerTitle": "BlueCode Mini App",
+    "headerColor": "#1843EF",
+    "textColor": "white",
+    "textAlign": "left",
+    "statusBarColor": "#1843EF",
+    "leftButton": "back",
+    "statusBar": "normal",
+    "actionBarHidden": false,
+    "hideAndroidBottomNavigationBar": false,
+    "hideIOSSafeAreaBottom": false
+  },
+  "debug": false,
+  "listCSS": [],
+  "listSyncJS": [
+    "assets/index.js"
+  ],
+  "listAsyncJS": []
+}

@@ -4,6 +4,35 @@ import { User } from '../types';
 
 class AuthService {
   private user: User | null = null;
+  private initialLaunchParams: URLSearchParams | null = null;
+
+  constructor() {
+    this.initialLaunchParams = this.readLaunchParamsFromUrl();
+  }
+
+  private readLaunchParamsFromUrl(): URLSearchParams | null {
+    if (typeof window === 'undefined') return null;
+
+    const url = new URL(window.location.href);
+
+    if (url.search) {
+      return new URLSearchParams(url.search);
+    }
+
+    const hash = window.location.hash || '';
+    const queryIndex = hash.indexOf('?');
+    if (queryIndex !== -1) {
+      const hashQuery = hash.slice(queryIndex + 1);
+      return new URLSearchParams(hashQuery);
+    }
+
+    const rawHash = hash.startsWith('#') ? hash.slice(1) : hash;
+    if (rawHash && !rawHash.startsWith('/')) {
+      return new URLSearchParams(rawHash);
+    }
+
+    return null;
+  }
 
   private getParamFromCurrentUrl(paramName: string): string | null {
     if (typeof window === 'undefined') return null;
@@ -12,14 +41,23 @@ class AuthService {
     const fromSearch = url.searchParams.get(paramName);
     if (fromSearch) return fromSearch;
 
-    // Zalo deeplink sometimes places query after hash (e.g. #/login?linkToken=...).
     const hash = window.location.hash || '';
     const queryIndex = hash.indexOf('?');
-    if (queryIndex === -1) return null;
+    if (queryIndex !== -1) {
+      const hashQuery = hash.slice(queryIndex + 1);
+      const hashParams = new URLSearchParams(hashQuery);
+      const fromHash = hashParams.get(paramName);
+      if (fromHash) return fromHash;
+    }
 
-    const hashQuery = hash.slice(queryIndex + 1);
-    const hashParams = new URLSearchParams(hashQuery);
-    return hashParams.get(paramName);
+    const rawHash = hash.startsWith('#') ? hash.slice(1) : hash;
+    if (rawHash && !rawHash.startsWith('/')) {
+      const hashParams = new URLSearchParams(rawHash);
+      const fromRawHash = hashParams.get(paramName);
+      if (fromRawHash) return fromRawHash;
+    }
+
+    return this.initialLaunchParams?.get(paramName) || null;
   }
 
   private saveSession(data: { token: string; user: User }): void {
@@ -39,8 +77,17 @@ class AuthService {
   private clearQueryParamFromUrl(paramName: string): void {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    if (!url.searchParams.has(paramName)) return;
-    url.searchParams.delete(paramName);
+    let changed = false;
+    if (url.searchParams.has(paramName)) {
+      url.searchParams.delete(paramName);
+      changed = true;
+    }
+
+    if (this.initialLaunchParams?.has(paramName)) {
+      this.initialLaunchParams.delete(paramName);
+    }
+
+    if (!changed) return;
     window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
   }
 
@@ -65,7 +112,15 @@ class AuthService {
   async linkWebAccountWithZalo(linkToken: string): Promise<{ success: boolean; message?: string }> {
     try {
       const { userInfo } = await getUserInfo({});
-      const rawAccessToken = await getAccessToken();
+      let rawAccessToken: unknown;
+      try {
+        rawAccessToken = await getAccessToken();
+        const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
+        console.log('[Auth] getAccessToken:', hasToken ? `ok (length=${String(rawAccessToken).trim().length})` : 'empty or invalid');
+      } catch (sdkError: any) {
+        console.warn('[Auth] getAccessToken SDK error:', sdkError?.message || sdkError);
+        throw sdkError;
+      }
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
       if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
@@ -87,18 +142,48 @@ class AuthService {
 
       return { success: false, message: response.message || 'Khong the lien ket tai khoan' };
     } catch (error: any) {
-      const message =
+      const isNetworkError =
+        !error?.response &&
+        (error?.request != null || error?.code === 'ERR_NETWORK' || /network error|failed to fetch/i.test(String(error?.message || '')));
+      const raw =
         error?.response?.data?.message ||
         error?.message ||
         'Khong the lien ket tai khoan Zalo';
-      return { success: false, message };
+      const lower = String(raw).toLowerCase();
+      if (lower.includes('mixed_content_blocked')) {
+        return {
+          success: false,
+          message: 'Mini App chay tren HTTPS nen khong goi duoc API HTTP noi bo. Can cau hinh VITE_API_URL_HTTPS den endpoint HTTPS.',
+        };
+      }
+      if (lower.includes('not been activated') || lower.includes('chua kich hoat')) {
+        return {
+          success: false,
+          message: 'Zalo chua kich hoat app. Hay mo link tu TRONG ung dung Zalo (gui link vao chat Zalo roi bam vao link), hoac quet QR Testing tu Zalo Developer truoc.',
+        };
+      }
+      if (isNetworkError) {
+        return {
+          success: false,
+          message: 'Khong ket noi duoc may chu. Kiem tra dien thoai co cung WiFi noi bo, backend co dang chay cong 5000, va subnet client da duoc whitelist tren gateway chua.',
+        };
+      }
+      return { success: false, message: raw };
     }
   }
 
   async approveQrLoginSession(sessionId: string): Promise<{ success: boolean; message?: string }> {
     try {
       const { userInfo } = await getUserInfo({});
-      const rawAccessToken = await getAccessToken();
+      let rawAccessToken: unknown;
+      try {
+        rawAccessToken = await getAccessToken();
+        const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
+        console.log('[Auth] getAccessToken (qr):', hasToken ? `ok (length=${String(rawAccessToken).trim().length})` : 'empty or invalid');
+      } catch (sdkError: any) {
+        console.warn('[Auth] getAccessToken SDK error (qr):', sdkError?.message || sdkError);
+        throw sdkError;
+      }
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
       if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
@@ -113,11 +198,33 @@ class AuthService {
 
       return { success: false, message: response.message || 'Khong the xac nhan dang nhap QR' };
     } catch (error: any) {
-      const message =
+      const isNetworkError =
+        !error?.response &&
+        (error?.request != null || error?.code === 'ERR_NETWORK' || /network error|failed to fetch/i.test(String(error?.message || '')));
+      const raw =
         error?.response?.data?.message ||
         error?.message ||
         'Khong the xac nhan dang nhap QR';
-      return { success: false, message };
+      const lower = String(raw).toLowerCase();
+      if (lower.includes('mixed_content_blocked')) {
+        return {
+          success: false,
+          message: 'Mini App chay tren HTTPS nen khong goi duoc API HTTP noi bo. Can cau hinh VITE_API_URL_HTTPS den endpoint HTTPS.',
+        };
+      }
+      if (lower.includes('not been activated') || lower.includes('chua kich hoat')) {
+        return {
+          success: false,
+          message: 'Zalo chua kich hoat app. Hay mo link tu TRONG ung dung Zalo (gui link vao chat Zalo roi bam vao link), hoac quet QR Testing tu Zalo Developer truoc.',
+        };
+      }
+      if (isNetworkError) {
+        return {
+          success: false,
+          message: 'Khong ket noi duoc may chu. Kiem tra dien thoai co cung WiFi noi bo, backend co dang chay cong 5000, va subnet client da duoc whitelist tren gateway chua.',
+        };
+      }
+      return { success: false, message: raw };
     }
   }
 
