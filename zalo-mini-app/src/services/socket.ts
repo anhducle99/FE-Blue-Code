@@ -1,7 +1,12 @@
 import { io, Socket } from 'socket.io-client';
 import auth from './auth';
 
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api\/?$/, '');
+const DEFAULT_SOCKET_URL = 'http://localhost:5000';
+const HTTP_SOCKET_URL = (import.meta.env.VITE_API_URL || DEFAULT_SOCKET_URL).trim().replace(/\/api\/?$/, '');
+const HTTPS_SOCKET_URL = (import.meta.env.VITE_API_URL_HTTPS || '').trim().replace(/\/api\/?$/, '');
+const IS_SECURE_CONTEXT = typeof window !== 'undefined' && window.location.protocol === 'https:';
+const SOCKET_URL = IS_SECURE_CONTEXT ? (HTTPS_SOCKET_URL || HTTP_SOCKET_URL) : HTTP_SOCKET_URL;
+const IS_MIXED_CONTENT_RISK = IS_SECURE_CONTEXT && SOCKET_URL.startsWith('http://');
 
 let socket: Socket | null = null;
 let registered = false;
@@ -12,6 +17,11 @@ export function getSocket(): Socket | null {
 
 export function connectSocket(): Socket {
   if (socket?.connected) return socket;
+  if (IS_MIXED_CONTENT_RISK) {
+    console.warn(
+      '[Socket] Mixed content risk: Mini App is HTTPS but socket URL is HTTP. Set VITE_API_URL_HTTPS to HTTPS endpoint.'
+    );
+  }
 
   socket = io(SOCKET_URL, {
     transports: ['websocket', 'polling'],
@@ -21,6 +31,8 @@ export function connectSocket(): Socket {
     reconnectionDelayMax: 5000,
     timeout: 20000,
     autoConnect: true,
+    path: '/socket.io/',
+    withCredentials: true,
   });
 
   socket.on('connect', () => {
@@ -42,7 +54,9 @@ function registerUser() {
   if (!user) return;
 
   socket.emit('register', {
+    id: user.id,
     name: user.name,
+    email: user.email,
     department_id: String(user.departmentId ?? ''),
     department_name: user.departmentName ?? user.name,
   });

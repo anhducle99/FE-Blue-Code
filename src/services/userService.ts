@@ -11,6 +11,10 @@ export interface IUser {
   is_department_account: boolean;
   is_admin_view: boolean;
   is_floor_account?: boolean;
+  zalo_user_id?: string | null;
+  zalo_display_name?: string | null;
+  zalo_verified?: boolean;
+  zalo_linked_at?: string | null;
   role: "Admin" | "User" | "SuperAdmin";
 }
 
@@ -41,6 +45,7 @@ export async function getUsers(params?: { organization_id?: number }): Promise<{
   if (params?.organization_id != null) {
     searchParams.set("organization_id", String(params.organization_id));
   }
+  searchParams.set("_ts", Date.now().toString());
   const query = searchParams.toString();
   const url = query ? `/api/users?${query}` : "/api/users";
   const res = await API.get<{ success: boolean; data: IUser[] }>(url);
