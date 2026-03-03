@@ -60,7 +60,9 @@ export const UsersPage: React.FC = () => {
     try {
       const params = filterOrgId !== "" ? { organization_id: filterOrgId as number } : undefined;
       const res = await getUsers(params);
-      setUsers(Array.isArray(res.data) ? res.data : []);
+      const nextUsers = Array.isArray(res.data) ? res.data : [];
+      nextUsers.sort((a, b) => (b.id ?? 0) - (a.id ?? 0));
+      setUsers(nextUsers);
     } catch (err) {
       message.error("Lấy danh sách người dùng thất bại");
     }
@@ -192,10 +194,7 @@ export const UsersPage: React.FC = () => {
 
         if (editingUser) {
           const updated = await updateUser(editingUser.id, payload);
-
-          setUsers((prev) =>
-            prev.map((u) => (u.id === updated.id ? updated : u))
-          );
+          await fetchUsers();
 
           if (currentUser && updated.id === currentUser.id) {
             const departmentName = updated.department_name
@@ -217,8 +216,9 @@ export const UsersPage: React.FC = () => {
 
           message.success("Cập nhật người dùng thành công");
         } else {
-          const created = await createUser(payload);
-          setUsers((prev) => [...prev, created]);
+          await createUser(payload);
+          setCurrentPage(1);
+          await fetchUsers();
           message.success("Thêm người dùng thành công");
         }
         handleClose();
@@ -275,7 +275,7 @@ export const UsersPage: React.FC = () => {
     if (!confirm(`Bạn có chắc muốn xóa ${name}?`)) return;
     try {
       await deleteUser(id);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
+      await fetchUsers();
       message.success("Xóa người dùng thành công");
     } catch (err) {
       message.error("Xóa người dùng thất bại");
@@ -313,6 +313,13 @@ export const UsersPage: React.FC = () => {
       setCurrentPage((p) => p + 1);
       setDropdownIndex(null);
     }
+  };
+
+  const formatLinkedTime = (value?: string | null) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("vi-VN");
   };
 
   return (
@@ -358,18 +365,20 @@ export const UsersPage: React.FC = () => {
           </div>
 
           <div className="border rounded overflow-x-auto">
-            <table className="min-w-[520px] w-full text-sm table-fixed">
+            <table className="min-w-[780px] w-full text-sm table-fixed">
               <colgroup>
-                <col className="w-1/4" />
-                <col className="w-1/4" />
-                <col className="w-1/4" />
-                <col className="w-1/4" />
+                <col className="w-1/5" />
+                <col className="w-1/5" />
+                <col className="w-1/5" />
+                <col className="w-1/5" />
+                <col className="w-1/5" />
               </colgroup>
               <thead className="bg-gray-100">
                 <tr className="text-left border-b">
                   <th className="px-4 py-3">Tên</th>
                   <th className="px-4 py-3">Email</th>
                   <th className="px-4 py-3">Tổ chức</th>
+                  <th className="px-4 py-3">Tài khoản Zalo</th>
                   <th className="px-4 py-3 text-right"></th>
                 </tr>
               </thead>
@@ -380,6 +389,30 @@ export const UsersPage: React.FC = () => {
                       <td className="px-4 py-3">{u.name}</td>
                       <td className="px-4 py-3">{u.email}</td>
                       <td className="px-4 py-3">{u.organization_name ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {!u.is_department_account ? (
+                          <span className="text-gray-400">—</span>
+                        ) : (u.zalo_display_name || u.zalo_user_id) ? (
+                          <div className="leading-tight">
+                            <div className="font-medium text-gray-800 break-all">
+                              {u.zalo_display_name || u.zalo_user_id}
+                            </div>
+                            {u.zalo_display_name && u.zalo_user_id && (
+                              <div className="text-xs text-gray-500 mt-0.5 break-all">
+                                ID: {u.zalo_user_id}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {u.zalo_verified ? "Đã xác thực" : "Chưa xác thực"}
+                              {formatLinkedTime(u.zalo_linked_at)
+                                ? ` · ${formatLinkedTime(u.zalo_linked_at)}`
+                                : ""}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-amber-600">Chưa liên kết</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right relative">
                         <div
                           className="relative inline-block"
