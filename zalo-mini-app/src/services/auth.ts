@@ -124,23 +124,23 @@ class AuthService {
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
       if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
-        return { success: false, message: 'Khong lay duoc Zalo access token' };
+        return { success: false, message: 'Không lấy được Zalo access token' };
       }
 
       const response = await api.linkWebAccount(linkToken, zaloAccessToken, userInfo?.name);
       if (response.success) {
         if (!(response?.data?.token && response?.data?.user)) {
-          return { success: false, message: 'Lien ket thanh cong nhung khong tao duoc phien dang nhap. Vui long thu lai.' };
+          return { success: false, message: 'Liên kết thành công nhưng không tạo được phiên đăng nhập. Vui lòng thử lại.' };
         }
         this.saveSession({
           token: response.data.token,
           user: response.data.user as User,
         });
         this.clearQueryParamFromUrl('linkToken');
-        return { success: true, message: response.message || 'Lien ket thanh cong' };
+        return { success: true, message: response.message || 'Liên kết thành công' };
       }
 
-      return { success: false, message: response.message || 'Khong the lien ket tai khoan' };
+      return { success: false, message: response.message || 'Không thể liên kết tài khoản' };
     } catch (error: any) {
       const isNetworkError =
         !error?.response &&
@@ -148,24 +148,24 @@ class AuthService {
       const raw =
         error?.response?.data?.message ||
         error?.message ||
-        'Khong the lien ket tai khoan Zalo';
+        'Không thể liên kết tài khoản Zalo';
       const lower = String(raw).toLowerCase();
       if (lower.includes('mixed_content_blocked')) {
         return {
           success: false,
-          message: 'Mini App chay tren HTTPS nen khong goi duoc API HTTP noi bo. Can cau hinh VITE_API_URL_HTTPS den endpoint HTTPS.',
+          message: 'Mini App chạy trên HTTPS nên không gọi được API HTTP nội bộ. Cần cấu hình VITE_API_URL_HTTPS đến endpoint HTTPS.',
         };
       }
       if (lower.includes('not been activated') || lower.includes('chua kich hoat')) {
         return {
           success: false,
-          message: 'Zalo chua kich hoat app. Hay mo link tu TRONG ung dung Zalo (gui link vao chat Zalo roi bam vao link), hoac quet QR Testing tu Zalo Developer truoc.',
+          message: 'Zalo chưa kích hoạt app. Hãy mở link từ TRONG ứng dụng Zalo (gửi link vào chat Zalo rồi bấm vào link), hoặc quét QR Testing từ Zalo Developer trước.',
         };
       }
       if (isNetworkError) {
         return {
           success: false,
-          message: 'Khong ket noi duoc may chu. Kiem tra dien thoai co cung WiFi noi bo, backend co dang chay cong 5000, va subnet client da duoc whitelist tren gateway chua.',
+          message: 'Không kết nối được máy chủ. Kiểm tra điện thoại có cùng WiFi nội bộ, backend có đang chạy cổng 5000, và subnet client đã được whitelist trên gateway chưa.',
         };
       }
       return { success: false, message: raw };
@@ -187,16 +187,16 @@ class AuthService {
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
 
       if (!zaloAccessToken || zaloAccessToken === 'null' || zaloAccessToken === 'undefined') {
-        return { success: false, message: 'Khong lay duoc Zalo access token' };
+        return { success: false, message: 'Không lấy được Zalo access token' };
       }
 
       const response = await api.approveQrLogin(sessionId, zaloAccessToken, userInfo?.name);
       if (response.success) {
         this.clearQueryParamFromUrl('qrSession');
-        return { success: true, message: response.message || 'Da xac nhan dang nhap tren web' };
+        return { success: true, message: response.message || 'Đã xác nhận đăng nhập trên web' };
       }
 
-      return { success: false, message: response.message || 'Khong the xac nhan dang nhap QR' };
+      return { success: false, message: response.message || 'Không thể xác nhận đăng nhập QR' };
     } catch (error: any) {
       const isNetworkError =
         !error?.response &&
@@ -204,24 +204,24 @@ class AuthService {
       const raw =
         error?.response?.data?.message ||
         error?.message ||
-        'Khong the xac nhan dang nhap QR';
+        'Không thể xác nhận đăng nhập QR';
       const lower = String(raw).toLowerCase();
       if (lower.includes('mixed_content_blocked')) {
         return {
           success: false,
-          message: 'Mini App chay tren HTTPS nen khong goi duoc API HTTP noi bo. Can cau hinh VITE_API_URL_HTTPS den endpoint HTTPS.',
+          message: 'Mini App chạy trên HTTPS nên không gọi được API HTTP nội bộ. Cần cấu hình VITE_API_URL_HTTPS đến endpoint HTTPS.',
         };
       }
       if (lower.includes('not been activated') || lower.includes('chua kich hoat')) {
         return {
           success: false,
-          message: 'Zalo chua kich hoat app. Hay mo link tu TRONG ung dung Zalo (gui link vao chat Zalo roi bam vao link), hoac quet QR Testing tu Zalo Developer truoc.',
+          message: 'Zalo chưa kích hoạt app. Hãy mở link từ TRONG ứng dụng Zalo (gửi link vào chat Zalo rồi bấm vào link), hoặc quét QR Testing từ Zalo Developer trước.',
         };
       }
       if (isNetworkError) {
         return {
           success: false,
-          message: 'Khong ket noi duoc may chu. Kiem tra dien thoai co cung WiFi noi bo, backend co dang chay cong 5000, va subnet client da duoc whitelist tren gateway chua.',
+          message: 'Không kết nối được máy chủ. Kiểm tra điện thoại có cùng WiFi nội bộ, backend có đang chạy cổng 5000, và subnet client đã được whitelist trên gateway chưa.',
         };
       }
       return { success: false, message: raw };

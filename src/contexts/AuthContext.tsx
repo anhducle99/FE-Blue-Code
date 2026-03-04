@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { legacyStorage } from "../utils/storage";
-import { getUsers } from "../services/userService";
+import { getUsers, getMe } from "../services/userService";
 
 export interface User {
   id: number;
@@ -154,9 +154,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     try {     
-      const response = await getUsers();
-      const users = Array.isArray(response.data) ? response.data : [];
-      const currentUserFromBackend = users.find((u) => u.id === currentUser.id);
+      const response = await getMe();
+      const currentUserFromBackend = response.data;
 
       if (currentUserFromBackend) {
         const newUser: User = {

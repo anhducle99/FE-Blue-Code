@@ -22,7 +22,7 @@ class ApiService {
     this.client.interceptors.request.use((config) => {
       if (IS_MIXED_CONTENT_RISK) {
         throw new Error(
-          'MIXED_CONTENT_BLOCKED: VITE_API_URL dang la HTTP trong khi Mini App chay HTTPS. Hay set VITE_API_URL_HTTPS toi mot endpoint HTTPS.'
+          'MIXED_CONTENT_BLOCKED: VITE_API_URL đang là HTTP trong khi Mini App chạy HTTPS. Hãy set VITE_API_URL_HTTPS tới một endpoint HTTPS.'
         );
       }
       const token = localStorage.getItem('token');

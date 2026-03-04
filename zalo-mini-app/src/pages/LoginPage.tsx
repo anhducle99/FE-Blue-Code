@@ -63,7 +63,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const runLinkByToken = async (linkToken: string) => {
     const normalizedToken = extractLinkToken(linkToken);
     if (!normalizedToken) {
-      setError('Vui long nhap link token hop le tu Dashboard Web');
+      setError('Vui lòng nhập link token hợp lệ từ Dashboard Web');
       return;
     }
 
@@ -75,14 +75,14 @@ function LoginPage({ onLinked }: LoginPageProps) {
     const result = await auth.linkWebAccountWithZalo(normalizedToken);
 
     if (result.success) {
-      setSuccessMessage(result.message || 'Lien ket tai khoan Zalo thanh cong');
+      setSuccessMessage(result.message || 'Liên kết tài khoản Zalo thành công');
       setIsLinking(false);
       onLinked();
       return;
     }
 
     setIsWaitingForQr(true);
-    setError(result.message || 'Lien ket tai khoan Zalo that bai');
+    setError(result.message || 'Liên kết tài khoản Zalo thất bại');
     setIsLinking(false);
   };
 
@@ -98,7 +98,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
       const rawContent = scanResult?.content?.trim() || '';
 
       if (!rawContent) {
-        setError('Khong doc duoc du lieu QR. Hay tao QR moi va thu lai.');
+        setError('Không đọc được dữ liệu QR. Hãy tạo QR mới và thử lại.');
         return;
       }
 
@@ -107,9 +107,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
     } catch (scanError: any) {
       const message = `${scanError?.message || scanError || ''}`.toLowerCase();
       if (message.includes('cancel') || message.includes('huy')) {
-        setError('Ban da huy thao tac quet QR.');
+        setError('Bạn đã hủy thao tác quét QR.');
       } else {
-        setError('Quet QR that bai. Hay thu lai hoac dan token thu cong.');
+        setError('Quét QR thất bại. Hãy thử lại hoặc dán token thủ công.');
       }
     } finally {
       setIsScanningQr(false);
@@ -130,9 +130,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
         if (!active) return;
 
         if (result.success) {
-          setSuccessMessage(result.message || 'Da xac nhan dang nhap tren web');
+          setSuccessMessage(result.message || 'Đã xác nhận đăng nhập trên web');
         } else {
-          setError(result.message || 'Xac nhan dang nhap QR that bai');
+          setError(result.message || 'Xác nhận đăng nhập QR thất bại');
         }
 
         setIsLinking(false);
@@ -147,7 +147,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
     const linkToken = auth.getLinkTokenFromUrl();
     if (!linkToken) {
       setIsWaitingForQr(true);
-      setSuccessMessage('Mini app da san sang. Hay quet QR lien ket tu Dashboard Web de tiep tuc.');
+      setSuccessMessage('Mini App đã sẵn sàng. Hãy quét QR liên kết từ Dashboard Web để tiếp tục.');
       setError('');
       return;
     }
@@ -165,27 +165,16 @@ function LoginPage({ onLinked }: LoginPageProps) {
         <div style={styles.logo}>
           <div style={styles.icon}>!</div>
           <h1 style={styles.title}>BlueCode Mini App</h1>
-          <p style={styles.subtitle}>Lien ket tai khoan Zalo</p>
+          <p style={styles.subtitle}>Liên kết tài khoản Zalo</p>
         </div>
 
         <div style={styles.info}>
-          <p>Mo mini app bang QR lien ket tu Dashboard Web de lien ket tai khoan.</p>
-          <p style={{ marginTop: 8 }}>App se tu dong lien ket ngay sau khi quet QR hop le.</p>
+          <p>Mở Mini App bằng QR liên kết từ Dashboard Web để liên kết tài khoản.</p>
+          <p style={{ marginTop: 8 }}>App sẽ tự động liên kết ngay sau khi quét QR hợp lệ.</p>
         </div>
 
         {successMessage && <div style={styles.success}>{successMessage}</div>}
         {error && <div style={styles.error}>{error}</div>}
-
-        <button
-          disabled
-          style={{
-            ...styles.button,
-            opacity: 0.7,
-            cursor: 'not-allowed',
-          }}
-        >
-          {isLinking ? 'Dang lien ket...' : 'Dang cho QR lien ket...'}
-        </button>
 
         {isWaitingForQr && (
           <div style={styles.manualTokenWrap}>
@@ -198,13 +187,13 @@ function LoginPage({ onLinked }: LoginPageProps) {
                 cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
               }}
             >
-              {isScanningQr ? 'Dang mo camera...' : 'Quet QR lien ket'}
+              {isScanningQr ? 'Đang mở camera...' : 'Quét QR liên kết'}
             </button>
-            <p style={styles.manualTokenTitle}>Hoac dan link token tu Dashboard Web:</p>
+            <p style={styles.manualTokenTitle}>Hoặc dán link token từ Dashboard Web:</p>
             <textarea
               value={manualLinkToken}
               onChange={(e) => setManualLinkToken(e.target.value)}
-              placeholder="Dan linkToken vao day..."
+              placeholder="Dán linkToken vào đây..."
               style={styles.manualTokenInput}
             />
             <button
@@ -216,17 +205,17 @@ function LoginPage({ onLinked }: LoginPageProps) {
                 cursor: isLinking ? 'not-allowed' : 'pointer',
               }}
             >
-              {isLinking ? 'Dang lien ket...' : 'Lien ket bang token'}
+              {isLinking ? 'Đang liên kết...' : 'Liên kết bằng token'}
             </button>
           </div>
         )}
 
         <p style={styles.note}>
           {isLinking
-            ? 'Dang lien ket tai khoan Zalo...'
+            ? 'Đang liên kết tài khoản Zalo...'
             : isWaitingForQr
-              ? 'Ban co the quet QR moi tu Dashboard Web bat ky luc nao.'
-              : 'Neu quet QR that bai, hay tao QR moi tren Dashboard Web va thu lai.'}
+              ? 'Bạn có thể quét QR mới từ Dashboard Web bất kỳ lúc nào.'
+              : 'Nếu quét QR thất bại, hãy tạo QR mới trên Dashboard Web và thử lại.'}
         </p>
       </div>
     </div>
