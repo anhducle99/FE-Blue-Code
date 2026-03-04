@@ -53,6 +53,13 @@ export async function getUsers(params?: { organization_id?: number }): Promise<{
   return { data };
 }
 
+/** Current user (for refresh without loading all users). */
+export async function getMe(): Promise<{ data: IUser }> {
+  const res = await API.get<{ success: boolean; data: IUser }>("/api/users/me");
+  if (!res.data?.data) throw new Error("User not found");
+  return { data: res.data.data };
+}
+
 export async function createUser(data: IUserForm): Promise<IUser> {
   if (!data.password) throw new Error("Mật khẩu bắt buộc khi tạo người dùng");
 
@@ -90,4 +97,9 @@ export async function updateUser(
 
 export async function deleteUser(id: number) {
   await API.delete(`/api/users/${id}`);
+}
+
+export async function unlinkUserZalo(id: number): Promise<IUser> {
+  const res = await API.delete<{ data: IUser }>(`/api/users/${id}/zalo-link`);
+  return res.data.data;
 }

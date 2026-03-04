@@ -84,7 +84,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
 
   const handleAccept = async () => {
     if (!call) return;
-    
+
     setIsProcessing(true);
     try {
       const response = await api.acceptCall(call.callId);
@@ -103,7 +103,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
 
   const handleReject = async () => {
     if (!call) return;
-    
+
     setIsProcessing(true);
     try {
       const response = await api.rejectCall(call.callId);
@@ -144,8 +144,8 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
 
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleString('vi-VN', { 
-      hour: '2-digit', 
+    return date.toLocaleString('vi-VN', {
+      hour: '2-digit',
       minute: '2-digit',
       day: '2-digit',
       month: '2-digit',
@@ -201,50 +201,29 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
             <span style={styles.label}>Mã cuộc gọi:</span>
             <span style={styles.value}>{call.callId}</span>
           </div>
-          
+
           <div style={styles.infoRow}>
-            <span style={styles.label}>Ngưởi gọi:</span>
+            <span style={styles.label}>Vị trí xử cố</span>
             <span style={styles.value}>{call.fromUser}</span>
           </div>
-          
+
           <div style={styles.infoRow}>
-            <span style={styles.label}>Ngưởi nhận:</span>
+            <span style={styles.label}>Người nhận:</span>
             <span style={styles.value}>{call.toUser}</span>
           </div>
-          
+
           <div style={styles.infoRow}>
-            <span style={styles.label}>Thởi gian:</span>
+            <span style={styles.label}>Thời gian:</span>
             <span style={styles.value}>{formatTime(call.createdAt)}</span>
           </div>
         </div>
 
-        {call.message && (
-          <div style={styles.messageCard}>
-            <h3 style={styles.messageTitle}>📝 Nội dung:</h3>
-            <p style={styles.messageText}>{call.message}</p>
-          </div>
-        )}
-
-        {call.imageUrl && (
-          <div style={styles.imageCard}>
-            <h3 style={styles.messageTitle}>📷 Hình ảnh:</h3>
-            <img 
-              src={call.imageUrl} 
-              alt="Incident" 
-              style={styles.image}
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          </div>
-        )}
-
         {isPending && (
           <div style={styles.actions}>
             <p style={styles.actionText}>Vui lòng phản hồi:</p>
-            
+
             <div style={styles.buttonRow}>
-              <button 
+              <button
                 onClick={handleAccept}
                 disabled={isProcessing}
                 style={{
@@ -254,8 +233,8 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
               >
                 {isProcessing ? 'Đang xử lý...' : '✅ NHẬN CUỘC GỌI'}
               </button>
-              
-              <button 
+
+              <button
                 onClick={handleReject}
                 disabled={isProcessing}
                 style={{

@@ -71,7 +71,6 @@ function HomePage({ onLogout }: HomePageProps) {
   const user = auth.getUser();
   const lastAlertAtRef = useRef(0);
   const debugLog = useCallback((_label: string, _data?: unknown) => {
-    // Debug logging disabled in production/testing build.
   }, []);
 
   const ensureAudioContext = useCallback(() => {
@@ -289,11 +288,11 @@ function HomePage({ onLogout }: HomePageProps) {
           setCalls(nextCalls);
         }
       } else if (!silent) {
-        setError(response.message || 'Khong the tai danh sach');
+        setError(response.message || 'Không thể tải danh sách');
       }
     } catch (err: any) {
       if (!silent) {
-        setError('Loi ket noi: ' + err.message);
+        setError('Lỗi kết nối: ' + err.message);
       }
     } finally {
       if (!silent) {
@@ -446,15 +445,15 @@ function HomePage({ onLogout }: HomePageProps) {
   const getStatusText = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'Cho xu ly';
+        return 'Chờ xử lý';
       case 'accepted':
-        return 'Da nhan';
+        return 'Đã nhận';
       case 'rejected':
-        return 'Da tu choi';
+        return 'Đã từ chối';
       case 'timeout':
-        return 'Het han';
+        return 'Hết hạn';
       case 'cancelled':
-        return 'Da huy';
+        return 'Đã hủy';
       default:
         return status;
     }
@@ -475,10 +474,10 @@ function HomePage({ onLogout }: HomePageProps) {
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>BlueCode</h1>
-          <p style={styles.userName}>Xin chao, {user?.name}</p>
+          <p style={styles.userName}>Xin chào, {user?.name}</p>
         </div>
         <button onClick={onLogout} style={styles.logoutBtn}>
-          Dang xuat
+          Đăng xuất
         </button>
       </div>
 
@@ -491,7 +490,7 @@ function HomePage({ onLogout }: HomePageProps) {
             color: activeTab === 'pending' ? 'white' : '#666',
           }}
         >
-          Cho xu ly {activeTab === 'pending' && calls.length > 0 && `(${calls.length})`}
+          Chờ xử lý {activeTab === 'pending' && calls.length > 0 && `(${calls.length})`}
         </button>
         <button
           onClick={() => setActiveTab('all')}
@@ -501,7 +500,7 @@ function HomePage({ onLogout }: HomePageProps) {
             color: activeTab === 'all' ? 'white' : '#666',
           }}
         >
-          Tat ca
+          Tất cả
         </button>
       </div>
 
@@ -514,7 +513,7 @@ function HomePage({ onLogout }: HomePageProps) {
           }}
           style={styles.newCallBanner}
         >
-          Co cuoc goi moi! Nhan de lam moi.
+          Có cuộc gọi mới! Nhấn để làm mới.
         </div>
       )}
 
@@ -522,19 +521,19 @@ function HomePage({ onLogout }: HomePageProps) {
         {isLoading ? (
           <div style={styles.center}>
             <div style={styles.spinner}></div>
-            <p>Dang tai...</p>
+            <p>Đang tải...</p>
           </div>
         ) : error ? (
           <div style={styles.center}>
             <p style={styles.error}>{error}</p>
             <button onClick={() => loadCalls()} style={styles.retryBtn}>
-              Thu lai
+              Thử lại
             </button>
           </div>
         ) : calls.length === 0 ? (
           <div style={styles.center}>
-            <div style={styles.emptyIcon}>No data</div>
-            <p style={styles.emptyText}>{activeTab === 'pending' ? 'Khong co cuoc goi dang cho' : 'Chua co cuoc goi nao'}</p>
+            <div style={styles.emptyIcon}>Không có dữ liệu</div>
+            <p style={styles.emptyText}>{activeTab === 'pending' ? 'Không có cuộc gọi đang chờ' : 'Chưa có cuộc gọi nào'}</p>
           </div>
         ) : (
           <div style={styles.callList}>
@@ -554,14 +553,14 @@ function HomePage({ onLogout }: HomePageProps) {
 
                 <div style={styles.callBody}>
                   <p style={styles.fromUser}>
-                    <strong>Tu:</strong> {call.fromUser}
+                    <strong>Từ:</strong> {call.fromUser}
                   </p>
                   {call.message && <p style={styles.message}>{call.message}</p>}
                 </div>
 
                 <div style={styles.callFooter}>
                   <span style={styles.time}>{formatTime(call.createdAt)}</span>
-                  {call.status === 'pending' && <span style={styles.actionHint}>Nhan de xu ly {'->'}</span>}
+                  {call.status === 'pending' && <span style={styles.actionHint}>Nhấn để xử lý {'->'}</span>}
                 </div>
               </Link>
             ))}

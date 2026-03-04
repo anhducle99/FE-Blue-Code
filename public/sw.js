@@ -50,7 +50,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Never cache authenticated API responses (prevents stale user lists on normal reload).
   if (requestUrl.pathname.startsWith("/api/")) {
     event.respondWith(fetch(event.request));
     return;
@@ -70,7 +69,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // HTML: network-first to avoid serving stale app shell after deploy.
   if (isDocument) {
     event.respondWith(
       fetch(event.request)

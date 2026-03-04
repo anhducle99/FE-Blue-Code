@@ -28,14 +28,12 @@ export const getCallHistory = async (filters: {
   if (filters.organization_id !== undefined && filters.organization_id !== "" && filters.organization_id !== null) {
     params.append("organization_id", String(filters.organization_id));
   }
+  params.append("limit", "2000");
 
   const url = `/api/history?${params.toString()}`;
-
-
   const res = await API.get(url);
- 
-
   const responseData = res.data;
+
   if (Array.isArray(responseData)) {
     return responseData;
   }

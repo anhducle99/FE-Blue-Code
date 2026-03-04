@@ -13,6 +13,7 @@ import {
   createUser,
   updateUser,
   deleteUser,
+  unlinkUserZalo,
 } from "../services/userService";
 
 const { Option } = Select;
@@ -55,6 +56,8 @@ export const UsersPage: React.FC = () => {
   } = useAuth();
   const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
   const isSuperAdmin = currentUser?.role === "SuperAdmin";
+  const canUnlinkZaloByRole =
+    currentUser?.role === "Admin" || currentUser?.role === "SuperAdmin";
 
   const fetchUsers = async () => {
     try {
@@ -95,7 +98,7 @@ export const UsersPage: React.FC = () => {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const DROPDOWN_WIDTH = 176;
-    const DROPDOWN_HEIGHT = 160;
+    const DROPDOWN_HEIGHT = 216;
     const gap = 8;
     let top = rect.bottom + gap;
     let left = rect.right - DROPDOWN_WIDTH;
@@ -292,6 +295,32 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  const handleUnlinkZalo = async (id: number, name: string) => {
+    if (!canUnlinkZaloByRole) {
+      message.error("Chỉ Admin hoặc SuperAdmin mới có quyền gỡ liên kết Zalo");
+      setDropdownIndex(null);
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc muốn gỡ liên kết Zalo của ${name}?`)) return;
+    try {
+      await unlinkUserZalo(id);
+      await fetchUsers();
+      if (currentUser && currentUser.id === id) {
+        await refreshUser().catch(() => undefined);
+      }
+      message.success(`Đã gỡ liên kết Zalo của ${name}`);
+    } catch (err: any) {
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gỡ liên kết Zalo thất bại";
+      message.error(errorMessage);
+    } finally {
+      setDropdownIndex(null);
+    }
+  };
+
   const startIndex = (currentPage - 1) * PAGE_SIZE;
   const paginatedUsers = users.slice(startIndex, startIndex + PAGE_SIZE);
   const totalPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
@@ -456,6 +485,26 @@ export const UsersPage: React.FC = () => {
                           >
                             <i className="bi bi-pencil mr-3 text-base" />
                             <span className="font-medium">Sửa</span>
+                          </button>
+                          <div className="border-t border-gray-100 my-1" />
+                          <button
+                            type="button"
+                            onClick={() => handleUnlinkZalo(u.id, u.name)}
+                            disabled={
+                              !canUnlinkZaloByRole ||
+                              !u.is_department_account ||
+                              (!u.zalo_display_name && !u.zalo_user_id)
+                            }
+                            className={`flex items-center w-full px-4 py-2.5 text-sm transition-colors duration-150 ${
+                              canUnlinkZaloByRole &&
+                              u.is_department_account &&
+                              (u.zalo_display_name || u.zalo_user_id)
+                                ? "text-amber-700 hover:text-amber-800 hover:bg-amber-50"
+                                : "text-gray-300 cursor-not-allowed"
+                            }`}
+                          >
+                            <i className="bi bi-link-45deg mr-3 text-base" />
+                            <span className="font-medium">Gỡ liên kết Zalo</span>
                           </button>
                           <div className="border-t border-gray-100 my-1" />
                           <button
