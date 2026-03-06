@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { scanQRCode } from 'zmp-sdk';
 import auth from '../services/auth';
 
@@ -7,6 +8,7 @@ interface LoginPageProps {
 }
 
 function LoginPage({ onLinked }: LoginPageProps) {
+  const navigate = useNavigate();
   const [isLinking, setIsLinking] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [error, setError] = useState('');
@@ -14,28 +16,28 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const [manualLinkToken, setManualLinkToken] = useState('');
   const [isScanningQr, setIsScanningQr] = useState(false);
 
-  const extractLinkToken = (rawInput: string): string => {
+  const safeDecode = (value: string): string => {
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
+  const extractParamFromRawInput = (rawInput: string, paramName: string): string => {
     const trimmed = rawInput.trim();
     if (!trimmed) return '';
 
-    const safeDecode = (value: string) => {
-      try {
-        return decodeURIComponent(value);
-      } catch {
-        return value;
-      }
-    };
-
     const tryGetFromParams = (source: string): string => {
       const params = new URLSearchParams(source);
-      const tokenFromParams = params.get('linkToken');
-      return tokenFromParams ? safeDecode(tokenFromParams).trim() : '';
+      const value = params.get(paramName);
+      return value ? safeDecode(value).trim() : '';
     };
 
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
       try {
         const url = new URL(trimmed);
-        const fromSearch = url.searchParams.get('linkToken');
+        const fromSearch = url.searchParams.get(paramName);
         if (fromSearch) return safeDecode(fromSearch).trim();
 
         const hash = url.hash || '';
@@ -52,18 +54,43 @@ function LoginPage({ onLinked }: LoginPageProps) {
       }
     }
 
-    if (trimmed.includes('linkToken=')) {
+    if (trimmed.includes(`${paramName}=`)) {
       const fromInline = tryGetFromParams(trimmed);
       if (fromInline) return fromInline;
     }
 
-    return safeDecode(trimmed);
+    return '';
+  };
+
+  const extractLinkToken = (rawInput: string): string => {
+    const token = extractParamFromRawInput(rawInput, 'linkToken');
+    if (token) return token;
+    return safeDecode(rawInput.trim());
+  };
+
+  const extractQrSession = (rawInput: string): string => {
+    return extractParamFromRawInput(rawInput, 'qrSession');
+  };
+
+  const runApproveQrSession = async (qrSession: string) => {
+    setIsLinking(true);
+    setError('');
+    setSuccessMessage('');
+
+    const result = await auth.approveQrLoginSession(qrSession);
+    if (result.success) {
+      setSuccessMessage(result.message || 'Đã xác nhận đăng nhập QR thành công');
+    } else {
+      setError(result.message || 'Xác nhận đăng nhập QR thất bại');
+    }
+
+    setIsLinking(false);
   };
 
   const runLinkByToken = async (linkToken: string) => {
     const normalizedToken = extractLinkToken(linkToken);
     if (!normalizedToken) {
-      setError('Vui lòng nhập link token hợp lệ từ Dashboard Web');
+      setError('Vui lòng nhập token hoặc đường dẫn hợp lệ từ Dashboard Web');
       return;
     }
 
@@ -73,20 +100,19 @@ function LoginPage({ onLinked }: LoginPageProps) {
     setSuccessMessage('');
 
     const result = await auth.linkWebAccountWithZalo(normalizedToken);
-
     if (result.success) {
-      setSuccessMessage(result.message || 'Liên kết tài khoản Zalo thành công');
+      setSuccessMessage(result.message || 'Đăng nhập/liên kết tài khoản Zalo thành công');
       setIsLinking(false);
       onLinked();
       return;
     }
 
     setIsWaitingForQr(true);
-    setError(result.message || 'Liên kết tài khoản Zalo thất bại');
+    setError(result.message || 'Đăng nhập/liên kết tài khoản Zalo thất bại');
     setIsLinking(false);
   };
 
-  const handleScanLinkQr = async () => {
+  const handleScanQr = async () => {
     if (isLinking || isScanningQr) return;
 
     setError('');
@@ -103,6 +129,13 @@ function LoginPage({ onLinked }: LoginPageProps) {
       }
 
       setManualLinkToken(rawContent);
+
+      const qrSession = extractQrSession(rawContent);
+      if (qrSession) {
+        await runApproveQrSession(qrSession);
+        return;
+      }
+
       await runLinkByToken(rawContent);
     } catch (scanError: any) {
       const message = `${scanError?.message || scanError || ''}`.toLowerCase();
@@ -116,29 +149,24 @@ function LoginPage({ onLinked }: LoginPageProps) {
     }
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/home', { replace: true });
+  };
+
   useEffect(() => {
     const qrSession = auth.getQrSessionFromUrl();
     if (qrSession) {
       let active = true;
-
-      const runApproveQr = async () => {
-        setIsLinking(true);
-        setError('');
-        setSuccessMessage('');
-
-        const result = await auth.approveQrLoginSession(qrSession);
-        if (!active) return;
-
-        if (result.success) {
-          setSuccessMessage(result.message || 'Đã xác nhận đăng nhập trên web');
-        } else {
-          setError(result.message || 'Xác nhận đăng nhập QR thất bại');
-        }
-
-        setIsLinking(false);
+      const run = async () => {
+        await runApproveQrSession(qrSession);
       };
-
-      runApproveQr();
+      run().finally(() => {
+        if (!active) return;
+      });
       return () => {
         active = false;
       };
@@ -147,76 +175,83 @@ function LoginPage({ onLinked }: LoginPageProps) {
     const linkToken = auth.getLinkTokenFromUrl();
     if (!linkToken) {
       setIsWaitingForQr(true);
-      setSuccessMessage('Mini App đã sẵn sàng. Hãy quét QR liên kết từ Dashboard Web để tiếp tục.');
+      setSuccessMessage('Trang chủ Mini App đã sẵn sàng. Nhấn "Quét QR đăng nhập" để tiếp tục.');
       setError('');
       return;
     }
 
-    const runLink = async () => {
+    const runAutoLink = async () => {
       await runLinkByToken(linkToken);
     };
-
-    runLink();
+    runAutoLink();
   }, [onLinked]);
 
   return (
     <div style={styles.container}>
-      <div style={styles.card}>
-        <div style={styles.logo}>
-          <div style={styles.icon}>!</div>
-          <h1 style={styles.title}>BlueCode Mini App</h1>
-          <p style={styles.subtitle}>Liên kết tài khoản Zalo</p>
-        </div>
+      <div style={styles.content}>
+        <div style={styles.card}>
+          <button type="button" onClick={handleBack} style={styles.backButton}>
+            ← Quay lại
+          </button>
 
-        <div style={styles.info}>
-          <p>Mở Mini App bằng QR liên kết từ Dashboard Web để liên kết tài khoản.</p>
-          <p style={{ marginTop: 8 }}>App sẽ tự động liên kết ngay sau khi quét QR hợp lệ.</p>
-        </div>
-
-        {successMessage && <div style={styles.success}>{successMessage}</div>}
-        {error && <div style={styles.error}>{error}</div>}
-
-        {isWaitingForQr && (
-          <div style={styles.manualTokenWrap}>
-            <button
-              onClick={handleScanLinkQr}
-              disabled={isLinking || isScanningQr}
-              style={{
-                ...styles.scanQrButton,
-                opacity: isLinking || isScanningQr ? 0.7 : 1,
-                cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isScanningQr ? 'Đang mở camera...' : 'Quét QR liên kết'}
-            </button>
-            <p style={styles.manualTokenTitle}>Hoặc dán link token từ Dashboard Web:</p>
-            <textarea
-              value={manualLinkToken}
-              onChange={(e) => setManualLinkToken(e.target.value)}
-              placeholder="Dán linkToken vào đây..."
-              style={styles.manualTokenInput}
-            />
-            <button
-              onClick={() => runLinkByToken(manualLinkToken)}
-              disabled={isLinking}
-              style={{
-                ...styles.manualTokenButton,
-                opacity: isLinking ? 0.6 : 1,
-                cursor: isLinking ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {isLinking ? 'Đang liên kết...' : 'Liên kết bằng token'}
-            </button>
+          <div style={styles.logo}>
+            <div style={styles.icon}>!</div>
+            <h1 style={styles.title}>BlueCode Mini App</h1>
+            <p style={styles.subtitle}>Trang chủ mini app</p>
           </div>
-        )}
 
-        <p style={styles.note}>
-          {isLinking
-            ? 'Đang liên kết tài khoản Zalo...'
-            : isWaitingForQr
-              ? 'Bạn có thể quét QR mới từ Dashboard Web bất kỳ lúc nào.'
-              : 'Nếu quét QR thất bại, hãy tạo QR mới trên Dashboard Web và thử lại.'}
-        </p>
+          <div style={styles.info}>
+            <p>Bạn có thể vào mini app ngay tại đây.</p>
+            <p style={{ marginTop: 8 }}>
+              Khi cần đăng nhập hoặc liên kết, hãy nhấn nút quét QR từ Dashboard Web.
+            </p>
+          </div>
+
+          {successMessage && <div style={styles.success}>{successMessage}</div>}
+          {error && <div style={styles.error}>{error}</div>}
+
+          {isWaitingForQr && (
+            <div style={styles.manualTokenWrap}>
+              <button
+                onClick={handleScanQr}
+                disabled={isLinking || isScanningQr}
+                style={{
+                  ...styles.scanQrButton,
+                  opacity: isLinking || isScanningQr ? 0.7 : 1,
+                  cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isScanningQr ? 'Đang mở camera...' : 'Quét QR đăng nhập'}
+              </button>
+              <p style={styles.manualTokenTitle}>Hoặc dán token/link từ Dashboard Web:</p>
+              <textarea
+                value={manualLinkToken}
+                onChange={(e) => setManualLinkToken(e.target.value)}
+                placeholder="Dán linkToken vào đây..."
+                style={styles.manualTokenInput}
+              />
+              <button
+                onClick={() => runLinkByToken(manualLinkToken)}
+                disabled={isLinking}
+                style={{
+                  ...styles.manualTokenButton,
+                  opacity: isLinking ? 0.6 : 1,
+                  cursor: isLinking ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {isLinking ? 'Đang đăng nhập...' : 'Đăng nhập bằng token'}
+              </button>
+            </div>
+          )}
+
+          <p style={styles.note}>
+            {isLinking
+              ? 'Đang xử lý đăng nhập...'
+              : isWaitingForQr
+                ? 'Bạn có thể quét QR từ Dashboard Web bất kỳ lúc nào.'
+                : 'Nếu quét QR thất bại, hãy tạo QR mới trên Dashboard Web rồi thử lại.'}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -224,77 +259,86 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0365af 0%, #0288d1 100%)',
-    padding: '20px',
+    background: 'transparent',
+  },
+  content: {
+    width: '100%',
+    maxWidth: '430px',
+    margin: '0 auto',
+    padding: 0,
+    minHeight: '100vh',
   },
   card: {
-    background: 'white',
-    borderRadius: '16px',
-    padding: '32px 24px',
-    width: '100%',
-    maxWidth: '380px',
+    background: 'linear-gradient(180deg, #f8fbff 0%, #ffffff 160px)',
+    borderRadius: 0,
+    minHeight: '100vh',
+    padding: 'max(16px, env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))',
+    border: 'none',
     textAlign: 'center',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+    boxShadow: 'none',
+  },
+  backButton: {
+    border: '1px solid #c9def3',
+    background: '#ffffff',
+    color: '#0365af',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    padding: '6px 12px',
+    borderRadius: '999px',
+    marginBottom: '18px',
+    textAlign: 'left',
   },
   logo: {
-    marginBottom: '24px',
+    marginBottom: '20px',
   },
   icon: {
-    fontSize: '48px',
-    marginBottom: '8px',
+    fontSize: '52px',
+    marginBottom: '10px',
     fontWeight: 'bold',
-    color: '#0365af',
+    color: '#0f86d6',
   },
   title: {
     margin: 0,
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#0365af',
+    fontSize: '34px',
+    fontWeight: 800,
+    color: '#03559a',
+    letterSpacing: '0.2px',
   },
   subtitle: {
-    margin: '8px 0 0',
-    fontSize: '14px',
-    color: '#666',
+    margin: '10px 0 0',
+    fontSize: '15px',
+    color: '#475569',
+    fontWeight: 500,
   },
   info: {
-    background: '#e3f2fd',
-    padding: '12px',
-    borderRadius: '8px',
+    background: '#e9f3ff',
+    padding: '14px',
+    borderRadius: '14px',
+    border: '1px solid #cfe5fb',
     marginBottom: '20px',
     fontSize: '13px',
-    color: '#0365af',
+    color: '#03559a',
+    lineHeight: 1.45,
   },
   error: {
-    background: '#ffebee',
+    background: '#fff1f2',
     color: '#c62828',
     padding: '12px',
-    borderRadius: '8px',
+    borderRadius: '12px',
+    border: '1px solid #fecdd3',
     marginBottom: '16px',
     fontSize: '13px',
   },
   success: {
-    background: '#e8f5e9',
+    background: '#edf9ef',
     color: '#2e7d32',
     padding: '12px',
-    borderRadius: '8px',
+    borderRadius: '12px',
+    border: '1px solid #cde9d1',
     marginBottom: '16px',
     fontSize: '13px',
-  },
-  button: {
-    width: '100%',
-    padding: '14px',
-    background: '#0365af',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
   },
   note: {
     marginTop: '16px',
@@ -307,24 +351,27 @@ const styles: Record<string, React.CSSProperties> = {
   },
   scanQrButton: {
     width: '100%',
-    padding: '10px',
-    background: '#0365af',
+    padding: '12px',
+    background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 70%, #03559a 100%)',
     color: '#fff',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: 700,
     marginBottom: '10px',
+    boxShadow: '0 10px 22px rgba(3, 101, 175, 0.25)',
   },
   manualTokenTitle: {
     margin: '0 0 8px',
-    fontSize: '12px',
-    color: '#4a4a4a',
+    fontSize: '13px',
+    color: '#334155',
+    fontWeight: 600,
   },
   manualTokenInput: {
     width: '100%',
-    borderRadius: '8px',
-    border: '1px solid #d0d7de',
+    borderRadius: '12px',
+    border: '1px solid #cad8e6',
+    background: '#f8fbff',
     padding: '10px',
     fontSize: '12px',
     minHeight: '72px',
@@ -334,13 +381,13 @@ const styles: Record<string, React.CSSProperties> = {
   manualTokenButton: {
     marginTop: '8px',
     width: '100%',
-    padding: '10px',
-    background: '#0a8f4d',
+    padding: '12px',
+    background: 'linear-gradient(145deg, #16a34a 0%, #0e8c41 100%)',
     color: '#fff',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: 'bold',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: 700,
   },
 };
 
