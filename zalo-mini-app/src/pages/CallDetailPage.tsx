@@ -21,6 +21,17 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
   const callRef = useRef(call);
   callRef.current = call;
 
+  const normalizeValue = (v?: string | null) =>
+    (v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '').trim();
+
+  const isTargetMine = (target?: string | null) => {
+    const t = normalizeValue(target);
+    if (!t) return false;
+    const userName = normalizeValue(user?.name);
+    const deptName = normalizeValue(user?.departmentName);
+    return t === userName || (!!deptName && t === deptName);
+  };
+
   useEffect(() => {
     if (callId) {
       loadCallDetail();
@@ -35,7 +46,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
     const onStatusUpdate = (data: { callId: string; toUser?: string; toDept?: string; status: string }) => {
       if (data.callId !== callId) return;
       const target = data.toUser || data.toDept;
-      if (target && user?.name && target.toLowerCase().trim() === user.name.toLowerCase().trim()) {
+      if (isTargetMine(target)) {
         setCall((prev) => prev ? { ...prev, status: data.status as CallLog['status'] } : prev);
       }
     };
@@ -45,7 +56,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
       const logCallId = data.call_id || data.callId;
       if (logCallId !== callId) return;
       const target = data.to_user || data.toUser;
-      if (target && user?.name && target.toLowerCase().trim() === user.name.toLowerCase().trim()) {
+      if (isTargetMine(target)) {
         setCall((prev) => prev ? {
           ...prev,
           status: data.status as CallLog['status'],
@@ -62,7 +73,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
       socket.off('callStatusUpdate', onStatusUpdate);
       socket.off('callLogUpdated', onLogUpdated);
     };
-  }, [callId, user?.name]);
+  }, [callId, user?.name, user?.departmentName]);
 
   const loadCallDetail = async () => {
     setIsLoading(true);
@@ -90,7 +101,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
       const response = await api.acceptCall(call.callId);
       if (response.success) {
         setCall({ ...call, status: 'accepted' });
-        setTimeout(() => navigate('/'), 1500);
+        setTimeout(() => navigate('/home'), 1500);
       } else {
         setError(response.message || 'Không thể nhận cuộc gọi');
       }
@@ -109,7 +120,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
       const response = await api.rejectCall(call.callId);
       if (response.success) {
         setCall({ ...call, status: 'rejected' });
-        setTimeout(() => navigate('/'), 1500);
+        setTimeout(() => navigate('/home'), 1500);
       } else {
         setError(response.message || 'Không thể từ chối');
       }
@@ -168,7 +179,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
     return (
       <div style={styles.container}>
         <div style={styles.header}>
-          <button onClick={() => navigate('/')} style={styles.backBtn}>← Quay lại</button>
+          <button onClick={() => navigate('/home')} style={styles.backBtn}>← Quay lại</button>
           <h1 style={styles.headerTitle}>Chi tiết cuộc gọi</h1>
         </div>
         <div style={styles.center}>
@@ -184,7 +195,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <button onClick={() => navigate('/')} style={styles.backBtn}>← Quay lại</button>
+        <button onClick={() => navigate('/home')} style={styles.backBtn}>← Quay lại</button>
         <h1 style={styles.headerTitle}>Chi tiết cuộc gọi</h1>
       </div>
 
@@ -203,7 +214,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
           </div>
 
           <div style={styles.infoRow}>
-            <span style={styles.label}>Vị trí xử cố</span>
+            <span style={styles.label}>Vị trí sự cố</span>
             <span style={styles.value}>{call.fromUser}</span>
           </div>
 
@@ -271,29 +282,33 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
-    background: '#f5f5f5',
+    background: 'transparent',
   },
   header: {
-    background: '#0365af',
+    background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 62%, #03559a 100%)',
     color: 'white',
-    padding: '16px 20px',
+    padding: '16px 18px',
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
+    borderBottomLeftRadius: '20px',
+    borderBottomRightRadius: '20px',
+    boxShadow: '0 8px 24px rgba(3, 101, 175, 0.24)',
   },
   backBtn: {
     background: 'rgba(255,255,255,0.2)',
     color: 'white',
-    border: 'none',
+    border: '1px solid rgba(255,255,255,0.34)',
     padding: '8px 12px',
-    borderRadius: '6px',
+    borderRadius: '10px',
     fontSize: '14px',
+    fontWeight: 600,
     cursor: 'pointer',
   },
   headerTitle: {
     margin: 0,
-    fontSize: '18px',
-    fontWeight: 'bold',
+    fontSize: '20px',
+    fontWeight: 800,
     flex: 1,
   },
   center: {
@@ -303,8 +318,8 @@ const styles: Record<string, React.CSSProperties> = {
   spinner: {
     width: '40px',
     height: '40px',
-    border: '4px solid #e0e0e0',
-    borderTop: '4px solid #0365af',
+    border: '4px solid #dbe4ef',
+    borderTop: '4px solid #0f86d6',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 16px',
@@ -314,16 +329,20 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: '16px',
   },
   retryBtn: {
-    background: '#0365af',
+    background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 70%, #03559a 100%)',
     color: 'white',
     border: 'none',
     padding: '10px 20px',
-    borderRadius: '6px',
+    borderRadius: '10px',
+    fontWeight: 700,
     cursor: 'pointer',
   },
   statusBanner: {
-    padding: '16px 20px',
+    margin: '12px 16px 0',
+    padding: '13px 16px',
+    borderRadius: '12px',
     textAlign: 'center',
+    boxShadow: '0 8px 18px rgba(15, 23, 42, 0.12)',
   },
   statusText: {
     margin: 0,
@@ -336,9 +355,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   infoCard: {
     background: 'white',
-    borderRadius: '12px',
+    borderRadius: '16px',
+    border: '1px solid #dbe4ef',
     padding: '16px',
     marginBottom: '16px',
+    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.05)',
   },
   infoRow: {
     display: 'flex',
@@ -347,13 +368,13 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #f0f0f0',
   },
   label: {
-    color: '#666',
+    color: '#64748b',
     fontSize: '14px',
   },
   value: {
-    fontWeight: '500',
+    fontWeight: 600,
     fontSize: '14px',
-    color: '#333',
+    color: '#0f172a',
   },
   messageCard: {
     background: '#fff3e0',
@@ -385,9 +406,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   actions: {
     background: 'white',
-    borderRadius: '12px',
+    borderRadius: '16px',
+    border: '1px solid #dbe4ef',
     padding: '20px',
     textAlign: 'center',
+    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.05)',
   },
   actionText: {
     margin: '0 0 16px',
@@ -401,28 +424,29 @@ const styles: Record<string, React.CSSProperties> = {
   acceptBtn: {
     flex: 1,
     padding: '16px',
-    background: '#4caf50',
+    background: 'linear-gradient(145deg, #22c55e 0%, #16a34a 100%)',
     color: 'white',
     border: 'none',
     borderRadius: '10px',
     fontSize: '16px',
-    fontWeight: 'bold',
+    fontWeight: 700,
     cursor: 'pointer',
   },
   rejectBtn: {
     flex: 1,
     padding: '16px',
-    background: '#f5f5f5',
+    background: '#fff',
     color: '#f44336',
-    border: '2px solid #f44336',
+    border: '2px solid #f87171',
     borderRadius: '10px',
     fontSize: '16px',
-    fontWeight: 'bold',
+    fontWeight: 700,
     cursor: 'pointer',
   },
   resolvedCard: {
-    background: '#e8f5e9',
-    borderRadius: '12px',
+    background: '#edf9ef',
+    borderRadius: '16px',
+    border: '1px solid #cde9d1',
     padding: '20px',
     textAlign: 'center',
   },

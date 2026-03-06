@@ -219,6 +219,7 @@ export const useSocket = (user: RegisterData | null) => {
     if (!user || !socket) return;
 
     socket.emit("register", {
+      token: localStorage.getItem("token") || "",
       name: user.name,
       department_id: user.department_id,
       department_name: user.department_name,

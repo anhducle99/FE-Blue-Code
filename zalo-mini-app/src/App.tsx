@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import auth from './services/auth';
 import { connectSocket, disconnectSocket } from './services/socket';
 import HomePage from './pages/HomePage';
 import CallDetailPage from './pages/CallDetailPage';
 import LoginPage from './pages/LoginPage';
+import HistoryPage from './pages/HistoryPage';
+import NotificationsPage from './pages/NotificationsPage';
+import ProfilePage from './pages/ProfilePage';
+import QrPage from './pages/QrPage';
+import useGlobalIncomingAlert from './hooks/useGlobalIncomingAlert';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  useGlobalIncomingAlert(isAuthenticated === true);
 
   useEffect(() => {
     checkAuth();
@@ -41,43 +47,63 @@ function App() {
 
   if (isLoading) {
     return (
-      <div style={styles.loading}>
-        <div style={styles.spinner}></div>
-        <p>Đang tải...</p>
+      <div className="mini-shell">
+        <div className="mini-frame">
+          <div style={styles.loading}>
+            <div style={styles.spinner}></div>
+            <p>Đang tải...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <HashRouter>
-      <Routes>
-        <Route 
-          path="/login" 
-          element={
-            isAuthenticated ? 
-              <Navigate to="/" replace /> : 
-              <LoginPage onLinked={handleLinked} />
-          } 
-        />
-        <Route 
-          path="/" 
-          element={
-            isAuthenticated ? 
-              <HomePage onLogout={handleLogout} /> : 
-              <LoginPage onLinked={handleLinked} />
-          } 
-        />
-        <Route 
-          path="/call/:callId" 
-          element={
-            isAuthenticated ? 
-              <CallDetailPage /> : 
-              <Navigate to="/login" replace />
-          } 
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </HashRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <div className="mini-shell">
+        <div className="mini-frame">
+          <Routes>
+            <Route 
+              path="/login" 
+              element={<LoginPage onLinked={handleLinked} />} 
+            />
+            <Route 
+              path="/" 
+              element={<Navigate to="/home" replace />}
+            />
+            <Route 
+              path="/home" 
+              element={<HomePage onLogout={handleLogout} />}
+            />
+            <Route 
+              path="/history" 
+              element={<HistoryPage />}
+            />
+            <Route 
+              path="/qr" 
+              element={<QrPage />}
+            />
+            <Route 
+              path="/notifications" 
+              element={<NotificationsPage />}
+            />
+            <Route 
+              path="/profile" 
+              element={<ProfilePage onLogout={handleLogout} />} 
+            />
+            <Route 
+              path="/call/:callId" 
+              element={
+                isAuthenticated ? 
+                  <CallDetailPage /> : 
+                  <Navigate to="/login" replace />
+              } 
+            />
+            <Route path="*" element={<Navigate to="/home" replace />} />
+          </Routes>
+        </div>
+      </div>
+    </BrowserRouter>
   );
 }
 

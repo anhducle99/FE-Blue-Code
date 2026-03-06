@@ -4,6 +4,7 @@ import api from '../services/api';
 import auth from '../services/auth';
 import { connectSocket, getSocket } from '../services/socket';
 import { CallLog } from '../types';
+import BottomTabBar from '../components/BottomTabBar';
 
 interface HomePageProps {
   onLogout: () => void;
@@ -33,8 +34,12 @@ function isSameCallList(prev: CallLog[], next: CallLog[]): boolean {
 }
 
 function hasNewPendingCall(prev: CallLog[], next: CallLog[]): boolean {
-  const previousPendingCallIds = new Set(prev.filter((call) => call.status === 'pending').map((call) => call.callId));
-  return next.some((call) => call.status === 'pending' && !previousPendingCallIds.has(call.callId));
+  const previousPendingCallIds = new Set(
+    prev.filter((call) => call.status === 'pending').map((call) => call.callId)
+  );
+  return next.some(
+    (call) => call.status === 'pending' && !previousPendingCallIds.has(call.callId)
+  );
 }
 
 function normalize(value?: string | null) {
@@ -47,283 +52,95 @@ function normalize(value?: string | null) {
 }
 
 function HomePage({ onLogout }: HomePageProps) {
-  const AUDIO_PERMISSION_KEY = 'audio-permission';
-  const ALERT_DURATION_MS = 15000;
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [newCallAlert, setNewCallAlert] = useState(false);
 
-  const activeTabRef = useRef(activeTab);
   const callsRef = useRef<CallLog[]>(calls);
   const silentReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingNotifyOnReloadRef = useRef(false);
-  const beepLoopTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toneStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const toneActiveRef = useRef(false);
-  const vibrationLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const vibrationStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  activeTabRef.current = activeTab;
   callsRef.current = calls;
 
   const user = auth.getUser();
-  const lastAlertAtRef = useRef(0);
-  const debugLog = useCallback((_label: string, _data?: unknown) => {
-  }, []);
+  const hasSession = auth.isAuthenticated() && !!user;
 
-  const ensureAudioContext = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return null;
-    if (!audioContextRef.current) {
-      audioContextRef.current = new Ctx();
-    }
-    return audioContextRef.current;
-  }, []);
-
-  const stopIncomingVibration = useCallback(() => {
-    if (vibrationLoopRef.current) {
-      clearInterval(vibrationLoopRef.current);
-      vibrationLoopRef.current = null;
-    }
-    if (vibrationStopRef.current) {
-      clearTimeout(vibrationStopRef.current);
-      vibrationStopRef.current = null;
-    }
-    try {
-      if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-        navigator.vibrate(0);
-      }
-    } catch {
-    }
-    debugLog('stopIncomingVibration');
-  }, [debugLog]);
-
-  const startIncomingVibration = useCallback((source: 'incoming' | 'test' = 'incoming') => {
-    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
-      debugLog('startIncomingVibration: vibrate unsupported', { source });
-      return false;
-    }
-    stopIncomingVibration();
-    const pattern = [320, 120, 320, 120, 500];
-    try {
-      navigator.vibrate(pattern);
-      vibrationLoopRef.current = setInterval(() => {
-        navigator.vibrate(pattern);
-      }, 1500);
-      vibrationStopRef.current = setTimeout(() => {
-        stopIncomingVibration();
-      }, ALERT_DURATION_MS);
-      debugLog('startIncomingVibration: started', { source, pattern });
-      return true;
-    } catch {
-      debugLog('startIncomingVibration: failed', { source });
-      return false;
-    }
-  }, [ALERT_DURATION_MS, debugLog, stopIncomingVibration]);
-
-  const stopIncomingTone = useCallback(() => {
-    stopIncomingVibration();
-    if (beepLoopTimerRef.current) {
-      clearInterval(beepLoopTimerRef.current);
-      beepLoopTimerRef.current = null;
-    }
-    if (toneStopTimerRef.current) {
-      clearTimeout(toneStopTimerRef.current);
-      toneStopTimerRef.current = null;
-    }
-    toneActiveRef.current = false;
-    debugLog('stopIncomingTone: beep loop stopped');
-  }, [debugLog, stopIncomingVibration]);
-
-  const isTonePlaying = useCallback(() => {
-    return toneActiveRef.current;
-  }, []);
-
-  const playIncomingTone = useCallback(async (strictWebMode = true, source: 'incoming' | 'test' = 'incoming'): Promise<boolean> => {
-    const permission =
-      typeof window !== 'undefined' ? window.sessionStorage.getItem(AUDIO_PERMISSION_KEY) : null;
-    const allowRingtone = !strictWebMode || permission === 'granted';
-    debugLog('playIncomingTone:start', { source, strictWebMode, permission, allowRingtone });
-
-    if (!allowRingtone) {
-      debugLog('playIncomingTone: blocked by permission in strict mode', { source });
-      return false;
-    }
-
-    const ctx = ensureAudioContext();
-    if (!ctx) {
-      debugLog('playIncomingTone:no AudioContext available');
-      return false;
-    }
-    debugLog('playIncomingTone:AudioContext state before resume', ctx.state);
-    if (ctx.state === 'suspended') {
-      try {
-        await ctx.resume();
-        debugLog('playIncomingTone:AudioContext resumed', ctx.state);
-      } catch {
-        debugLog('playIncomingTone:AudioContext resume failed');
-        return false;
-      }
-    }
-    if (ctx.state !== 'running') {
-      debugLog('playIncomingTone:AudioContext not running', ctx.state);
-      return false;
-    }
-
-    if (toneActiveRef.current) {
-      debugLog('playIncomingTone: already playing', { source });
-      return true;
-    }
-
-    const scheduleBeep = (startTime: number, frequency: number) => {
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      oscillator.type = 'sine';
-      oscillator.frequency.value = frequency;
-      gain.gain.setValueAtTime(0.0001, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.34);
-
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.start(startTime);
-      oscillator.stop(startTime + 0.24);
-    };
-
-    const playLoopCycle = () => {
-      if (ctx.state !== 'running') return;
-      const now = ctx.currentTime + 0.01;
-      scheduleBeep(now, 880);
-      scheduleBeep(now + 0.26, 988);
-      scheduleBeep(now + 0.52, 1047);
-    };
-
-    if (beepLoopTimerRef.current) {
-      clearInterval(beepLoopTimerRef.current);
-      beepLoopTimerRef.current = null;
-    }
-    if (toneStopTimerRef.current) {
-      clearTimeout(toneStopTimerRef.current);
-      toneStopTimerRef.current = null;
-    }
-
-    toneActiveRef.current = true;
-    playLoopCycle();
-    beepLoopTimerRef.current = setInterval(() => {
-      playLoopCycle();
-    }, 1200);
-    toneStopTimerRef.current = setTimeout(() => {
-      stopIncomingTone();
-      debugLog('playIncomingTone:auto-stop at 15s', { source });
-    }, ALERT_DURATION_MS);
-    debugLog('playIncomingTone:beep loop started', { source });
-    return true;
-  }, [ALERT_DURATION_MS, AUDIO_PERMISSION_KEY, debugLog, ensureAudioContext, stopIncomingTone]);
-
-  const unlockAudio = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(AUDIO_PERMISSION_KEY, 'granted');
-    }
-    const ctx = ensureAudioContext();
-    if (!ctx) return;
-    if (ctx.state === 'suspended') {
-      void ctx.resume().catch(() => undefined);
-    }
-    debugLog('unlockAudio called', { state: ctx.state });
-  }, [AUDIO_PERMISSION_KEY, debugLog, ensureAudioContext]);
-
-  const triggerIncomingAlert = useCallback((source: 'incoming' | 'test' = 'incoming') => {
-    const now = Date.now();
-    if (now - lastAlertAtRef.current < 1200) return;
-    lastAlertAtRef.current = now;
-    debugLog('triggerIncomingAlert', { source });
-    unlockAudio();
-    const vibrateOk = startIncomingVibration(source);
-    void vibrateOk;
-    void playIncomingTone(true, source);
-  }, [debugLog, playIncomingTone, startIncomingVibration, unlockAudio]);
-
-  const loadCalls = useCallback(async (silent = false, notifyOnNewPending = false) => {
-    if (!silent) {
-      setIsLoading(true);
-      setError('');
-    }
-
-    try {
-      const response = await api.getMyCalls(activeTabRef.current);
-      if (response.success) {
-        const nextCalls = response.data;
-        const previousCalls = callsRef.current;
-        if (!isSameCallList(previousCalls, nextCalls)) {
-          const hasNewPending = hasNewPendingCall(previousCalls, nextCalls);
-          debugLog('loadCalls: list changed', {
-            prev: previousCalls.length,
-            next: nextCalls.length,
-            notifyOnNewPending,
-            hasNewPending,
-          });
-          if (hasNewPending) {
-            debugLog('loadCalls: detected new pending call -> alert');
-            setNewCallAlert(true);
-            triggerIncomingAlert();
-          }
-          const hasPending = nextCalls.some((call) => call.status === 'pending');
-          if (hasPending) {
-            setNewCallAlert(true);
-            if (!isTonePlaying()) {
-              debugLog('loadCalls: pending exists -> ensure alert tone');
-              triggerIncomingAlert();
-            }
-          }
-          if (!hasPending) {
-            debugLog('loadCalls: no pending, stop tone');
-            setNewCallAlert(false);
-            stopIncomingTone();
-          }
-          callsRef.current = nextCalls;
-          setCalls(nextCalls);
+  const loadCalls = useCallback(
+    async (silent = false, notifyOnNewPending = false) => {
+      if (!hasSession) {
+        setCalls([]);
+        setNewCallAlert(false);
+        if (!silent) {
+          setError('');
+          setIsLoading(false);
         }
-      } else if (!silent) {
-        setError(response.message || 'Không thể tải danh sách');
+        return;
       }
-    } catch (err: any) {
-      if (!silent) {
-        setError('Lỗi kết nối: ' + err.message);
-      }
-    } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
-    }
-  }, [debugLog, isTonePlaying, stopIncomingTone, triggerIncomingAlert]);
 
-  const scheduleSilentReload = useCallback((notifyOnNewPending = false) => {
-    if (notifyOnNewPending) {
-      pendingNotifyOnReloadRef.current = true;
-    }
-    if (silentReloadTimerRef.current) return;
-    debugLog('scheduleSilentReload', { notifyOnNewPending, pendingNotify: pendingNotifyOnReloadRef.current });
+      if (!silent) {
+        setIsLoading(true);
+        setError('');
+      }
 
-    silentReloadTimerRef.current = setTimeout(() => {
-      silentReloadTimerRef.current = null;
-      const shouldNotify = pendingNotifyOnReloadRef.current;
-      pendingNotifyOnReloadRef.current = false;
-      void loadCalls(true, shouldNotify);
-    }, 200);
-  }, [debugLog, loadCalls]);
+      try {
+        const response = await api.getMyCalls('pending');
+        if (response.success) {
+          const nextCalls = response.data;
+          const previousCalls = callsRef.current;
+          if (!isSameCallList(previousCalls, nextCalls)) {
+            const hasNewPending = hasNewPendingCall(previousCalls, nextCalls);
+            if (hasNewPending) {
+              setNewCallAlert(true);
+            }
+
+            const hasPending = nextCalls.some((call) => call.status === 'pending');
+            if (hasPending) setNewCallAlert(true);
+            if (!hasPending) setNewCallAlert(false);
+
+            callsRef.current = nextCalls;
+            setCalls(nextCalls);
+          }
+        } else if (!silent) {
+          setError(response.message || 'Không thể tải danh sách');
+        }
+      } catch (err: any) {
+        if (!silent) {
+          setError('Lỗi kết nối: ' + err.message);
+        }
+      } finally {
+        if (!silent) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [hasSession]
+  );
+
+  const scheduleSilentReload = useCallback(
+    (notifyOnNewPending = false) => {
+      if (notifyOnNewPending) {
+        pendingNotifyOnReloadRef.current = true;
+      }
+      if (silentReloadTimerRef.current) return;
+
+      silentReloadTimerRef.current = setTimeout(() => {
+        silentReloadTimerRef.current = null;
+        const shouldNotify = pendingNotifyOnReloadRef.current;
+        pendingNotifyOnReloadRef.current = false;
+        void loadCalls(true, shouldNotify);
+      }, 200);
+    },
+    [loadCalls]
+  );
 
   useEffect(() => {
     void loadCalls();
-  }, [activeTab, loadCalls]);
+  }, [loadCalls]);
 
   useEffect(() => {
+    if (!hasSession) return;
     const socket = getSocket() || connectSocket();
     if (!socket) return;
-    debugLog('socket effect mounted, listeners attached');
 
     const isMine = (target?: string | null) => {
       const t = normalize(target);
@@ -334,23 +151,19 @@ function HomePage({ onLogout }: HomePageProps) {
     };
 
     const onNewCall = (data: any) => {
-      debugLog('socket event: callLogCreated', data);
       const target = data?.to_user || data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
       scheduleSilentReload(true);
     };
 
     const onIncomingCall = (data: any) => {
-      debugLog('socket event: incomingCall', data);
       const target = data?.to_user || data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
       setNewCallAlert(true);
-      triggerIncomingAlert();
       scheduleSilentReload(true);
     };
 
-    const onStatusUpdate = (data: any) => {
-      debugLog('socket event: call status/log updated', data);
+    const onStatusUpdate = () => {
       scheduleSilentReload(false);
     };
 
@@ -364,11 +177,11 @@ function HomePage({ onLogout }: HomePageProps) {
       socket.off('incomingCall', onIncomingCall);
       socket.off('callLogUpdated', onStatusUpdate);
       socket.off('callStatusUpdate', onStatusUpdate);
-      debugLog('socket effect cleanup, listeners removed');
     };
-  }, [debugLog, scheduleSilentReload, triggerIncomingAlert, user?.departmentName, user?.name]);
+  }, [hasSession, scheduleSilentReload, user?.departmentName, user?.name]);
 
   useEffect(() => {
+    if (!hasSession) return;
     const refreshWhenActive = () => {
       if (document.visibilityState === 'visible') {
         void loadCalls(true);
@@ -388,14 +201,15 @@ function HomePage({ onLogout }: HomePageProps) {
       window.removeEventListener('pageshow', onFocus);
       document.removeEventListener('visibilitychange', refreshWhenActive);
     };
-  }, [loadCalls]);
+  }, [hasSession, loadCalls]);
 
   useEffect(() => {
+    if (!hasSession) return;
     const interval = setInterval(() => {
       void loadCalls(true);
     }, 3000);
     return () => clearInterval(interval);
-  }, [loadCalls]);
+  }, [hasSession, loadCalls]);
 
   useEffect(() => {
     return () => {
@@ -404,27 +218,8 @@ function HomePage({ onLogout }: HomePageProps) {
         silentReloadTimerRef.current = null;
       }
       pendingNotifyOnReloadRef.current = false;
-      stopIncomingTone();
-      if (audioContextRef.current) {
-        void audioContextRef.current.close();
-        audioContextRef.current = null;
-      }
-      toneActiveRef.current = false;
     };
-  }, [stopIncomingTone]);
-
-  useEffect(() => {
-    const activateAudio = () => {
-      unlockAudio();
-    };
-    window.addEventListener('touchstart', activateAudio, { passive: true });
-    window.addEventListener('click', activateAudio, { passive: true });
-
-    return () => {
-      window.removeEventListener('touchstart', activateAudio);
-      window.removeEventListener('click', activateAudio);
-    };
-  }, [unlockAudio]);
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -474,50 +269,36 @@ function HomePage({ onLogout }: HomePageProps) {
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>BlueCode</h1>
-          <p style={styles.userName}>Xin chào, {user?.name}</p>
+          <p style={styles.userName}>Xin chào, {user?.name || 'Khách'}</p>
         </div>
-        <button onClick={onLogout} style={styles.logoutBtn}>
-          Đăng xuất
-        </button>
+        {hasSession ? (
+          <button onClick={onLogout} style={styles.logoutBtn}>
+            Đăng xuất
+          </button>
+        ) : (
+          <Link to="/qr" style={{ ...styles.logoutBtn, textDecoration: 'none' }}>
+            Đăng nhập QR
+          </Link>
+        )}
       </div>
 
-      <div style={styles.tabs}>
-        <button
-          onClick={() => setActiveTab('pending')}
-          style={{
-            ...styles.tab,
-            background: activeTab === 'pending' ? '#0365af' : '#f5f5f5',
-            color: activeTab === 'pending' ? 'white' : '#666',
-          }}
-        >
-          Chờ xử lý {activeTab === 'pending' && calls.length > 0 && `(${calls.length})`}
-        </button>
-        <button
-          onClick={() => setActiveTab('all')}
-          style={{
-            ...styles.tab,
-            background: activeTab === 'all' ? '#0365af' : '#f5f5f5',
-            color: activeTab === 'all' ? 'white' : '#666',
-          }}
-        >
-          Tất cả
-        </button>
-      </div>
-
-      {newCallAlert && (
+      {hasSession && newCallAlert && (
         <div
           onClick={() => {
             setNewCallAlert(false);
-            stopIncomingTone();
             scheduleSilentReload();
           }}
           style={styles.newCallBanner}
         >
-          Có cuộc gọi mới! Nhấn để làm mới.
+          Có cuộc gọi tới mới! Nhấn để làm mới.
         </div>
       )}
 
       <div style={styles.content}>
+        <div style={styles.sectionHead}>
+          <p style={styles.sectionLabel}>Cuộc gọi chờ xử lý</p>
+          {!isLoading && !error && <span style={styles.sectionCount}>{calls.length}</span>}
+        </div>
         {isLoading ? (
           <div style={styles.center}>
             <div style={styles.spinner}></div>
@@ -533,7 +314,11 @@ function HomePage({ onLogout }: HomePageProps) {
         ) : calls.length === 0 ? (
           <div style={styles.center}>
             <div style={styles.emptyIcon}>Không có dữ liệu</div>
-            <p style={styles.emptyText}>{activeTab === 'pending' ? 'Không có cuộc gọi đang chờ' : 'Chưa có cuộc gọi nào'}</p>
+            <p style={styles.emptyText}>
+              {!hasSession
+                ? 'Vui lòng đăng nhập QR để xem dữ liệu.'
+                : 'Chưa có cuộc gọi nào gửi đến bạn.'}
+            </p>
           </div>
         ) : (
           <div style={styles.callList}>
@@ -553,20 +338,24 @@ function HomePage({ onLogout }: HomePageProps) {
 
                 <div style={styles.callBody}>
                   <p style={styles.fromUser}>
-                    <strong>Từ:</strong> {call.fromUser}
+                    <strong>Vị trí sự cố:</strong> {call.fromUser}
                   </p>
                   {call.message && <p style={styles.message}>{call.message}</p>}
                 </div>
 
                 <div style={styles.callFooter}>
                   <span style={styles.time}>{formatTime(call.createdAt)}</span>
-                  {call.status === 'pending' && <span style={styles.actionHint}>Nhấn để xử lý {'->'}</span>}
+                  {call.status === 'pending' && (
+                    <span style={styles.actionHint}>Nhấn để xử lý {'->'}</span>
+                  )}
                 </div>
               </Link>
             ))}
           </div>
         )}
       </div>
+
+      <BottomTabBar />
     </div>
   );
 }
@@ -574,87 +363,107 @@ function HomePage({ onLogout }: HomePageProps) {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: '100vh',
-    background: '#f5f5f5',
+    background: 'transparent',
+    paddingBottom: '112px',
   },
   header: {
-    background: '#0365af',
+    background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 62%, #03559a 100%)',
     color: 'white',
-    padding: '16px 20px',
+    padding: '18px 18px 20px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderBottomLeftRadius: '20px',
+    borderBottomRightRadius: '20px',
+    boxShadow: '0 8px 24px rgba(3, 101, 175, 0.24)',
   },
   headerTitle: {
     margin: 0,
-    fontSize: '18px',
-    fontWeight: 'bold',
+    fontSize: '24px',
+    fontWeight: 800,
+    letterSpacing: '0.2px',
   },
   userName: {
-    margin: '4px 0 0',
+    margin: '6px 0 0',
     fontSize: '13px',
-    opacity: 0.9,
+    opacity: 0.95,
   },
   logoutBtn: {
-    background: 'rgba(255,255,255,0.2)',
+    background: 'rgba(255,255,255,0.18)',
     color: 'white',
-    border: 'none',
-    padding: '8px 12px',
-    borderRadius: '6px',
+    border: '1px solid rgba(255,255,255,0.32)',
+    padding: '10px 14px',
+    borderRadius: '10px',
     fontSize: '13px',
+    fontWeight: 600,
     cursor: 'pointer',
-  },
-  tabs: {
-    display: 'flex',
-    padding: '12px 16px',
-    gap: '8px',
-    background: 'white',
-    borderBottom: '1px solid #e0e0e0',
-  },
-  tab: {
-    flex: 1,
-    padding: '10px',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
   },
   content: {
     padding: '16px',
   },
+  sectionHead: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '10px',
+  },
+  sectionLabel: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: 700,
+    color: '#1e293b',
+  },
+  sectionCount: {
+    minWidth: '28px',
+    height: '28px',
+    borderRadius: '999px',
+    background: '#dbeafe',
+    color: '#0b4f8a',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '13px',
+    fontWeight: 700,
+  },
   center: {
     textAlign: 'center',
-    padding: '40px 20px',
+    padding: '48px 20px',
+    background: '#fff',
+    borderRadius: '16px',
+    border: '1px solid #dbe4ef',
   },
   spinner: {
     width: '40px',
     height: '40px',
-    border: '4px solid #e0e0e0',
-    borderTop: '4px solid #0365af',
+    border: '4px solid #dbe4ef',
+    borderTop: '4px solid #0f86d6',
     borderRadius: '50%',
     animation: 'spin 1s linear infinite',
     margin: '0 auto 16px',
   },
   error: {
-    color: '#c62828',
+    color: '#dc2626',
     marginBottom: '16px',
   },
   retryBtn: {
     background: '#0365af',
     color: 'white',
     border: 'none',
-    padding: '10px 20px',
-    borderRadius: '6px',
+    padding: '11px 20px',
+    borderRadius: '10px',
+    fontWeight: 700,
     cursor: 'pointer',
   },
   emptyIcon: {
-    fontSize: '24px',
+    fontSize: '18px',
     marginBottom: '16px',
+    color: '#0f86d6',
+    fontWeight: 700,
   },
   emptyText: {
-    color: '#666',
+    color: '#64748b',
     fontSize: '14px',
+    margin: 0,
   },
   callList: {
     display: 'flex',
@@ -662,31 +471,33 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
   },
   callCard: {
-    background: 'white',
-    borderRadius: '12px',
-    padding: '16px',
+    background: '#fff',
+    borderRadius: '16px',
+    border: '1px solid #dbe4ef',
+    padding: '14px',
     textDecoration: 'none',
     color: 'inherit',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.05)',
     display: 'block',
   },
   callHeader: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '12px',
+    marginBottom: '10px',
   },
   callId: {
     fontSize: '12px',
-    color: '#999',
+    color: '#64748b',
     fontFamily: 'monospace',
+    letterSpacing: '0.2px',
   },
   status: {
     fontSize: '11px',
-    padding: '4px 10px',
+    padding: '5px 11px',
     borderRadius: '20px',
     color: 'white',
-    fontWeight: 'bold',
+    fontWeight: 700,
   },
   callBody: {
     marginBottom: '12px',
@@ -694,12 +505,12 @@ const styles: Record<string, React.CSSProperties> = {
   fromUser: {
     margin: '0 0 8px',
     fontSize: '15px',
-    color: '#333',
+    color: '#0f172a',
   },
   message: {
     margin: 0,
     fontSize: '13px',
-    color: '#666',
+    color: '#475569',
     lineHeight: 1.5,
   },
   callFooter: {
@@ -707,26 +518,26 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: '12px',
-    borderTop: '1px solid #f0f0f0',
+    borderTop: '1px solid #e6edf5',
   },
   time: {
     fontSize: '12px',
-    color: '#999',
+    color: '#64748b',
   },
   actionHint: {
     fontSize: '12px',
     color: '#0365af',
-    fontWeight: '500',
+    fontWeight: 700,
   },
   newCallBanner: {
-    background: '#ff5722',
+    background: 'linear-gradient(90deg, #ef4444 0%, #f97316 100%)',
     color: 'white',
     textAlign: 'center',
     padding: '12px 16px',
     fontSize: '14px',
-    fontWeight: 'bold',
+    fontWeight: 700,
     cursor: 'pointer',
-    animation: 'pulse 1.5s infinite',
+    animation: 'pulseAlert 1.5s infinite',
   },
 };
 

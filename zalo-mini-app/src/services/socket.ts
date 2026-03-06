@@ -18,9 +18,6 @@ export function getSocket(): Socket | null {
 export function connectSocket(): Socket {
   if (socket?.connected) return socket;
   if (IS_MIXED_CONTENT_RISK) {
-    console.warn(
-      '[Socket] Mixed content risk: Mini App is HTTPS but socket URL is HTTP. Set VITE_API_URL_HTTPS to HTTPS endpoint.'
-    );
   }
 
   socket = io(SOCKET_URL, {
@@ -52,8 +49,11 @@ function registerUser() {
   if (!socket || registered) return;
   const user = auth.getUser();
   if (!user) return;
+  const token = localStorage.getItem('token');
+  if (!token) return;
 
   socket.emit('register', {
+    token,
     id: user.id,
     name: user.name,
     email: user.email,

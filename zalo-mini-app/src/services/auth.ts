@@ -116,9 +116,7 @@ class AuthService {
       try {
         rawAccessToken = await getAccessToken();
         const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
-        console.log('[Auth] getAccessToken:', hasToken ? `ok (length=${String(rawAccessToken).trim().length})` : 'empty or invalid');
       } catch (sdkError: any) {
-        console.warn('[Auth] getAccessToken SDK error:', sdkError?.message || sdkError);
         throw sdkError;
       }
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';
@@ -179,9 +177,7 @@ class AuthService {
       try {
         rawAccessToken = await getAccessToken();
         const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
-        console.log('[Auth] getAccessToken (qr):', hasToken ? `ok (length=${String(rawAccessToken).trim().length})` : 'empty or invalid');
       } catch (sdkError: any) {
-        console.warn('[Auth] getAccessToken SDK error (qr):', sdkError?.message || sdkError);
         throw sdkError;
       }
       const zaloAccessToken = typeof rawAccessToken === 'string' ? rawAccessToken.trim() : '';

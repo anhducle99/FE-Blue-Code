@@ -56,15 +56,15 @@ export default function LoginPage() {
       if (data.success) {
         const userData = mapApiUser(data.data.user as any);
         login(userData, data.data.token);
-        showSuccess("Dang nhap thanh cong");
+        showSuccess("Đăng nhập thành công");
         navigate("/main", { replace: true });
       } else {
-        showError(data.message || "Sai email hoac mat khau");
+        showError(data.message || "Sai email hoặc mật khẩu");
       }
     } catch (err: any) {
       const errorData = err?.response?.data;
       const errorMessage =
-        errorData?.message || err?.message || "Khong the ket noi den server";
+        errorData?.message || err?.message || "Không thể kểt nối đến server";
       showError(errorMessage);
     } finally {
       setLoading(false);
