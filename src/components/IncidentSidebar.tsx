@@ -145,13 +145,17 @@ const IncidentSidebar: React.FC<IncidentSidebarProps> = ({
   }, [user, isSuperAdmin, filterOrgId]);
 
   const organizationFilteredIncidents = useMemo(() => {
-    if (isSuperAdmin) return incidents;
-    if (organizationNames.size === 0) return incidents;
+    const hasSuperAdminOrgFilter = isSuperAdmin && filterOrgId !== "";
+
+    if (isSuperAdmin && !hasSuperAdminOrgFilter) return incidents;
+    if (organizationNames.size === 0) {
+      return hasSuperAdminOrgFilter ? [] : incidents;
+    }
     return incidents.filter((incident) => {
       const normalizedSource = normalizeName(incident.source || "");
       return organizationNames.has(normalizedSource);
     });
-  }, [incidents, organizationNames, isSuperAdmin]);
+  }, [incidents, organizationNames, isSuperAdmin, filterOrgId]);
 
   const matchesCallFilter = (incident: Incident, filterValue: IncidentFilter): boolean => {
     const callType = (incident as any).callType;

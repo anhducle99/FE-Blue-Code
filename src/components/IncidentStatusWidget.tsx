@@ -107,6 +107,8 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
   }, [user, superAdminOrgFilterId]);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
     const fetchCallLogs = async () => {
       if (!user) return;
 
@@ -146,23 +148,38 @@ const IncidentStatusWidget: React.FC<IncidentStatusWidgetProps> = ({
       }
     };
 
-    fetchCallLogs();
+    timer = setTimeout(() => {
+      fetchCallLogs();
+    }, 250);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [user, selectedDate, superAdminOrgFilterId, lastSocketUpdate, resolvedOrgId]);
 
   const filteredIncidents = useMemo(() => {
     const isSuperAdmin = user?.role === "SuperAdmin";
-    
-    if (isSuperAdmin) {
+
+    const hasSuperAdminOrgFilter =
+      isSuperAdmin &&
+      superAdminOrgFilterId !== undefined &&
+      superAdminOrgFilterId !== "";
+
+    if (isSuperAdmin && !hasSuperAdminOrgFilter) {
       return incidents;
     }
-    
-    if (organizationUserNames.size === 0) return incidents;
-    
+
+    if (organizationUserNames.size === 0) {
+      return hasSuperAdminOrgFilter ? [] : incidents;
+    }
+
     return incidents.filter((incident) => {
       const normalizedSource = normalizeName(incident.source || "");
       return organizationUserNames.has(normalizedSource);
     });
-  }, [incidents, organizationUserNames, user?.role]);
+  }, [incidents, organizationUserNames, user?.role, superAdminOrgFilterId]);
 
   const stats = useMemo(() => {
     const todayIncidents = filteredIncidents.filter((incident) => {

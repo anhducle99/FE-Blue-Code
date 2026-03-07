@@ -331,6 +331,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   }, [user?.name, user?.department_id, user?.department_name]);
 
   const { socket } = useSocket(identifier);
+  const socketFetchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -349,22 +350,28 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleCallLogUpdate = () => {
-      fetchData();
+    const scheduleFetch = () => {
+      if (socketFetchTimerRef.current) {
+        clearTimeout(socketFetchTimerRef.current);
+      }
+      socketFetchTimerRef.current = setTimeout(() => {
+        socketFetchTimerRef.current = null;
+        fetchData();
+      }, 250);
     };
 
-    const handleCallStatusUpdate = () => {
-      fetchData();
-    };
-
-    socket.on("callLogCreated", handleCallLogUpdate);
-    socket.on("callStatusUpdate", handleCallStatusUpdate);
-    socket.on("callLogUpdated", handleCallLogUpdate);
+    socket.on("callLogCreated", scheduleFetch);
+    socket.on("callStatusUpdate", scheduleFetch);
+    socket.on("callLogUpdated", scheduleFetch);
 
     return () => {
-      socket.off("callLogCreated", handleCallLogUpdate);
-      socket.off("callStatusUpdate", handleCallStatusUpdate);
-      socket.off("callLogUpdated", handleCallLogUpdate);
+      if (socketFetchTimerRef.current) {
+        clearTimeout(socketFetchTimerRef.current);
+        socketFetchTimerRef.current = null;
+      }
+      socket.off("callLogCreated", scheduleFetch);
+      socket.off("callStatusUpdate", scheduleFetch);
+      socket.off("callLogUpdated", scheduleFetch);
     };
   }, [socket, fetchData]);
 

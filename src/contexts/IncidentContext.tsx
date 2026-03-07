@@ -371,6 +371,13 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!user || !socket) return;
 
     const syncInterval = setInterval(() => {
+      const now = Date.now();
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (now - lastCallStatusUpdateRef.current < 15000) {
+        return;
+      }
       if (!isLoadingRef.current) {
         loadCallHistory();
       }
@@ -408,9 +415,27 @@ export const IncidentProvider: React.FC<{ children: React.ReactNode }> = ({
         
       }
 
-      if (data && data.callLog) {
+      const callLogPayload = data?.callLog ?? data;
+      const hasCallLogPayload =
+        callLogPayload &&
+        typeof callLogPayload === "object" &&
+        typeof callLogPayload.id === "number" &&
+        typeof callLogPayload.call_id === "string";
+
+      if (hasCallLogPayload) {
         try {
-          const callLog = data.callLog as ICallLog;
+          const callLog = {
+            id: callLogPayload.id,
+            call_id: callLogPayload.call_id,
+            sender: callLogPayload.from_user,
+            receiver: callLogPayload.to_user,
+            message: callLogPayload.message,
+            status: callLogPayload.status,
+            created_at: callLogPayload.created_at,
+            accepted_at: callLogPayload.accepted_at,
+            rejected_at: callLogPayload.rejected_at,
+            image_url: callLogPayload.image_url,
+          } as ICallLog;
           const converted = convertCallLogToIncidents(callLog);
 
           if (process.env.NODE_ENV === "development") {

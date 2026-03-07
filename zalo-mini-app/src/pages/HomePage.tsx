@@ -206,6 +206,9 @@ function HomePage({ onLogout }: HomePageProps) {
   useEffect(() => {
     if (!hasSession) return;
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
       void loadCalls(true);
     }, 3000);
     return () => clearInterval(interval);
