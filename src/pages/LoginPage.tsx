@@ -87,7 +87,7 @@ export default function LoginPage() {
           className="mx-auto w-full max-w-[min(100%,24rem)] sm:max-w-sm lg:w-96 bg-white p-6 sm:p-8 rounded-lg shadow-3xl shadow-gray-700"
         >
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 text-center">
-            Dang nhap
+           Đăng nhập
           </h2>
 
           <div className="mt-4 space-y-6">
@@ -128,7 +128,7 @@ export default function LoginPage() {
               disabled={loading}
               className="mt-4 w-full rounded-lg bg-[#0365af] py-2 text-base text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {loading ? "Dang dang nhap..." : "Dang nhap"}
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
           </div>
 

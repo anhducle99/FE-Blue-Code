@@ -13,16 +13,28 @@ function normalize(value?: string | null) {
 
 export function useGlobalIncomingAlert(enabled: boolean) {
   const AUDIO_PERMISSION_KEY = 'audio-permission';
-  const ALERT_DURATION_MS = 15000;
 
   const lastAlertAtRef = useRef(0);
   const beepLoopTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toneStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toneActiveRef = useRef(false);
   const vibrationLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const vibrationStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const userInteractedRef = useRef(false);
+  const pendingCallIdsRef = useRef<Set<string>>(new Set());
+
+  const getEventCallId = useCallback((data: any): string => {
+    const raw = data?.callId || data?.call_id || data?.id;
+    return typeof raw === 'string' ? raw.trim() : '';
+  }, []);
+
+  const syncPendingCall = useCallback((callId: string, isPending: boolean) => {
+    if (!callId) return;
+    if (isPending) {
+      pendingCallIdsRef.current.add(callId);
+      return;
+    }
+    pendingCallIdsRef.current.delete(callId);
+  }, []);
 
   const hasUserActivation = useCallback(() => {
     if (typeof window === 'undefined') return false;
@@ -57,10 +69,6 @@ export function useGlobalIncomingAlert(enabled: boolean) {
       clearInterval(vibrationLoopRef.current);
       vibrationLoopRef.current = null;
     }
-    if (vibrationStopRef.current) {
-      clearTimeout(vibrationStopRef.current);
-      vibrationStopRef.current = null;
-    }
     if (!hasUserActivation()) {
       return;
     }
@@ -88,22 +96,15 @@ export function useGlobalIncomingAlert(enabled: boolean) {
           navigator.vibrate(pattern);
         }
       }, 1500);
-      vibrationStopRef.current = setTimeout(() => {
-        stopIncomingVibration();
-      }, ALERT_DURATION_MS);
     } catch {
     }
-  }, [ALERT_DURATION_MS, hasUserActivation, stopIncomingVibration]);
+  }, [hasUserActivation, stopIncomingVibration]);
 
   const stopIncomingTone = useCallback(() => {
     stopIncomingVibration();
     if (beepLoopTimerRef.current) {
       clearInterval(beepLoopTimerRef.current);
       beepLoopTimerRef.current = null;
-    }
-    if (toneStopTimerRef.current) {
-      clearTimeout(toneStopTimerRef.current);
-      toneStopTimerRef.current = null;
     }
     toneActiveRef.current = false;
   }, [stopIncomingVibration]);
@@ -156,21 +157,13 @@ export function useGlobalIncomingAlert(enabled: boolean) {
       clearInterval(beepLoopTimerRef.current);
       beepLoopTimerRef.current = null;
     }
-    if (toneStopTimerRef.current) {
-      clearTimeout(toneStopTimerRef.current);
-      toneStopTimerRef.current = null;
-    }
-
     toneActiveRef.current = true;
     playLoopCycle();
     beepLoopTimerRef.current = setInterval(() => {
       playLoopCycle();
     }, 1200);
-    toneStopTimerRef.current = setTimeout(() => {
-      stopIncomingTone();
-    }, ALERT_DURATION_MS);
     return true;
-  }, [ALERT_DURATION_MS, AUDIO_PERMISSION_KEY, ensureAudioContext, stopIncomingTone]);
+  }, [AUDIO_PERMISSION_KEY, ensureAudioContext]);
 
   const unlockAudio = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -195,6 +188,7 @@ export function useGlobalIncomingAlert(enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) {
+      pendingCallIdsRef.current.clear();
       stopIncomingTone();
       return;
     }
@@ -214,6 +208,7 @@ export function useGlobalIncomingAlert(enabled: boolean) {
     const onIncomingCall = (data: any) => {
       const target = data?.to_user || data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
+      syncPendingCall(getEventCallId(data), true);
       triggerIncomingAlert();
     };
 
@@ -221,25 +216,40 @@ export function useGlobalIncomingAlert(enabled: boolean) {
       const target = data?.to_user || data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
       if ((data?.status || '').toString().toLowerCase() === 'pending') {
+        syncPendingCall(getEventCallId(data), true);
         triggerIncomingAlert();
       }
     };
 
     const onCallStatusUpdate = (data: any) => {
       const status = (data?.status || '').toString().toLowerCase();
-      if (!status || status === 'pending') return;
       const target = data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
-      stopIncomingTone();
+      const callId = getEventCallId(data);
+      if (!status || status === 'pending') {
+        syncPendingCall(callId, true);
+        return;
+      }
+      syncPendingCall(callId, false);
+      if (pendingCallIdsRef.current.size === 0) {
+        stopIncomingTone();
+      }
     };
 
     const onCallLogUpdated = (data: any) => {
       if (!data) return;
       const status = (data?.status || '').toString().toLowerCase();
-      if (!status || status === 'pending') return;
       const target = data?.to_user || data?.toUser;
       if (target && !isMine(target)) return;
-      stopIncomingTone();
+      const callId = getEventCallId(data);
+      if (!status || status === 'pending') {
+        syncPendingCall(callId, true);
+        return;
+      }
+      syncPendingCall(callId, false);
+      if (pendingCallIdsRef.current.size === 0) {
+        stopIncomingTone();
+      }
     };
 
     socket.on('incomingCall', onIncomingCall);
@@ -253,7 +263,7 @@ export function useGlobalIncomingAlert(enabled: boolean) {
       socket.off('callStatusUpdate', onCallStatusUpdate);
       socket.off('callLogUpdated', onCallLogUpdated);
     };
-  }, [enabled, stopIncomingTone, triggerIncomingAlert]);
+  }, [enabled, getEventCallId, stopIncomingTone, syncPendingCall, triggerIncomingAlert]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -279,6 +289,7 @@ export function useGlobalIncomingAlert(enabled: boolean) {
 
   useEffect(() => {
     return () => {
+      pendingCallIdsRef.current.clear();
       stopIncomingTone();
       if (audioContextRef.current) {
         void audioContextRef.current.close();

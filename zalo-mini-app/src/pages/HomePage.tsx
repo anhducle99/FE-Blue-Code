@@ -66,7 +66,7 @@ function HomePage({ onLogout }: HomePageProps) {
   const hasSession = auth.isAuthenticated() && !!user;
 
   const loadCalls = useCallback(
-    async (silent = false, notifyOnNewPending = false) => {
+    async (silent = false, _notifyOnNewPending = false) => {
       if (!hasSession) {
         setCalls([]);
         setNewCallAlert(false);

@@ -115,7 +115,6 @@ class AuthService {
       let rawAccessToken: unknown;
       try {
         rawAccessToken = await getAccessToken();
-        const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
       } catch (sdkError: any) {
         throw sdkError;
       }
@@ -176,7 +175,6 @@ class AuthService {
       let rawAccessToken: unknown;
       try {
         rawAccessToken = await getAccessToken();
-        const hasToken = rawAccessToken != null && String(rawAccessToken).trim().length > 0;
       } catch (sdkError: any) {
         throw sdkError;
       }
