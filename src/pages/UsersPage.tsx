@@ -131,7 +131,7 @@ export const UsersPage: React.FC = () => {
       .nullable()
       .when("is_department_account", {
         is: true,
-        then: (schema) => schema.required("Vui lòng chọn khoa phòng"),
+        then: (schema) => schema.required("Vui lòng chọn đội phản ứng"),
         otherwise: (schema) => schema.nullable(),
       }),
     name: Yup.string().required("Tên không được để trống"),
@@ -170,7 +170,7 @@ export const UsersPage: React.FC = () => {
     onSubmit: async (values) => {
       try {
         if (values.is_department_account && !values.department_id) {
-          message.error("Vui lòng chọn khoa phòng khi bật tài khoản phòng ban");
+          message.error("Vui lòng chọn đội phản ứng khi bật tài khoản xửu lý sự cố");
           return;
         }
 
@@ -744,7 +744,7 @@ export const UsersPage: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Khoa phòng
+                Đội phản ứng
                 {formik.values.is_department_account && (
                   <span className="text-red-500">*</span>
                 )}
@@ -752,8 +752,8 @@ export const UsersPage: React.FC = () => {
               <Select
                 placeholder={
                   formik.values.is_department_account
-                    ? "Chọn khoa phòng"
-                    : "Chọn khoa phòng (hoặc để trống nếu không thuộc khoa nào)"
+                    ? "Chọn phản ứng"
+                    : "Chọn phản ứng (hoặc để trống nếu không thuộc đội phản ứng nào)"
                 }
                 value={formik.values.department_id || undefined}
                 onChange={(val: number | undefined) => {
@@ -812,7 +812,7 @@ export const UsersPage: React.FC = () => {
                         formik.setFieldValue("is_admin_view", false);
                         if (!formik.values.department_id) {
                           message.warning(
-                            "Vui lòng chọn khoa phòng khi bật tài khoản phòng ban"
+                            "Vui lòng chọn đội phản ứng khi bật tài khoản xử lý sự cố"
                           );
                         }
                       } else {
