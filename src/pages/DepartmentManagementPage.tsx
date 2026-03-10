@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Modal, Input, Button, message, Select } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import {
@@ -16,6 +16,21 @@ import { getUsers } from "../services/userService";
 
 const { Option } = Select;
 
+function useClickOutside(
+  ref: React.RefObject<HTMLElement>,
+  callback: () => void
+) {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        callback();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [ref, callback]);
+}
+
 export const DepartmentManagementPage: React.FC = () => {
   const { reloadData } = useDashboard();
   const { refreshDepartments } = useDepartments();
@@ -31,9 +46,12 @@ export const DepartmentManagementPage: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<IDepartment | null>(null);
   const [dropdownIndex, setDropdownIndex] = useState<number | null>(null);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
   const [currentUserOrgId, setCurrentUserOrgId] = useState<number | null>(null);
   const [filterOrgId, setFilterOrgId] = useState<number | "">("");
   const defaultFilterSetRef = useRef(false);
+  const dropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const [formData, setFormData] = useState<Partial<IDepartment>>({
     name: "",
@@ -65,6 +83,56 @@ export const DepartmentManagementPage: React.FC = () => {
       defaultFilterSetRef.current = true;
     }
   }, [isSuperAdmin, organizations]);
+
+  useClickOutside(
+    {
+      current: {
+        contains: (node: Node) =>
+          dropdownRefs.current.some((el) => el?.contains(node)) ||
+          !!menuRef.current?.contains(node),
+      },
+    } as any,
+    () => setDropdownIndex(null)
+  );
+
+  const updateDropdownPosition = () => {
+    if (dropdownIndex === null) {
+      setDropdownCoords(null);
+      return;
+    }
+    const el = dropdownRefs.current[dropdownIndex];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const dropdownWidth = 176;
+    const dropdownHeight = 112;
+    const gap = 8;
+    const spaceAbove = rect.top - gap;
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const shouldOpenUp =
+      (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) ||
+      rect.top > window.innerHeight / 2;
+    let top = shouldOpenUp ? rect.top - dropdownHeight - gap : rect.bottom + gap;
+    let left = rect.right - dropdownWidth;
+    if (top + dropdownHeight > window.innerHeight - gap) top = rect.top - dropdownHeight - gap;
+    if (left < gap) left = gap;
+    if (left + dropdownWidth > window.innerWidth - gap) left = window.innerWidth - dropdownWidth - gap;
+    if (top < gap) top = gap;
+    setDropdownCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    updateDropdownPosition();
+  }, [dropdownIndex]);
+
+  useEffect(() => {
+    if (dropdownIndex === null) return;
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    window.addEventListener("resize", updateDropdownPosition);
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+      window.removeEventListener("resize", updateDropdownPosition);
+    };
+  }, [dropdownIndex]);
 
   const fetchDepartments = async () => {
     try {
@@ -234,6 +302,10 @@ export const DepartmentManagementPage: React.FC = () => {
                           <td className="px-4 py-3">{org?.name || "-"}</td>
                           <td className="px-4 py-3">{d.phone}</td>
                           <td className="px-4 py-3 text-right relative">
+                            <div
+                              className="relative inline-block"
+                              ref={(el) => (dropdownRefs.current[index] = el)}
+                            >
                             <Button
                               className="!p-0 !w-9 !h-9 !min-w-9 !min-h-9 rounded-full hover:!bg-gray-100 shrink-0 aspect-square flex items-center justify-center"
                               onClick={() =>
@@ -242,15 +314,23 @@ export const DepartmentManagementPage: React.FC = () => {
                             >
                               <i className="bi bi-three-dots-vertical text-lg shrink-0" />
                             </Button>
-                            {dropdownIndex === index && (
-                              <div className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden">
+                            </div>
+                            {dropdownIndex === index && dropdownCoords && (
+                              <div
+                                ref={menuRef}
+                                className="fixed z-[9999] bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 w-44 max-w-[calc(100vw-2rem)] overflow-hidden"
+                                style={{
+                                  top: dropdownCoords.top,
+                                  left: dropdownCoords.left,
+                                }}
+                              >
                                 <button
                                   type="button"
                                   onClick={() => {
                                     handleEdit(d);
                                     setDropdownIndex(null);
                                   }}
-                                  className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
+                                  className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 hover:bg-blue-50 transition-colors duration-150"
                                 >
                                   <i className="bi bi-pencil mr-3 text-base" />
                                   <span className="font-medium">Sửa</span>
@@ -262,7 +342,7 @@ export const DepartmentManagementPage: React.FC = () => {
                                     handleDelete(d.id);
                                     setDropdownIndex(null);
                                   }}
-                                  className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
+                                  className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors duration-150"
                                 >
                                   <i className="bi bi-trash mr-3 text-base" />
                                   <span className="font-medium">Xóa</span>

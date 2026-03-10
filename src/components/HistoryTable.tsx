@@ -214,11 +214,11 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
   }, [organizationUsers, organizationDepartments]);
 
   const filteredData = useMemo(() => {
-    if (user?.role === "SuperAdmin") {
+    if (user?.role === "SuperAdmin" && effectiveOrgIdForDisplay === null) {
       return data;
     }
-    if (!currentOrganizationId || organizationNames.size === 0) {
-      return data;
+    if (effectiveOrgIdForDisplay === null || organizationNames.size === 0) {
+      return [];
     }
     return data.filter((log) => {
       const normalizedSender = normalizeName(log.sender);
@@ -228,7 +228,7 @@ export const HistoryTable: React.FC<Props> = ({ filters }) => {
         organizationNames.has(normalizedReceiver)
       );
     });
-  }, [data, currentOrganizationId, organizationNames, user?.role]);
+  }, [data, effectiveOrgIdForDisplay, organizationNames, user?.role]);
 
   interface GroupedRow {
     call_id: string;

@@ -19,6 +19,7 @@ export interface Department {
   id: number;
   name: string;
   phone: string;
+  organization_id?: number | null;
 }
 
 export interface SupportContact {
@@ -109,6 +110,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         id: d.id ?? idx + 1,
         name: d.name,
         phone: d.phone || "",
+        organization_id: d.organization_id ?? null,
       }));
 
       setDepartments(departmentsData);

@@ -19,6 +19,7 @@
     "zmp-sdk": "^3.0.0"
   },
   "devDependencies": {
+    "@types/node": "^20.19.14",
     "@types/react": "^18.2.37",
     "@types/react-dom": "^18.2.15",
     "@vitejs/plugin-react": "^4.2.0",
