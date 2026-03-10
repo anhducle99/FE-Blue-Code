@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { Modal, Input, Select, Switch, Button, message } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { useFormik } from "formik";
@@ -18,6 +18,14 @@ import {
 
 const { Option } = Select;
 const PAGE_SIZE = 10;
+
+const normalizeName = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "")
+    .trim();
 
 function useClickOutside(
   ref: React.RefObject<HTMLElement>,
@@ -138,7 +146,7 @@ export const UsersPage: React.FC = () => {
     email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
       .required("Số điện thoại không được để trống")
-      .matches(/^[0-9]{10,11}$/, "Số điện thoại phải có 10-11 chữ số"),
+      .matches(/^[0-9]{10,11}$/, "Số điện thoại phải có dung 10 chữ số"),
     password: Yup.string().when([], {
       is: () => !editingUser,
       then: (schema) =>
@@ -172,6 +180,24 @@ export const UsersPage: React.FC = () => {
         if (values.is_department_account && !values.department_id) {
           message.error("Vui lòng chọn đội phản ứng khi bật tài khoản xửu lý sự cố");
           return;
+        }
+
+        if (!editingUser) {
+          const orgUsersResponse = await getUsers(
+            values.organization_id ? { organization_id: values.organization_id } : undefined
+          );
+          const orgUsers = Array.isArray(orgUsersResponse.data) ? orgUsersResponse.data : [];
+          const normalizedNewName = normalizeName(values.name || "");
+          const hasDuplicateName = orgUsers.some(
+            (existingUser) => normalizeName(existingUser.name || "") === normalizedNewName
+          );
+
+          if (hasDuplicateName) {
+            formik.setFieldError("name", "TÃªn ngÆ°á»i dÃ¹ng Ä‘Ã£ tá»“n táº¡i trong tá»• chá»©c nÃ y");
+            formik.setFieldTouched("name", true, false);
+            message.error("TÃªn ngÆ°á»i dÃ¹ng Ä‘Ã£ tá»“n táº¡i trong tá»• chá»©c nÃ y");
+            return;
+          }
         }
 
         const deptName = values.department_id
@@ -235,6 +261,25 @@ export const UsersPage: React.FC = () => {
     },
   });
 
+  const filteredDepartments = useMemo(() => {
+    const selectedOrgId = Number(formik.values.organization_id || 0);
+    if (!selectedOrgId) return [];
+    return departments.filter(
+      (department) => Number(department.organization_id) === selectedOrgId
+    );
+  }, [departments, formik.values.organization_id]);
+
+  useEffect(() => {
+    if (!formik.values.department_id) return;
+    const stillValid = filteredDepartments.some(
+      (department) => department.id === formik.values.department_id
+    );
+    if (!stillValid) {
+      formik.setFieldValue("department_id", null);
+      formik.setFieldValue("departmentName", "");
+    }
+  }, [filteredDepartments, formik, formik.values.department_id]);
+
   const handleOpenCreate = async () => {
     setEditingUser(null);
     formik.resetForm();
@@ -288,7 +333,7 @@ export const UsersPage: React.FC = () => {
   const handleResetPassword = async (id: number, name: string) => {
     if (!confirm(`Bạn có chắc muốn cấp lại mật khẩu cho ${name}?`)) return;
     try {
-      await updateUser(id, { password: "123456Ab@" });
+      await updateUser(id, { password: "12345678" });
       message.success(`Cấp lại mật khẩu cho ${name} thành công`);
     } catch (err) {
       message.error("Cấp lại mật khẩu thất bại");
@@ -776,7 +821,7 @@ export const UsersPage: React.FC = () => {
                     : ""
                 }
               >
-                {departments.map((dept) => (
+                {filteredDepartments.map((dept) => (
                   <Option key={dept.id} value={dept.id}>
                     {dept.name}
                   </Option>
@@ -844,7 +889,7 @@ export const UsersPage: React.FC = () => {
                   />
                 </span>
                 <span className="text-sm font-medium text-gray-700">
-                  Tầng phòng
+                  Vị trí sự cố
                 </span>
               </label>
               <label className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg cursor-pointer select-none hover:bg-gray-50 transition-colors">
@@ -872,3 +917,4 @@ export const UsersPage: React.FC = () => {
     </>
   );
 };
+

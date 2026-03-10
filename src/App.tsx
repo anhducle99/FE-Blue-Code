@@ -111,13 +111,10 @@ export default function App() {
 
   const departments = useMemo(() => {
     if (!effectiveOrgIdForDepartments) return allDepartments;
-    return allDepartments.filter((d) => {
-      const deptFromApi = allDepartmentsFromApi.find(
-        (ad) => ad.name === d.name || ad.id === d.id
-      );
-      return deptFromApi?.organization_id === effectiveOrgIdForDepartments;
-    });
-  }, [allDepartments, allDepartmentsFromApi, effectiveOrgIdForDepartments]);
+    return allDepartments.filter(
+      (d) => d.organization_id === effectiveOrgIdForDepartments
+    );
+  }, [allDepartments, effectiveOrgIdForDepartments]);
 
   const supportContacts = useMemo(() => {
     if (!currentOrganizationId) return allSupportContacts;

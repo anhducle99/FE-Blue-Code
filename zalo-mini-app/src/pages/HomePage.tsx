@@ -10,6 +10,8 @@ interface HomePageProps {
   onLogout: () => void;
 }
 
+const AUDIO_PERMISSION_KEY = 'audio-permission';
+
 function isSameCallList(prev: CallLog[], next: CallLog[]): boolean {
   if (prev.length !== next.length) return false;
 
@@ -60,10 +62,156 @@ function HomePage({ onLogout }: HomePageProps) {
   const callsRef = useRef<CallLog[]>(calls);
   const silentReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingNotifyOnReloadRef = useRef(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const beepLoopTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const vibrationLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const userInteractedRef = useRef(false);
   callsRef.current = calls;
 
   const user = auth.getUser();
   const hasSession = auth.isAuthenticated() && !!user;
+
+  const hasUserActivation = useCallback(() => {
+    if (typeof window === 'undefined') return false;
+
+    const navActivation = (navigator as any)?.userActivation;
+    const docActivation = (document as any)?.userActivation;
+    return Boolean(
+      window.sessionStorage.getItem(AUDIO_PERMISSION_KEY) === 'granted' ||
+        userInteractedRef.current ||
+        navActivation?.hasBeenActive ||
+        navActivation?.isActive ||
+        docActivation?.hasBeenActive ||
+        docActivation?.isActive
+    );
+  }, []);
+
+  const ensureAudioContext = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return null;
+    if (!audioContextRef.current) {
+      audioContextRef.current = new Ctx();
+    }
+    return audioContextRef.current;
+  }, []);
+
+  const stopHomeAlert = useCallback(() => {
+    if (vibrationLoopRef.current) {
+      clearInterval(vibrationLoopRef.current);
+      vibrationLoopRef.current = null;
+    }
+    if (beepLoopTimerRef.current) {
+      clearInterval(beepLoopTimerRef.current);
+      beepLoopTimerRef.current = null;
+    }
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(0);
+      } catch {
+      }
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+  }, []);
+
+  const startVibration = useCallback(() => {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      return;
+    }
+    try {
+      navigator.vibrate([260, 120, 260, 120, 420]);
+      if (vibrationLoopRef.current) {
+        clearInterval(vibrationLoopRef.current);
+      }
+      vibrationLoopRef.current = setInterval(() => {
+        navigator.vibrate([260, 120, 260, 120, 420]);
+      }, 1400);
+    } catch {
+    }
+  }, []);
+
+  const playBeepFallback = useCallback(async () => {
+    if (!hasUserActivation()) return false;
+    const ctx = ensureAudioContext();
+    if (!ctx) return false;
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+      } catch {
+        return false;
+      }
+    }
+    if (ctx.state !== 'running') return false;
+
+    const scheduleBeep = (startTime: number, frequency: number) => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.value = frequency;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.14, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.34);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.24);
+    };
+
+    const playLoopCycle = () => {
+      if (ctx.state !== 'running') return;
+      const now = ctx.currentTime + 0.01;
+      scheduleBeep(now, 880);
+      scheduleBeep(now + 0.26, 988);
+      scheduleBeep(now + 0.52, 1047);
+    };
+
+    if (beepLoopTimerRef.current) {
+      clearInterval(beepLoopTimerRef.current);
+    }
+    playLoopCycle();
+    beepLoopTimerRef.current = setInterval(() => {
+      playLoopCycle();
+    }, 1200);
+    return true;
+  }, [ensureAudioContext, hasUserActivation]);
+
+  const tryPlayHomeRingtone = useCallback(async () => {
+    if (!hasUserActivation()) return false;
+    try {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        await audioRef.current.play();
+        return true;
+      }
+    } catch {
+    }
+    return playBeepFallback();
+  }, [hasUserActivation, playBeepFallback]);
+
+  const unlockAudio = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(AUDIO_PERMISSION_KEY, 'granted');
+    }
+    userInteractedRef.current = true;
+    const ctx = ensureAudioContext();
+    if (ctx?.state === 'suspended') {
+      void ctx.resume().catch(() => undefined);
+    }
+    if (audioRef.current) {
+      audioRef.current.load();
+    }
+  }, [ensureAudioContext]);
+
+  const triggerHomeAlert = useCallback(() => {
+    startVibration();
+    void tryPlayHomeRingtone();
+  }, [startVibration, tryPlayHomeRingtone]);
 
   const loadCalls = useCallback(
     async (silent = false, _notifyOnNewPending = false) => {
@@ -91,11 +239,15 @@ function HomePage({ onLogout }: HomePageProps) {
             const hasNewPending = hasNewPendingCall(previousCalls, nextCalls);
             if (hasNewPending) {
               setNewCallAlert(true);
+              triggerHomeAlert();
             }
 
             const hasPending = nextCalls.some((call) => call.status === 'pending');
             if (hasPending) setNewCallAlert(true);
-            if (!hasPending) setNewCallAlert(false);
+            if (!hasPending) {
+              setNewCallAlert(false);
+              stopHomeAlert();
+            }
 
             callsRef.current = nextCalls;
             setCalls(nextCalls);
@@ -113,7 +265,7 @@ function HomePage({ onLogout }: HomePageProps) {
         }
       }
     },
-    [hasSession]
+    [hasSession, stopHomeAlert, triggerHomeAlert]
   );
 
   const scheduleSilentReload = useCallback(
@@ -138,6 +290,47 @@ function HomePage({ onLogout }: HomePageProps) {
   }, [loadCalls]);
 
   useEffect(() => {
+    const hasPending = calls.some((call) => call.status === 'pending');
+    if (!hasSession || !hasPending) {
+      setNewCallAlert(false);
+      stopHomeAlert();
+    }
+  }, [calls, hasSession, stopHomeAlert]);
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/sound/sos.mp3');
+      audioRef.current.loop = true;
+      audioRef.current.preload = 'auto';
+    }
+    if (typeof window !== 'undefined') {
+      userInteractedRef.current =
+        window.sessionStorage.getItem(AUDIO_PERMISSION_KEY) === 'granted';
+    }
+    const onUserInteract = () => unlockAudio();
+    window.addEventListener('pointerdown', onUserInteract, { passive: true });
+    window.addEventListener('touchstart', onUserInteract, { passive: true });
+    window.addEventListener('click', onUserInteract, { passive: true });
+    window.addEventListener('keydown', onUserInteract);
+
+    return () => {
+      window.removeEventListener('pointerdown', onUserInteract);
+      window.removeEventListener('touchstart', onUserInteract);
+      window.removeEventListener('click', onUserInteract);
+      window.removeEventListener('keydown', onUserInteract);
+      stopHomeAlert();
+      if (audioContextRef.current) {
+        void audioContextRef.current.close().catch(() => undefined);
+        audioContextRef.current = null;
+      }
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [stopHomeAlert, unlockAudio]);
+
+  useEffect(() => {
     if (!hasSession) return;
     const socket = getSocket() || connectSocket();
     if (!socket) return;
@@ -160,10 +353,22 @@ function HomePage({ onLogout }: HomePageProps) {
       const target = data?.to_user || data?.toUser || data?.toDept;
       if (target && !isMine(target)) return;
       setNewCallAlert(true);
+      triggerHomeAlert();
       scheduleSilentReload(true);
     };
 
-    const onStatusUpdate = () => {
+    const onStatusUpdate = (data?: { callId?: string; call_id?: string; status?: string }) => {
+      const eventCallId = String(data?.callId || data?.call_id || '').trim();
+      const nextStatus = (data?.status || '').toString().toLowerCase();
+      if (eventCallId && nextStatus && nextStatus !== 'pending') {
+        setCalls((previous) => {
+          const next = previous.map((call) =>
+            call.callId === eventCallId ? { ...call, status: nextStatus as CallLog['status'] } : call
+          );
+          callsRef.current = next;
+          return next;
+        });
+      }
       scheduleSilentReload(false);
     };
 
@@ -178,7 +383,7 @@ function HomePage({ onLogout }: HomePageProps) {
       socket.off('callLogUpdated', onStatusUpdate);
       socket.off('callStatusUpdate', onStatusUpdate);
     };
-  }, [hasSession, scheduleSilentReload, user?.departmentName, user?.name]);
+  }, [hasSession, scheduleSilentReload, triggerHomeAlert, user?.departmentName, user?.name]);
 
   useEffect(() => {
     if (!hasSession) return;
@@ -289,6 +494,7 @@ function HomePage({ onLogout }: HomePageProps) {
         <div
           onClick={() => {
             setNewCallAlert(false);
+            stopHomeAlert();
             scheduleSilentReload();
           }}
           style={styles.newCallBanner}

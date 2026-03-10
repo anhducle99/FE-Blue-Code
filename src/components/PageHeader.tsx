@@ -13,9 +13,9 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   createButton,
 }) => {
   return (
-    <div className="px-4 py-4 min-h-[88px]">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 border-b pb-4">
-        <h1 className="text-base font-medium text-gray-800 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1 leading-none m-0">
+    <div className="px-4 pt-5 pb-4">
+      <div className="flex min-h-10 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="m-0 flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-base font-medium leading-6 text-gray-800">
           <Link className="text-[#0365af] hover:underline shrink-0 inline-flex items-center" to={backLink}>
             Trang chủ
           </Link>
@@ -23,9 +23,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           <span className="break-words">{title}</span>
         </h1>
         {createButton && (
-          <div className="shrink-0 self-end sm:self-auto flex items-center pt-0.5">{createButton}</div>
+          <div className="flex shrink-0 items-center self-end sm:self-center">{createButton}</div>
         )}
       </div>
+      <div className="mt-4 border-b border-gray-200" />
     </div>
   );
 };

@@ -9,12 +9,11 @@ import HistoryPage from './pages/HistoryPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ProfilePage from './pages/ProfilePage';
 import QrPage from './pages/QrPage';
-import useGlobalIncomingAlert from './hooks/useGlobalIncomingAlert';
+import GlobalIncomingCallOverlay from './components/GlobalIncomingCallOverlay';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  useGlobalIncomingAlert(isAuthenticated === true);
 
   useEffect(() => {
     checkAuth();
@@ -62,6 +61,7 @@ function App() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="mini-shell">
         <div className="mini-frame">
+          <GlobalIncomingCallOverlay enabled={isAuthenticated === true} />
           <Routes>
             <Route 
               path="/login" 

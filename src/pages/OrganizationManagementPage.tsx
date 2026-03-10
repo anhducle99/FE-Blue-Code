@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Button, Input, message, Checkbox, Select } from "antd";
 import { PageHeader } from "../components/PageHeader";
 import { ModalAddOrganization } from "../components/ModalAddOrganization";
@@ -24,6 +24,7 @@ export const OrganizationManagementPage: React.FC = () => {
     urlLogo: true,
   });
   const [openMenuIndex, setOpenMenuIndex] = useState<number | null>(null);
+  const [dropdownCoords, setDropdownCoords] = useState<{ top: number; left: number } | null>(null);
   const [data, setData] = useState<IOrganization[]>([]);
   const [filterOrgId, setFilterOrgId] = useState<number | "">("");
   const defaultFilterSetRef = useRef(false);
@@ -32,6 +33,7 @@ export const OrganizationManagementPage: React.FC = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedOrg, setSelectedOrg] = useState<IOrganization | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const dropdownButtonRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [adminOrgId, setAdminOrgId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -87,13 +89,54 @@ export const OrganizationManagementPage: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedToggle = dropdownButtonRefs.current.some((el) => el?.contains(target));
+      if (!clickedToggle && menuRef.current && !menuRef.current.contains(target)) {
         setOpenMenuIndex(null);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const updateDropdownPosition = () => {
+    if (openMenuIndex === null) {
+      setDropdownCoords(null);
+      return;
+    }
+    const el = dropdownButtonRefs.current[openMenuIndex];
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const dropdownWidth = 176;
+    const dropdownHeight = 112;
+    const gap = 8;
+    const spaceAbove = rect.top - gap;
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const shouldOpenUp =
+      (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) ||
+      rect.top > window.innerHeight / 2;
+    let top = shouldOpenUp ? rect.top - dropdownHeight - gap : rect.bottom + gap;
+    let left = rect.right - dropdownWidth;
+    if (top + dropdownHeight > window.innerHeight - gap) top = rect.top - dropdownHeight - gap;
+    if (left < gap) left = gap;
+    if (left + dropdownWidth > window.innerWidth - gap) left = window.innerWidth - dropdownWidth - gap;
+    if (top < gap) top = gap;
+    setDropdownCoords({ top, left });
+  };
+
+  useLayoutEffect(() => {
+    updateDropdownPosition();
+  }, [openMenuIndex]);
+
+  useEffect(() => {
+    if (openMenuIndex === null) return;
+    window.addEventListener("scroll", updateDropdownPosition, true);
+    window.addEventListener("resize", updateDropdownPosition);
+    return () => {
+      window.removeEventListener("scroll", updateDropdownPosition, true);
+      window.removeEventListener("resize", updateDropdownPosition);
+    };
+  }, [openMenuIndex]);
 
   const toggleColumn = (col: "name" | "created_at") => {
     setVisibleColumns((prev) => ({ ...prev, [col]: !prev[col] }));
@@ -343,6 +386,10 @@ export const OrganizationManagementPage: React.FC = () => {
                         : "N/A"}
                     </td>
                     <td className="px-4 py-3 text-right relative">
+                      <div
+                        className="relative inline-block"
+                        ref={(el) => (dropdownButtonRefs.current[index] = el)}
+                      >
                       <Button
                         className="!p-0 !w-9 !h-9 !min-w-9 !min-h-9 rounded-full hover:!bg-gray-100 shrink-0 aspect-square flex items-center justify-center"
                         onClick={() =>
@@ -353,15 +400,20 @@ export const OrganizationManagementPage: React.FC = () => {
                       >
                         <i className="bi bi-three-dots-vertical text-lg shrink-0"></i>
                       </Button>
+                      </div>
 
-                      {openMenuIndex === index && (
+                      {openMenuIndex === index && dropdownCoords && (
                         <div
                           ref={menuRef}
-                          className="absolute right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-200 py-1.5 z-50 overflow-hidden"
+                          className="fixed z-[9999] w-44 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-gray-200 bg-white py-1.5 shadow-xl"
+                          style={{
+                            top: dropdownCoords.top,
+                            left: dropdownCoords.left,
+                          }}
                         >
                           <button
                             onClick={() => handleEdit(item, index)}
-                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:text-blue-700 transition-colors duration-150"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
                           >
                             <i className="bi bi-pencil mr-3 text-base"></i>
                             <span className="font-medium">Sửa</span>
@@ -369,7 +421,7 @@ export const OrganizationManagementPage: React.FC = () => {
                           <div className="border-t border-gray-100 my-1"></div>
                           <button
                             onClick={() => item.id && handleDelete(item.id)}
-                            className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:text-red-700 transition-colors duration-150"
+                            className="flex items-center w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors duration-150"
                           >
                             <i className="bi bi-trash mr-3 text-base"></i>
                             <span className="font-medium">Xóa</span>
