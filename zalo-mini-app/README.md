@@ -9,6 +9,7 @@ Current state mini app hỗ trợ:
 - Xác minh session mini app
 - Liên kết tài khoản web với tài khoản Zalo
 - Approve QR login cho web
+- Dang nhap local bang email/password department account tai `localhost:3001`
 - Xem danh sách cuộc gọi của tài khoản xử lý sự cố
 - Xem chi tiết cuộc gọi
 - Chấp nhận hoặc từ chối cuộc gọi
@@ -54,6 +55,7 @@ Dev server mặc định ở `http://localhost:3001`.
 - Output build nằm ở `www`, không phải `dist`.
 - App dùng `zmp-sdk` để lấy Zalo user info và access token.
 - Backend chỉ cho phép mini app cho user có `isDepartmentAccount = true` và không phải `isFloorAccount`.
+- Khi chạy browser local tại `http://localhost:3001`, trang `/login` hiện thêm form `Dang nhap local`; flow này chỉ để test local và không thay thế flow Zalo chuẩn.
 - Home page hiện vẫn có polling fallback cho danh sách call, nhưng current state chỉ poll khi page đang visible và vẫn ưu tiên update từ socket event.
 
 ## Tài liệu liên quan
