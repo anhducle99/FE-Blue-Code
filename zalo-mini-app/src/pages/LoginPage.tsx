@@ -7,6 +7,10 @@ interface LoginPageProps {
   onLinked: () => void;
 }
 
+const IS_LOCAL_HOST =
+  typeof window !== 'undefined' &&
+  ['localhost', '127.0.0.1'].includes(window.location.hostname.toLowerCase());
+
 function LoginPage({ onLinked }: LoginPageProps) {
   const navigate = useNavigate();
   const [isLinking, setIsLinking] = useState(false);
@@ -15,6 +19,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const [isWaitingForQr, setIsWaitingForQr] = useState(false);
   const [manualLinkToken, setManualLinkToken] = useState('');
   const [isScanningQr, setIsScanningQr] = useState(false);
+  const [devEmail, setDevEmail] = useState('');
+  const [devPassword, setDevPassword] = useState('');
+  const [isDevLoggingIn, setIsDevLoggingIn] = useState(false);
 
   const safeDecode = (value: string): string => {
     try {
@@ -68,9 +75,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
     return safeDecode(rawInput.trim());
   };
 
-  const extractQrSession = (rawInput: string): string => {
-    return extractParamFromRawInput(rawInput, 'qrSession');
-  };
+  const extractQrSession = (rawInput: string): string => extractParamFromRawInput(rawInput, 'qrSession');
 
   const runApproveQrSession = async (qrSession: string) => {
     setIsLinking(true);
@@ -79,9 +84,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
     const result = await auth.approveQrLoginSession(qrSession);
     if (result.success) {
-      setSuccessMessage(result.message || 'Đã xác nhận đăng nhập QR thành công');
+      setSuccessMessage(result.message || 'Da xac nhan dang nhap QR thanh cong');
     } else {
-      setError(result.message || 'Xác nhận đăng nhập QR thất bại');
+      setError(result.message || 'Xac nhan dang nhap QR that bai');
     }
 
     setIsLinking(false);
@@ -90,7 +95,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const runLinkByToken = async (linkToken: string) => {
     const normalizedToken = extractLinkToken(linkToken);
     if (!normalizedToken) {
-      setError('Vui lòng nhập token hoặc đường dẫn hợp lệ từ Dashboard Web');
+      setError('Vui long nhap token hoac duong dan hop le tu Dashboard Web');
       return;
     }
 
@@ -101,14 +106,14 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
     const result = await auth.linkWebAccountWithZalo(normalizedToken);
     if (result.success) {
-      setSuccessMessage(result.message || 'Đăng nhập/liên kết tài khoản Zalo thành công');
+      setSuccessMessage(result.message || 'Dang nhap/lien ket tai khoan Zalo thanh cong');
       setIsLinking(false);
       onLinked();
       return;
     }
 
     setIsWaitingForQr(true);
-    setError(result.message || 'Đăng nhập/liên kết tài khoản Zalo thất bại');
+    setError(result.message || 'Dang nhap/lien ket tai khoan Zalo that bai');
     setIsLinking(false);
   };
 
@@ -124,7 +129,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
       const rawContent = scanResult?.content?.trim() || '';
 
       if (!rawContent) {
-        setError('Không đọc được dữ liệu QR. Hãy tạo QR mới và thử lại.');
+        setError('Khong doc duoc du lieu QR. Hay tao QR moi va thu lai.');
         return;
       }
 
@@ -140,9 +145,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
     } catch (scanError: any) {
       const message = `${scanError?.message || scanError || ''}`.toLowerCase();
       if (message.includes('cancel') || message.includes('huy')) {
-        setError('Bạn đã hủy thao tác quét QR.');
+        setError('Ban da huy thao tac quet QR.');
       } else {
-        setError('Quét QR thất bại. Hãy thử lại hoặc dán token thủ công.');
+        setError('Quet QR that bai. Hay thu lai hoac dan token thu cong.');
       }
     } finally {
       setIsScanningQr(false);
@@ -157,6 +162,31 @@ function LoginPage({ onLinked }: LoginPageProps) {
     navigate('/home', { replace: true });
   };
 
+  const handleDevLogin = async () => {
+    if (!IS_LOCAL_HOST || isDevLoggingIn) return;
+
+    const normalizedEmail = devEmail.trim();
+    if (!normalizedEmail || !devPassword) {
+      setError('Nhap email va mat khau cua tai khoan department de dang nhap local.');
+      setSuccessMessage('');
+      return;
+    }
+
+    setIsDevLoggingIn(true);
+    setError('');
+    setSuccessMessage('');
+
+    const result = await auth.devLogin(normalizedEmail, devPassword);
+    if (result.success) {
+      setSuccessMessage(result.message || 'Dang nhap local thanh cong');
+      onLinked();
+    } else {
+      setError(result.message || 'Dang nhap local that bai');
+    }
+
+    setIsDevLoggingIn(false);
+  };
+
   useEffect(() => {
     const qrSession = auth.getQrSessionFromUrl();
     if (qrSession) {
@@ -164,7 +194,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
       const run = async () => {
         await runApproveQrSession(qrSession);
       };
-      run().finally(() => {
+      void run().finally(() => {
         if (!active) return;
       });
       return () => {
@@ -175,15 +205,12 @@ function LoginPage({ onLinked }: LoginPageProps) {
     const linkToken = auth.getLinkTokenFromUrl();
     if (!linkToken) {
       setIsWaitingForQr(true);
-      setSuccessMessage('Trang chủ Mini App đã sẵn sàng. Nhấn "Quét QR đăng nhập" để tiếp tục.');
+      setSuccessMessage('Trang chu mini app da san sang. Nhan "Quet QR dang nhap" de tiep tuc.');
       setError('');
       return;
     }
 
-    const runAutoLink = async () => {
-      await runLinkByToken(linkToken);
-    };
-    runAutoLink();
+    void runLinkByToken(linkToken);
   }, [onLinked]);
 
   return (
@@ -191,19 +218,19 @@ function LoginPage({ onLinked }: LoginPageProps) {
       <div style={styles.content}>
         <div style={styles.card}>
           <button type="button" onClick={handleBack} style={styles.backButton}>
-            ← Quay lại
+            {'<-'} Quay lai
           </button>
 
           <div style={styles.logo}>
             <div style={styles.icon}>!</div>
             <h1 style={styles.title}>BlueCode Mini App</h1>
-            <p style={styles.subtitle}>Trang chủ mini app</p>
+            <p style={styles.subtitle}>Trang chu mini app</p>
           </div>
 
           <div style={styles.info}>
-            <p>Bạn có thể vào mini app ngay tại đây.</p>
+            <p>Ban co the vao mini app ngay tai day.</p>
             <p style={{ marginTop: 8 }}>
-              Khi cần đăng nhập hoặc liên kết, hãy nhấn nút quét QR từ Dashboard Web.
+              Khi can dang nhap hoac lien ket, hay nhan nut quet QR tu Dashboard Web.
             </p>
           </div>
 
@@ -221,17 +248,18 @@ function LoginPage({ onLinked }: LoginPageProps) {
                   cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
                 }}
               >
-                {isScanningQr ? 'Đang mở camera...' : 'Quét QR đăng nhập'}
+                {isScanningQr ? 'Dang mo camera...' : 'Quet QR dang nhap'}
               </button>
-              <p style={styles.manualTokenTitle}>Hoặc dán token/link từ Dashboard Web:</p>
+
+              <p style={styles.manualTokenTitle}>Hoac dan token/link tu Dashboard Web:</p>
               <textarea
                 value={manualLinkToken}
                 onChange={(e) => setManualLinkToken(e.target.value)}
-                placeholder="Dán linkToken vào đây..."
+                placeholder="Dan linkToken vao day..."
                 style={styles.manualTokenInput}
               />
               <button
-                onClick={() => runLinkByToken(manualLinkToken)}
+                onClick={() => void runLinkByToken(manualLinkToken)}
                 disabled={isLinking}
                 style={{
                   ...styles.manualTokenButton,
@@ -239,17 +267,52 @@ function LoginPage({ onLinked }: LoginPageProps) {
                   cursor: isLinking ? 'not-allowed' : 'pointer',
                 }}
               >
-                {isLinking ? 'Đang đăng nhập...' : 'Đăng nhập bằng token'}
+                {isLinking ? 'Dang dang nhap...' : 'Dang nhap bang token'}
               </button>
+
+              {IS_LOCAL_HOST && (
+                <div style={styles.devLoginWrap}>
+                  <p style={styles.devLoginTitle}>Dang nhap local cho localhost:3001</p>
+                  <p style={styles.devLoginDesc}>
+                    Dung email va mat khau cua tai khoan department de vao mini app ma khong can Zalo SDK.
+                  </p>
+                  <input
+                    value={devEmail}
+                    onChange={(e) => setDevEmail(e.target.value)}
+                    placeholder="Email tai khoan department"
+                    style={styles.devInput}
+                    autoComplete="username"
+                  />
+                  <input
+                    value={devPassword}
+                    onChange={(e) => setDevPassword(e.target.value)}
+                    placeholder="Mat khau"
+                    style={styles.devInput}
+                    type="password"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    onClick={() => void handleDevLogin()}
+                    disabled={isDevLoggingIn}
+                    style={{
+                      ...styles.devLoginButton,
+                      opacity: isDevLoggingIn ? 0.7 : 1,
+                      cursor: isDevLoggingIn ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isDevLoggingIn ? 'Dang dang nhap local...' : 'Dang nhap local'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
           <p style={styles.note}>
             {isLinking
-              ? 'Đang xử lý đăng nhập...'
+              ? 'Dang xu ly dang nhap...'
               : isWaitingForQr
-                ? 'Bạn có thể quét QR từ Dashboard Web bất kỳ lúc nào.'
-                : 'Nếu quét QR thất bại, hãy tạo QR mới trên Dashboard Web rồi thử lại.'}
+                ? 'Ban co the quet QR tu Dashboard Web bat ky luc nao.'
+                : 'Neu quet QR that bai, hay tao QR moi tren Dashboard Web roi thu lai.'}
           </p>
         </div>
       </div>
@@ -383,6 +446,43 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     padding: '12px',
     background: 'linear-gradient(145deg, #16a34a 0%, #0e8c41 100%)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    fontSize: '15px',
+    fontWeight: 700,
+  },
+  devLoginWrap: {
+    marginTop: '16px',
+    paddingTop: '16px',
+    borderTop: '1px solid #dbe4ef',
+  },
+  devLoginTitle: {
+    margin: '0 0 6px',
+    fontSize: '13px',
+    color: '#0f172a',
+    fontWeight: 700,
+  },
+  devLoginDesc: {
+    margin: '0 0 10px',
+    fontSize: '12px',
+    color: '#64748b',
+    lineHeight: 1.5,
+  },
+  devInput: {
+    width: '100%',
+    borderRadius: '12px',
+    border: '1px solid #cad8e6',
+    background: '#ffffff',
+    padding: '10px 12px',
+    fontSize: '13px',
+    boxSizing: 'border-box',
+    marginBottom: '8px',
+  },
+  devLoginButton: {
+    width: '100%',
+    padding: '12px',
+    background: 'linear-gradient(145deg, #f59e0b 0%, #d97706 100%)',
     color: '#fff',
     border: 'none',
     borderRadius: '12px',

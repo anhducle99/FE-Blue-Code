@@ -12,6 +12,7 @@ type PendingIncomingCall = Pick<CallLog, 'callId' | 'message' | 'status' | 'crea
 
 const AUDIO_PERMISSION_KEY = 'audio-permission';
 const DEBUG_PREFIX = '[MiniAppIncomingAudio]';
+const RINGTONE_FILE = 'sound/sos.mp3';
 
 function normalize(value?: string | null) {
   return (value || '')
@@ -28,6 +29,27 @@ function sortPendingCalls(calls: PendingIncomingCall[]) {
     const right = new Date(a.createdAt || 0).getTime();
     return left - right;
   });
+}
+
+function isSamePendingCallList(previous: PendingIncomingCall[], next: PendingIncomingCall[]) {
+  if (previous.length !== next.length) return false;
+
+  for (let index = 0; index < previous.length; index += 1) {
+    const left = previous[index];
+    const right = next[index];
+    if (
+      left.callId !== right.callId ||
+      left.fromUser !== right.fromUser ||
+      left.toUser !== right.toUser ||
+      left.message !== right.message ||
+      left.status !== right.status ||
+      left.createdAt !== right.createdAt
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function upsertPendingCall(
@@ -55,6 +77,41 @@ function shouldDropStalePendingCall(message?: string | null) {
   );
 }
 
+function getRingtoneCandidates() {
+  const candidates = new Set<string>();
+  const baseUrl = (import.meta.env.BASE_URL || '/').trim();
+  const trimmedBaseUrl = baseUrl.replace(/^\/+|\/+$/g, '');
+
+  if (typeof document !== 'undefined' && document.baseURI) {
+    candidates.add(new URL(RINGTONE_FILE, document.baseURI).toString());
+  }
+
+  if (typeof window !== 'undefined') {
+    candidates.add(new URL(`/${RINGTONE_FILE}`, window.location.origin).toString());
+  }
+
+  if (trimmedBaseUrl) {
+    candidates.add(`/${trimmedBaseUrl}/${RINGTONE_FILE}`);
+    candidates.add(`./${trimmedBaseUrl}/${RINGTONE_FILE}`);
+  }
+
+  candidates.add(`./${RINGTONE_FILE}`);
+  candidates.add(`/${RINGTONE_FILE}`);
+
+  return Array.from(candidates);
+}
+
+function resolvePendingCallsUpdate(
+  nextOrUpdater:
+    | PendingIncomingCall[]
+    | ((previous: PendingIncomingCall[]) => PendingIncomingCall[]),
+  previous: PendingIncomingCall[]
+) {
+  return typeof nextOrUpdater === 'function'
+    ? nextOrUpdater(previous)
+    : nextOrUpdater;
+}
+
 function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
   const location = useLocation();
   const [pendingCalls, setPendingCalls] = useState<PendingIncomingCall[]>([]);
@@ -71,6 +128,8 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
   const mountedRef = useRef(true);
   const pendingCallsRef = useRef<PendingIncomingCall[]>([]);
   const userInteractedRef = useRef(false);
+  const ringtoneCandidatesRef = useRef<string[]>([]);
+  const ringtoneCandidateIndexRef = useRef(0);
 
   const debugLog = useCallback((message: string, payload?: unknown) => {
     if (payload === undefined) {
@@ -164,6 +223,46 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
     return audioContextRef.current;
   }, []);
 
+  const applyRingtoneSource = useCallback(
+    (index: number) => {
+      const audio = audioRef.current;
+      const nextSource = ringtoneCandidatesRef.current[index];
+      if (!audio || !nextSource) return false;
+      if (audio.src !== nextSource) {
+        audio.src = nextSource;
+      }
+      return true;
+    },
+    []
+  );
+
+  const advanceRingtoneSource = useCallback(() => {
+    const nextIndex = ringtoneCandidateIndexRef.current + 1;
+    if (nextIndex >= ringtoneCandidatesRef.current.length) {
+      return false;
+    }
+    ringtoneCandidateIndexRef.current = nextIndex;
+    return applyRingtoneSource(nextIndex);
+  }, [applyRingtoneSource]);
+
+  const applyPendingCalls = useCallback(
+    (
+      nextOrUpdater:
+        | PendingIncomingCall[]
+        | ((previous: PendingIncomingCall[]) => PendingIncomingCall[])
+    ) => {
+      setPendingCalls((previous) => {
+        const resolved = resolvePendingCallsUpdate(nextOrUpdater, previous);
+        pendingCallsRef.current = resolved;
+        if (resolved.length === 0) {
+          stopRingtone();
+        }
+        return isSamePendingCallList(previous, resolved) ? previous : resolved;
+      });
+    },
+    [stopRingtone]
+  );
+
   const playBeepFallback = useCallback(async () => {
     if (!hasUserActivation()) {
       debugLog('playBeepFallback blocked: no user activation');
@@ -256,6 +355,21 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
       setAudioBlocked(false);
       return true;
     } catch (error) {
+      if (audio && advanceRingtoneSource()) {
+        try {
+          audio.load();
+          audio.currentTime = 0;
+          await audio.play();
+          debugLog('tryPlayRingtone mp3 play success after source switch', {
+            src: audio.src,
+            candidateIndex: ringtoneCandidateIndexRef.current,
+          });
+          setAudioBlocked(false);
+          return true;
+        } catch (retryError) {
+          debugLog('tryPlayRingtone retry after source switch failed', retryError);
+        }
+      }
       debugLog('tryPlayRingtone mp3 play failed, switching to fallback', error);
       const fallbackOk = await playBeepFallback();
       setAudioBlocked(!fallbackOk);
@@ -285,7 +399,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
 
   const syncPendingCallsFromApi = useCallback(async () => {
     if (!enabled) {
-      setPendingCalls([]);
+      applyPendingCalls([]);
       return;
     }
 
@@ -304,7 +418,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
           createdAt: call.createdAt,
         }))
       );
-      setPendingCalls(nextCalls);
+      applyPendingCalls(nextCalls);
       setAcknowledgedCallIds((previous) => {
         const nextIds = new Set(previous);
         if (location.pathname === '/home') {
@@ -317,7 +431,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
     } catch {
       debugLog('syncPendingCallsFromApi failed');
     }
-  }, [debugLog, enabled, location.pathname]);
+  }, [applyPendingCalls, debugLog, enabled, location.pathname]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -328,17 +442,23 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
 
   useEffect(() => {
     if (!enabled) {
-      setPendingCalls([]);
+      applyPendingCalls([]);
       setOverlayError('');
       stopRingtone();
       return;
     }
 
     if (!audioRef.current) {
-      audioRef.current = new Audio('/sound/sos.mp3');
+      audioRef.current = new Audio();
       audioRef.current.loop = true;
       audioRef.current.preload = 'auto';
-      debugLog('audio element initialized', { src: '/sound/sos.mp3' });
+      ringtoneCandidatesRef.current = getRingtoneCandidates();
+      ringtoneCandidateIndexRef.current = 0;
+      applyRingtoneSource(ringtoneCandidateIndexRef.current);
+      debugLog('audio element initialized', {
+        src: audioRef.current.src,
+        candidates: ringtoneCandidatesRef.current,
+      });
     }
 
     if (typeof window !== 'undefined') {
@@ -347,7 +467,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
     }
 
     void syncPendingCallsFromApi();
-  }, [debugLog, enabled, stopRingtone, syncPendingCallsFromApi]);
+  }, [applyPendingCalls, debugLog, enabled, stopRingtone, syncPendingCallsFromApi]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -397,7 +517,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         setAcknowledgedCallIds((previous) => previous.filter((id) => id !== callId));
       }
 
-      setPendingCalls((previous) =>
+      applyPendingCalls((previous) =>
         upsertPendingCall(previous, {
           callId,
           fromUser: data?.fromDept || data?.fromUser || 'Cuộc gọi mới',
@@ -421,7 +541,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         setAcknowledgedCallIds((previous) => previous.filter((id) => id !== callId));
       }
 
-      setPendingCalls((previous) =>
+      applyPendingCalls((previous) =>
         upsertPendingCall(previous, {
           callId,
           fromUser: data?.from_user || data?.fromUser || 'Cuộc gọi mới',
@@ -444,7 +564,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
       if (!status || status === 'pending') {
         setDismissedSignature('');
         setAcknowledgedCallIds((previous) => previous.filter((id) => id !== callId));
-        setPendingCalls((previous) =>
+        applyPendingCalls((previous) =>
           previous.some((call) => call.callId === callId)
             ? previous
             : upsertPendingCall(previous, {
@@ -459,7 +579,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         return;
       }
 
-      setPendingCalls((previous) => removePendingCall(previous, callId));
+      applyPendingCalls((previous) => removePendingCall(previous, callId));
       setAcknowledgedCallIds((previous) => previous.filter((id) => id !== callId));
     };
 
@@ -474,7 +594,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
       socket.off('callStatusUpdate', onCallStatusChange);
       socket.off('callLogUpdated', onCallStatusChange);
     };
-  }, [debugLog, enabled, isTargetMine]);
+  }, [applyPendingCalls, debugLog, enabled, isTargetMine]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -494,6 +614,19 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
       window.removeEventListener('pageshow', refreshPendingCalls);
       document.removeEventListener('visibilitychange', refreshPendingCalls);
     };
+  }, [enabled, syncPendingCallsFromApi]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      void syncPendingCallsFromApi();
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [enabled, syncPendingCallsFromApi]);
 
   useEffect(() => {
@@ -523,7 +656,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         if (!response.success) {
           setOverlayError(response.message || 'Không thể xử lý cuộc gọi');
           if (shouldDropStalePendingCall(response.message)) {
-            setPendingCalls((previous) => removePendingCall(previous, callId));
+            applyPendingCalls((previous) => removePendingCall(previous, callId));
             void syncPendingCallsFromApi();
             return;
           }
@@ -533,11 +666,11 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
           }
           return;
         }
-        setPendingCalls((previous) => removePendingCall(previous, callId));
+        applyPendingCalls((previous) => removePendingCall(previous, callId));
       } catch (error: any) {
         setOverlayError(error?.response?.data?.message || error?.message || 'Không thể xử lý cuộc gọi');
         if (shouldDropStalePendingCall(error?.response?.data?.message || error?.message)) {
-          setPendingCalls((previous) => removePendingCall(previous, callId));
+          applyPendingCalls((previous) => removePendingCall(previous, callId));
           void syncPendingCallsFromApi();
           return;
         }
@@ -549,7 +682,7 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         setIsProcessingCallId(null);
       }
     },
-    [startVibration, stopRingtone, syncPendingCallsFromApi, tryPlayRingtone]
+    [applyPendingCalls, startVibration, stopRingtone, syncPendingCallsFromApi, tryPlayRingtone]
   );
 
   const currentCallDetailId = location.pathname.startsWith('/call/')

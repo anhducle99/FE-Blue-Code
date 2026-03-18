@@ -56,6 +56,14 @@ class ApiService {
     return response.data;
   }
 
+  async devLogin(email: string, password: string) {
+    const response = await this.client.post('/mini/auth/dev-login', {
+      email,
+      password,
+    });
+    return response.data;
+  }
+
   async getMyCalls(status?: string): Promise<ApiResponse<CallLog[]>> {
     const params = status ? { status } : {};
     const response = await this.client.get('/mini/my-calls', { params });

@@ -66,6 +66,20 @@ class AuthService {
     this.user = data.user;
   }
 
+  private normalizeAuthPayload(data: any): { token: string; user: User } | null {
+    const token = data?.token;
+    const user = data?.user;
+
+    if (typeof token !== 'string' || !token.trim() || !user) {
+      return null;
+    }
+
+    return {
+      token: token.trim(),
+      user: user as User,
+    };
+  }
+
   getLinkTokenFromUrl(): string | null {
     return this.getParamFromCurrentUrl('linkToken');
   }
@@ -219,6 +233,34 @@ class AuthService {
         };
       }
       return { success: false, message: raw };
+    }
+  }
+
+  async devLogin(email: string, password: string): Promise<{ success: boolean; message?: string }> {
+    try {
+      const response = await api.devLogin(email, password);
+      if (!response.success) {
+        return { success: false, message: response.message || 'Khong the dang nhap local' };
+      }
+
+      const session = this.normalizeAuthPayload(response?.data);
+      if (!session) {
+        return {
+          success: false,
+          message: 'Dang nhap local thanh cong nhung payload session khong hop le',
+        };
+      }
+
+      this.saveSession(session);
+      return { success: true, message: response.message || 'Dang nhap local thanh cong' };
+    } catch (error: any) {
+      return {
+        success: false,
+        message:
+          error?.response?.data?.message ||
+          error?.message ||
+          'Khong the dang nhap local mini app',
+      };
     }
   }
 
