@@ -14,6 +14,8 @@ export interface FloorAccountPanelProps {
   organizations?: IOrganization[];
   superAdminOrgFilterId?: number | "";
   onSuperAdminOrgFilterChange?: (id: number | "") => void;
+  selectedFloorAccountId?: number | null;
+  onSelectFloorAccount?: (user: IUser) => void;
 }
 
 export const FloorAccountPanel: React.FC<FloorAccountPanelProps> = ({
@@ -22,6 +24,8 @@ export const FloorAccountPanel: React.FC<FloorAccountPanelProps> = ({
   organizations = [],
   superAdminOrgFilterId = "",
   onSuperAdminOrgFilterChange,
+  selectedFloorAccountId = null,
+  onSelectFloorAccount,
 }) => {
   const { user } = useAuth();
   const { supportContacts } = useDashboard();
@@ -308,16 +312,23 @@ export const FloorAccountPanel: React.FC<FloorAccountPanelProps> = ({
             {sortedUsers.map((u) => {
               const isCurrentUser = u.id === user?.id;
               const isBeingCalled = callingUsers.has(u.id);
+              const isSelected = selectedFloorAccountId === u.id;
+              const isSelectable = typeof onSelectFloorAccount === "function";
+              const isDisabled = !isSelectable && isCurrentUser && !isBeingCalled;
               
               return (
                 <button
                   key={`floor-user-${u.id}`}
-                  disabled={isCurrentUser && !isBeingCalled}
+                  type="button"
+                  disabled={isDisabled}
                   title={u.name}
+                  onClick={isSelectable ? () => onSelectFloorAccount?.(u) : undefined}
                   className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm w-full shadow-sm border-2 transition-all duration-200 min-w-0 break-words whitespace-normal text-center leading-tight ${
-                    isBeingCalled
+                    isSelected
+                      ? "bg-tthBlue text-white border-tthBlue ring-2 ring-blue-300 ring-offset-1"
+                      : isBeingCalled
                       ? "bg-urgentRed text-white border-urgentRed animate-pulse ring-2 ring-red-300"
-                      : isCurrentUser && !isBeingCalled
+                      : isDisabled
                       ? "bg-gray-200 text-gray-500 cursor-not-allowed border-gray-200"
                       : "bg-gray-100 text-gray-600 border-gray-200 hover:bg-blue-50 hover:border-blue-200 hover:text-tthBlue"
                   }`}

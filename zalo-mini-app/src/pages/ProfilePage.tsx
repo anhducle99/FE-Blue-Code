@@ -48,7 +48,7 @@ function ProfilePage({ onLogout }: ProfilePageProps) {
               </Link>
 
               <div style={styles.qrShareWrap}>
-                <p style={styles.qrShareTitle}>Chia sẻ Mã QR tới cộng đồng</p>
+                <p style={styles.qrShareTitle}>Chia sẻ mã QR tới cộng đồng</p>
                 {!qrUnavailable && qrImageUrl ? (
                   <img
                     src={qrImageUrl}

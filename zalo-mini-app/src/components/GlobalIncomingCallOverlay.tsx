@@ -11,6 +11,7 @@ type PendingIncomingCall = Pick<CallLog, 'callId' | 'message' | 'status' | 'crea
 };
 
 const AUDIO_PERMISSION_KEY = 'audio-permission';
+const AUDIO_DEBUG_KEY = 'mini-app-audio-debug';
 const DEBUG_PREFIX = '[MiniAppIncomingAudio]';
 const RINGTONE_FILE = 'sound/sos.mp3';
 
@@ -112,6 +113,11 @@ function resolvePendingCallsUpdate(
     : nextOrUpdater;
 }
 
+function isAudioDebugEnabled() {
+  if (typeof window === 'undefined') return false;
+  return import.meta.env.DEV && window.localStorage.getItem(AUDIO_DEBUG_KEY) === 'true';
+}
+
 function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
   const location = useLocation();
   const [pendingCalls, setPendingCalls] = useState<PendingIncomingCall[]>([]);
@@ -132,6 +138,9 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
   const ringtoneCandidateIndexRef = useRef(0);
 
   const debugLog = useCallback((message: string, payload?: unknown) => {
+    if (!isAudioDebugEnabled()) {
+      return;
+    }
     if (payload === undefined) {
       console.log(DEBUG_PREFIX, message);
       return;
@@ -155,47 +164,6 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
     []
   );
 
-  const stopVibration = useCallback(() => {
-    if (vibrationLoopRef.current) {
-      clearInterval(vibrationLoopRef.current);
-      vibrationLoopRef.current = null;
-    }
-    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-      try {
-        navigator.vibrate(0);
-      } catch {
-      }
-    }
-  }, []);
-
-  const startVibration = useCallback(() => {
-    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
-      return;
-    }
-    stopVibration();
-    try {
-      navigator.vibrate([260, 120, 260, 120, 420]);
-      vibrationLoopRef.current = setInterval(() => {
-        navigator.vibrate([260, 120, 260, 120, 420]);
-      }, 1400);
-    } catch {
-    }
-  }, [stopVibration]);
-
-  const stopRingtone = useCallback(() => {
-    debugLog('stopRingtone');
-    stopVibration();
-    if (beepLoopTimerRef.current) {
-      clearInterval(beepLoopTimerRef.current);
-      beepLoopTimerRef.current = null;
-    }
-    const audio = audioRef.current;
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-  }, [debugLog, stopVibration]);
-
   const hasUserActivation = useCallback(() => {
     if (typeof window === 'undefined') return false;
 
@@ -212,6 +180,54 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
         docActivation?.isActive
     );
   }, []);
+
+  const stopVibration = useCallback(() => {
+    if (vibrationLoopRef.current) {
+      clearInterval(vibrationLoopRef.current);
+      vibrationLoopRef.current = null;
+    }
+    if (!hasUserActivation()) {
+      return;
+    }
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try {
+        navigator.vibrate(0);
+      } catch {
+      }
+    }
+  }, [hasUserActivation]);
+
+  const startVibration = useCallback(() => {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') {
+      return;
+    }
+    if (!hasUserActivation()) {
+      debugLog('startVibration blocked: no user activation');
+      return;
+    }
+    stopVibration();
+    try {
+      navigator.vibrate([260, 120, 260, 120, 420]);
+      vibrationLoopRef.current = setInterval(() => {
+        navigator.vibrate([260, 120, 260, 120, 420]);
+      }, 1400);
+    } catch {
+    }
+  }, [debugLog, hasUserActivation, stopVibration]);
+
+  const stopRingtone = useCallback(() => {
+    debugLog('stopRingtone');
+    stopVibration();
+    if (beepLoopTimerRef.current) {
+      clearInterval(beepLoopTimerRef.current);
+      beepLoopTimerRef.current = null;
+    }
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, [debugLog, stopVibration]);
 
   const ensureAudioContext = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -253,11 +269,12 @@ function GlobalIncomingCallOverlay({ enabled }: { enabled: boolean }) {
     ) => {
       setPendingCalls((previous) => {
         const resolved = resolvePendingCallsUpdate(nextOrUpdater, previous);
+        const sameList = isSamePendingCallList(previous, resolved);
         pendingCallsRef.current = resolved;
-        if (resolved.length === 0) {
+        if (!sameList && previous.length > 0 && resolved.length === 0) {
           stopRingtone();
         }
-        return isSamePendingCallList(previous, resolved) ? previous : resolved;
+        return sameList ? previous : resolved;
       });
     },
     [stopRingtone]

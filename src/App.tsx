@@ -121,6 +121,22 @@ export default function App() {
     return allSupportContacts;
   }, [allSupportContacts, currentOrganizationId]);
 
+  const floorAccounts = useMemo(() => {
+    const effectiveOrgId = isSuperAdmin
+      ? superAdminOrgFilterId === "" ? null : superAdminOrgFilterId
+      : currentOrganizationId;
+
+    return allUsers.filter((u) => {
+      if (u.is_floor_account !== true) {
+        return false;
+      }
+      if (effectiveOrgId == null) {
+        return true;
+      }
+      return u.organization_id === effectiveOrgId;
+    });
+  }, [allUsers, currentOrganizationId, isSuperAdmin, superAdminOrgFilterId]);
+
   const isAdmin = useMemo(() => {
     return (user?.role === "Admin" || user?.role === "SuperAdmin") || user?.is_admin_view === true;
   }, [user?.role, user?.is_admin_view]);
@@ -147,6 +163,7 @@ export default function App() {
   }, []); 
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [selectedIncidentLocationId, setSelectedIncidentLocationId] = useState<number | null>(null);
   const [tempMessage, setTempMessage] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [adminPanelExpanded, setAdminPanelExpanded] = useState(false);
@@ -168,6 +185,23 @@ export default function App() {
   const networkStatus = useNetworkStatus();
   const { pendingCount, processQueue } = useOfflineQueue();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const selectedIncidentLocation = useMemo(() => {
+    if (!selectedIncidentLocationId) {
+      return null;
+    }
+
+    return floorAccounts.find((floorAccount) => floorAccount.id === selectedIncidentLocationId) || null;
+  }, [floorAccounts, selectedIncidentLocationId]);
+
+  useEffect(() => {
+    if (
+      selectedIncidentLocationId &&
+      !floorAccounts.some((floorAccount) => floorAccount.id === selectedIncidentLocationId)
+    ) {
+      setSelectedIncidentLocationId(null);
+    }
+  }, [floorAccounts, selectedIncidentLocationId]);
 
   useEffect(() => {
     if (isLoginPage || !user) return;
@@ -199,9 +233,13 @@ export default function App() {
     setSelectedKey((prev) => (prev === key ? null : key));
   }, []);
 
+  const handleSelectIncidentLocation = useCallback((floorAccount: IUser) => {
+    setSelectedIncidentLocationId((prev) => (prev === floorAccount.id ? null : floorAccount.id));
+  }, []);
+
   const handleRequestCall = useCallback(() => {
-    if (user?.is_department_account === true) {
-      showError("Tài khoản xử lý sự cố không thể thực hiện cuộc gọi");
+    if (!selectedIncidentLocation) {
+      showError("Vui lòng chọn vị trí sự cố");
       return;
     }
     if (!selectedKey) {
@@ -210,7 +248,7 @@ export default function App() {
     }
     setTempMessage("");
     setShowConfirm(true);
-  }, [selectedKey, showError, user?.is_department_account]);
+  }, [selectedIncidentLocation, selectedKey, showError]);
 
   const selectedNames = useMemo(() => {
     if (!selectedKey) return [];
@@ -226,6 +264,10 @@ export default function App() {
   }, []);
 
   const handleConfirmCall = useCallback(async () => {
+    if (!selectedIncidentLocation) {
+      showError("Vui lòng chọn vị trí sự cố");
+      return;
+    }
     if (!selectedKey) {
       showError("Vui lòng chọn đội cần gọi");
       return;
@@ -237,7 +279,7 @@ export default function App() {
     }
 
     try {
-      const fromDept = user.department_name || user.name;
+      const fromDept = selectedIncidentLocation.name;
 
       const res = await apiWithRetry(() =>
         API.post("/api/call", {
@@ -265,7 +307,12 @@ export default function App() {
             const usersInDept = allUsers.filter(
               (u) => u.department_id === deptFromApi.id && u.department_id != null
             );
-            departmentUsers.push(...usersInDept.map((u) => u.name));
+            const currentUserNameNormalized = normalizeName(user.name || "");
+            departmentUsers.push(
+              ...usersInDept
+                .map((u) => u.name)
+                .filter((userName) => normalizeName(userName) !== currentUserNameNormalized)
+            );
             setDepartmentId(deptFromApi.id);
           } else {
             departmentUsers.push(name);
@@ -305,10 +352,12 @@ export default function App() {
         showError(apiError.message || "Không thể kết nối server!");
     }
   }, [
-    user?.department_name,
     user?.name,
     tempMessage,
+    selectedIncidentLocation,
     selectedKey,
+    allDepartmentsFromApi,
+    allUsers,
     socket,
     showError,
     showSuccess,
@@ -354,6 +403,8 @@ export default function App() {
                 organizations={organizations}
                 superAdminOrgFilterId={superAdminOrgFilterId}
                 onSuperAdminOrgFilterChange={setSuperAdminOrgFilterId}
+                selectedFloorAccountId={selectedIncidentLocationId}
+                onSelectFloorAccount={handleSelectIncidentLocation}
               />
             </div>
 
@@ -415,10 +466,6 @@ export default function App() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 overflow-y-auto max-h-48 sm:max-h-56 md:max-h-64 min-h-0">
                   {departments.map((d, idx) => {
                     const key = makeKey(d.name, d.name);
-                    const userDeptName = user?.department_name?.trim();
-                    const deptName = d.name.trim();
-                    const isCurrentDept = userDeptName === deptName;
-                    const isDepartmentAccount = user?.is_department_account === true;
                     const IconComponent = DEPT_ICONS[idx % DEPT_ICONS.length];
 
                     return (
@@ -427,8 +474,7 @@ export default function App() {
                         name={d.name}
                         phone={d.phone}
                         isSelected={selectedKey === key}
-                        onClick={() => !isCurrentDept && !isDepartmentAccount && toggleSelect(key)}
-                        disabled={isCurrentDept || isDepartmentAccount}
+                        onClick={() => toggleSelect(key)}
                         icon={<IconComponent />}
                       />
                     );
@@ -436,9 +482,7 @@ export default function App() {
 
                   {supportContacts.map((s, idx) => {
                     const key = makeKey(s.label, s.label);
-                    const isCurrentSupport =
-                      s.label === user?.department_name || s.label === user?.name;
-                    const isDepartmentAccount = user?.is_department_account === true;
+                    const isOwnUserSupport = s.label === user?.name;
                     const IconComponent = DEPT_ICONS[(departments.length + idx) % DEPT_ICONS.length];
 
                     return (
@@ -448,8 +492,8 @@ export default function App() {
                         phone={s.phone}
                         color={s.color}
                         isSelected={selectedKey === key}
-                        onClick={() => !isCurrentSupport && !isDepartmentAccount && toggleSelect(key)}
-                        disabled={isCurrentSupport || isDepartmentAccount}
+                        onClick={() => toggleSelect(key)}
+                        disabled={isOwnUserSupport}
                         icon={<IconComponent />}
                       />
                     );
@@ -462,12 +506,7 @@ export default function App() {
                 <div className="w-full md:w-auto md:flex-[1] flex flex-col items-center justify-center min-w-0 flex-shrink-0">
                   <button
                     onClick={handleRequestCall}
-                    disabled={user?.is_department_account === true}
-                    className={`w-full max-w-xs md:max-w-none min-h-[100px] sm:min-h-[120px] md:min-h-[140px] px-4 py-3 sm:py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all duration-200 shadow-md text-base sm:text-lg ${
-                      user?.is_department_account === true
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-urgentRed hover:bg-red-700 text-white border-2 border-red-700 hover:border-red-800"
-                    }`}
+                    className="w-full max-w-xs md:max-w-none min-h-[100px] sm:min-h-[120px] md:min-h-[140px] px-4 py-3 sm:py-4 rounded-2xl font-bold flex flex-col items-center justify-center gap-2 transition-all duration-200 shadow-md text-base sm:text-lg bg-urgentRed hover:bg-red-700 text-white border-2 border-red-700 hover:border-red-800"
                   >
                     <svg
                       className="w-8 h-8"
@@ -492,7 +531,7 @@ export default function App() {
               visible={showConfirm}
               title="Xác nhận cuộc gọi"
               selectedPhones={selectedNames}
-              message={tempMessage}
+              message={selectedIncidentLocation ? `Vị trí sự cố: ${selectedIncidentLocation.name}` : tempMessage}
               onClose={handleCloseConfirm}
               onConfirm={handleConfirmCall}
             />
@@ -574,10 +613,12 @@ export default function App() {
         onClose={handleCloseWaitingModal}
         socket={socket}
         callId={lastCallId || undefined}
-        fromDept={user?.department_name || user?.name || ""}
+        fromDept={selectedIncidentLocation?.name || user?.department_name || user?.name || ""}
         departmentName={departmentName}
         departmentId={departmentId}
       />
     </div>
   );
 }
+
+

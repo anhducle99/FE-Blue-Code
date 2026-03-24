@@ -35,7 +35,7 @@ function HistoryPage() {
       }
     } catch (err: any) {
       if (!mountedRef.current) return;
-      if (!silent) setError('Lỗi kết nối: ' + err.message);
+      if (!silent) setError(`Lỗi kết nối: ${err.message}`);
     } finally {
       if (mountedRef.current && !silent) setIsLoading(false);
     }
@@ -44,7 +44,9 @@ function HistoryPage() {
   useEffect(() => {
     mountedRef.current = true;
     void loadHistory();
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadHistory]);
 
   useEffect(() => {
@@ -52,7 +54,9 @@ function HistoryPage() {
     const socket = getSocket();
     if (!socket) return;
 
-    const onUpdate = () => { void loadHistory(true); };
+    const onUpdate = () => {
+      void loadHistory(true);
+    };
     socket.on('callLogCreated', onUpdate);
     socket.on('callLogUpdated', onUpdate);
     socket.on('callStatusUpdate', onUpdate);
@@ -80,15 +84,15 @@ function HistoryPage() {
   const getStatusText = (status: CallLog['status']) => {
     switch (status) {
       case 'pending':
-        return 'Ch\u1edd x\u1eed l\u00fd';
+        return 'Chờ xử lý';
       case 'accepted':
-        return '\u0110\u00e3 nh\u1eadn';
+        return 'Đã nhận';
       case 'rejected':
-        return '\u0110\u00e3 t\u1eeb ch\u1ed1i';
+        return 'Đã từ chối';
       case 'timeout':
-        return 'H\u1ebft h\u1ea1n';
+        return 'Hết hạn';
       case 'cancelled':
-        return '\u0110\u00e3 h\u1ee7y';
+        return 'Đã hủy';
       default:
         return status;
     }
@@ -97,24 +101,26 @@ function HistoryPage() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>{'Lịch sử cuộc gọi'}</h1>
-        <p style={styles.subtitle}>{'Hiển thị tất cả cuộc gọi gửi đến bạn'}</p>
+        <h1 style={styles.title}>Lịch sử cuộc gọi</h1>
+        <p style={styles.subtitle}>Hiển thị tất cả cuộc gọi gửi đến bạn</p>
       </div>
 
       <div style={styles.content}>
         {isLoading ? (
-          <div style={styles.center}>{'\u0110ang t\u1ea3i...'}</div>
+          <div style={styles.center}>Đang tải...</div>
         ) : error ? (
           <div style={styles.center}>
             <p style={styles.error}>{error}</p>
             <button style={styles.retryBtn} onClick={() => void loadHistory()}>
-              {'Th\u1eed l\u1ea1i'}
+              Thử lại
             </button>
           </div>
         ) : calls.length === 0 ? (
           <div style={styles.center}>
             <p style={styles.emptyText}>
-              {hasSession ? 'Ch\u01b0a c\u00f3 l\u1ecbch s\u1eed cu\u1ed9c g\u1ecdi.' : 'Vui l\u00f2ng \u0111\u0103ng nh\u1eadp QR \u0111\u1ec3 xem l\u1ecbch s\u1eed.'}
+              {hasSession
+                ? 'Chưa có lịch sử cuộc gọi.'
+                : 'Vui lòng đăng nhập QR để xem lịch sử.'}
             </p>
           </div>
         ) : (
@@ -125,7 +131,7 @@ function HistoryPage() {
                   <strong>#{call.callId.slice(-6)}</strong>
                   <span style={styles.status}>{getStatusText(call.status)}</span>
                 </div>
-                <p style={styles.from}>V\u1ecb tr\u00ed s\u1ef1 c\u1ed1: {call.fromUser}</p>
+                <p style={styles.from}>Vị trí sự cố: {call.fromUser}</p>
               </Link>
             ))}
           </div>
@@ -139,9 +145,15 @@ function HistoryPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
+    height: '100dvh',
+    minHeight: '100dvh',
+    maxHeight: '100dvh',
     background: 'transparent',
-    paddingBottom: '112px',
+    paddingBottom: '84px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
   header: {
     background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 62%, #03559a 100%)',
@@ -150,6 +162,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '16px',
     color: '#fff',
     boxShadow: '0 8px 24px rgba(3, 101, 175, 0.22)',
+    flexShrink: 0,
   },
   title: {
     margin: 0,
@@ -164,6 +177,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
   content: {
     padding: '16px',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   center: {
     textAlign: 'center',
@@ -172,6 +190,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#fff',
     borderRadius: '16px',
     border: '1px solid #dbe4ef',
+    flexShrink: 0,
   },
   error: {
     color: '#b91c1c',
@@ -193,6 +212,9 @@ const styles: Record<string, React.CSSProperties> = {
   list: {
     display: 'grid',
     gap: '10px',
+    overflowY: 'auto',
+    minHeight: 0,
+    paddingRight: '2px',
   },
   card: {
     display: 'block',

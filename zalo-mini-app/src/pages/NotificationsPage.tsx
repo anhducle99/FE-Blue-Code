@@ -33,7 +33,7 @@ function NotificationsPage() {
       }
     } catch (err: any) {
       if (!mountedRef.current) return;
-      if (!silent) setError('Lỗi kết nối: ' + err.message);
+      if (!silent) setError(`Lỗi kết nối: ${err.message}`);
     } finally {
       if (mountedRef.current && !silent) setIsLoading(false);
     }
@@ -42,7 +42,9 @@ function NotificationsPage() {
   useEffect(() => {
     mountedRef.current = true;
     void loadMissedCalls();
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadMissedCalls]);
 
   useEffect(() => {
@@ -50,7 +52,9 @@ function NotificationsPage() {
     const socket = getSocket();
     if (!socket) return;
 
-    const onUpdate = () => { void loadMissedCalls(true); };
+    const onUpdate = () => {
+      void loadMissedCalls(true);
+    };
     socket.on('callStatusUpdate', onUpdate);
     socket.on('callLogUpdated', onUpdate);
 
@@ -81,7 +85,6 @@ function NotificationsPage() {
       </div>
 
       <div style={styles.content}>
-
         {isLoading ? (
           <p style={styles.message}>Đang tải...</p>
         ) : error ? (
@@ -109,9 +112,15 @@ function NotificationsPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
+    height: '100dvh',
+    minHeight: '100dvh',
+    maxHeight: '100dvh',
     background: 'transparent',
-    paddingBottom: '112px',
+    paddingBottom: '84px',
+    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
   },
   header: {
     background: 'linear-gradient(145deg, #1d4ed8 0%, #0365af 65%, #03559a 100%)',
@@ -120,9 +129,15 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '16px',
     color: '#fff',
     boxShadow: '0 8px 24px rgba(3, 101, 175, 0.22)',
+    flexShrink: 0,
   },
   content: {
     padding: '16px',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
   },
   title: {
     margin: 0,
@@ -143,11 +158,15 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #dbe4ef',
     borderRadius: '14px',
     padding: '16px',
+    flexShrink: 0,
   },
   list: {
     marginTop: 0,
     display: 'grid',
     gap: '10px',
+    overflowY: 'auto',
+    minHeight: 0,
+    paddingRight: '2px',
   },
   card: {
     background: '#fff',

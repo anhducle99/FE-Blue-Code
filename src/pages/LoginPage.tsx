@@ -64,7 +64,7 @@ export default function LoginPage() {
     } catch (err: any) {
       const errorData = err?.response?.data;
       const errorMessage =
-        errorData?.message || err?.message || "Không thể kểt nối đến server";
+        errorData?.message || err?.message || "Không thể kết nối đến server";
       showError(errorMessage);
     } finally {
       setLoading(false);
@@ -109,7 +109,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-900">
-                Mat khau
+                Mật khẩu
               </label>
               <Input.Password
                 required

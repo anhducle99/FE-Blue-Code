@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { scanQRCode } from 'zmp-sdk';
 import auth from '../services/auth';
@@ -6,10 +6,6 @@ import auth from '../services/auth';
 interface LoginPageProps {
   onLinked: () => void;
 }
-
-const IS_LOCAL_HOST =
-  typeof window !== 'undefined' &&
-  ['localhost', '127.0.0.1'].includes(window.location.hostname.toLowerCase());
 
 function LoginPage({ onLinked }: LoginPageProps) {
   const navigate = useNavigate();
@@ -19,9 +15,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const [isWaitingForQr, setIsWaitingForQr] = useState(false);
   const [manualLinkToken, setManualLinkToken] = useState('');
   const [isScanningQr, setIsScanningQr] = useState(false);
-  const [devEmail, setDevEmail] = useState('');
-  const [devPassword, setDevPassword] = useState('');
-  const [isDevLoggingIn, setIsDevLoggingIn] = useState(false);
+  const [webEmail, setWebEmail] = useState('');
+  const [webPassword, setWebPassword] = useState('');
+  const [isWebLoggingIn, setIsWebLoggingIn] = useState(false);
 
   const safeDecode = (value: string): string => {
     try {
@@ -84,9 +80,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
     const result = await auth.approveQrLoginSession(qrSession);
     if (result.success) {
-      setSuccessMessage(result.message || 'Da xac nhan dang nhap QR thanh cong');
+      setSuccessMessage(result.message || 'Đã xác nhận đăng nhập QR thành công');
     } else {
-      setError(result.message || 'Xac nhan dang nhap QR that bai');
+      setError(result.message || 'Xác nhận đăng nhập QR thất bại');
     }
 
     setIsLinking(false);
@@ -95,7 +91,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
   const runLinkByToken = async (linkToken: string) => {
     const normalizedToken = extractLinkToken(linkToken);
     if (!normalizedToken) {
-      setError('Vui long nhap token hoac duong dan hop le tu Dashboard Web');
+      setError('Vui lòng nhập token hoặc đường dẫn hợp lệ từ Dashboard Web');
       return;
     }
 
@@ -106,14 +102,14 @@ function LoginPage({ onLinked }: LoginPageProps) {
 
     const result = await auth.linkWebAccountWithZalo(normalizedToken);
     if (result.success) {
-      setSuccessMessage(result.message || 'Dang nhap/lien ket tai khoan Zalo thanh cong');
+      setSuccessMessage(result.message || 'Đăng nhập/liên kết tài khoản Zalo thành công');
       setIsLinking(false);
       onLinked();
       return;
     }
 
     setIsWaitingForQr(true);
-    setError(result.message || 'Dang nhap/lien ket tai khoan Zalo that bai');
+    setError(result.message || 'Đăng nhập/liên kết tài khoản Zalo thất bại');
     setIsLinking(false);
   };
 
@@ -129,7 +125,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
       const rawContent = scanResult?.content?.trim() || '';
 
       if (!rawContent) {
-        setError('Khong doc duoc du lieu QR. Hay tao QR moi va thu lai.');
+        setError('Không đọc được dữ liệu QR. Hãy tạo QR mới và thử lại.');
         return;
       }
 
@@ -145,9 +141,9 @@ function LoginPage({ onLinked }: LoginPageProps) {
     } catch (scanError: any) {
       const message = `${scanError?.message || scanError || ''}`.toLowerCase();
       if (message.includes('cancel') || message.includes('huy')) {
-        setError('Ban da huy thao tac quet QR.');
+        setError('Bạn đã hủy thao tác quét QR.');
       } else {
-        setError('Quet QR that bai. Hay thu lai hoac dan token thu cong.');
+        setError('Quét QR thất bại. Hãy thử lại hoặc dán token thủ công.');
       }
     } finally {
       setIsScanningQr(false);
@@ -155,36 +151,32 @@ function LoginPage({ onLinked }: LoginPageProps) {
   };
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
     navigate('/home', { replace: true });
   };
 
-  const handleDevLogin = async () => {
-    if (!IS_LOCAL_HOST || isDevLoggingIn) return;
+  const handleWebLogin = async () => {
+    if (isWebLoggingIn) return;
 
-    const normalizedEmail = devEmail.trim();
-    if (!normalizedEmail || !devPassword) {
-      setError('Nhap email va mat khau cua tai khoan department de dang nhap local.');
+    const normalizedEmail = webEmail.trim();
+    if (!normalizedEmail || !webPassword) {
+      setError('Nhập email và mật khẩu tài khoản web để đăng nhập mini app.');
       setSuccessMessage('');
       return;
     }
 
-    setIsDevLoggingIn(true);
+    setIsWebLoggingIn(true);
     setError('');
     setSuccessMessage('');
 
-    const result = await auth.devLogin(normalizedEmail, devPassword);
+    const result = await auth.passwordLogin(normalizedEmail, webPassword);
     if (result.success) {
-      setSuccessMessage(result.message || 'Dang nhap local thanh cong');
+      setSuccessMessage(result.message || 'Đăng nhập bằng tài khoản web thành công');
       onLinked();
     } else {
-      setError(result.message || 'Dang nhap local that bai');
+      setError(result.message || 'Đăng nhập bằng tài khoản web thất bại');
     }
 
-    setIsDevLoggingIn(false);
+    setIsWebLoggingIn(false);
   };
 
   useEffect(() => {
@@ -205,7 +197,7 @@ function LoginPage({ onLinked }: LoginPageProps) {
     const linkToken = auth.getLinkTokenFromUrl();
     if (!linkToken) {
       setIsWaitingForQr(true);
-      setSuccessMessage('Trang chu mini app da san sang. Nhan "Quet QR dang nhap" de tiep tuc.');
+      setSuccessMessage('Trang chủ mini app đã sẵn sàng. Nhấn "Quét QR đăng nhập" để tiếp tục.');
       setError('');
       return;
     }
@@ -218,19 +210,19 @@ function LoginPage({ onLinked }: LoginPageProps) {
       <div style={styles.content}>
         <div style={styles.card}>
           <button type="button" onClick={handleBack} style={styles.backButton}>
-            {'<-'} Quay lai
+            {'<-'} Quay lại
           </button>
 
           <div style={styles.logo}>
             <div style={styles.icon}>!</div>
             <h1 style={styles.title}>BlueCode Mini App</h1>
-            <p style={styles.subtitle}>Trang chu mini app</p>
+            <p style={styles.subtitle}>Trang chủ mini app</p>
           </div>
 
           <div style={styles.info}>
-            <p>Ban co the vao mini app ngay tai day.</p>
+            <p>Bạn có thể vào mini app ngay tại đây.</p>
             <p style={{ marginTop: 8 }}>
-              Khi can dang nhap hoac lien ket, hay nhan nut quet QR tu Dashboard Web.
+              Khi cần đăng nhập hoặc liên kết, hãy nhấn nút quét QR từ Dashboard Web.
             </p>
           </div>
 
@@ -248,14 +240,14 @@ function LoginPage({ onLinked }: LoginPageProps) {
                   cursor: isLinking || isScanningQr ? 'not-allowed' : 'pointer',
                 }}
               >
-                {isScanningQr ? 'Dang mo camera...' : 'Quet QR dang nhap'}
+                {isScanningQr ? 'Đang mở camera...' : 'Quét QR đăng nhập'}
               </button>
 
-              <p style={styles.manualTokenTitle}>Hoac dan token/link tu Dashboard Web:</p>
+              <p style={styles.manualTokenTitle}>Hoặc dán token/link từ Dashboard Web:</p>
               <textarea
                 value={manualLinkToken}
                 onChange={(e) => setManualLinkToken(e.target.value)}
-                placeholder="Dan linkToken vao day..."
+                placeholder="Dán linkToken vào đây..."
                 style={styles.manualTokenInput}
               />
               <button
@@ -267,52 +259,51 @@ function LoginPage({ onLinked }: LoginPageProps) {
                   cursor: isLinking ? 'not-allowed' : 'pointer',
                 }}
               >
-                {isLinking ? 'Dang dang nhap...' : 'Dang nhap bang token'}
+                {isLinking ? 'Đang đăng nhập...' : 'Đăng nhập bằng token'}
               </button>
 
-              {IS_LOCAL_HOST && (
-                <div style={styles.devLoginWrap}>
-                  <p style={styles.devLoginTitle}>Dang nhap local cho localhost:3001</p>
-                  <p style={styles.devLoginDesc}>
-                    Dung email va mat khau cua tai khoan department de vao mini app ma khong can Zalo SDK.
-                  </p>
-                  <input
-                    value={devEmail}
-                    onChange={(e) => setDevEmail(e.target.value)}
-                    placeholder="Email tai khoan department"
-                    style={styles.devInput}
-                    autoComplete="username"
-                  />
-                  <input
-                    value={devPassword}
-                    onChange={(e) => setDevPassword(e.target.value)}
-                    placeholder="Mat khau"
-                    style={styles.devInput}
-                    type="password"
-                    autoComplete="current-password"
-                  />
-                  <button
-                    onClick={() => void handleDevLogin()}
-                    disabled={isDevLoggingIn}
-                    style={{
-                      ...styles.devLoginButton,
-                      opacity: isDevLoggingIn ? 0.7 : 1,
-                      cursor: isDevLoggingIn ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {isDevLoggingIn ? 'Dang dang nhap local...' : 'Dang nhap local'}
-                  </button>
-                </div>
-              )}
+              <div style={styles.webLoginWrap}>
+                <p style={styles.webLoginTitle}>Đăng nhập bằng tài khoản web</p>
+                <p style={styles.webLoginDesc}>
+                  Dùng email và mật khẩu đang đăng nhập trên web để vào mini app.
+                </p>
+                <input
+                  value={webEmail}
+                  onChange={(e) => setWebEmail(e.target.value)}
+                  placeholder="Email tài khoản web"
+                  style={styles.devInput}
+                  autoComplete="username"
+                />
+                <input
+                  value={webPassword}
+                  onChange={(e) => setWebPassword(e.target.value)}
+                  placeholder="Mật khẩu"
+                  style={styles.devInput}
+                  type="password"
+                  autoComplete="current-password"
+                />
+                <button
+                  onClick={() => void handleWebLogin()}
+                  disabled={isWebLoggingIn}
+                  style={{
+                    ...styles.webLoginButton,
+                    opacity: isWebLoggingIn ? 0.7 : 1,
+                    cursor: isWebLoggingIn ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isWebLoggingIn ? 'Đang đăng nhập tài khoản web...' : 'Đăng nhập tài khoản web'}
+                </button>
+              </div>
+
             </div>
           )}
 
           <p style={styles.note}>
             {isLinking
-              ? 'Dang xu ly dang nhap...'
+              ? 'Đang xử lý đăng nhập...'
               : isWaitingForQr
-                ? 'Ban co the quet QR tu Dashboard Web bat ky luc nao.'
-                : 'Neu quet QR that bai, hay tao QR moi tren Dashboard Web roi thu lai.'}
+                ? 'Bạn có thể quét QR từ Dashboard Web bất kỳ lúc nào.'
+                : 'Nếu quét QR thất bại, hãy tạo QR mới trên Dashboard Web rồi thử lại.'}
           </p>
         </div>
       </div>
@@ -320,175 +311,181 @@ function LoginPage({ onLinked }: LoginPageProps) {
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   container: {
     minHeight: '100vh',
-    background: 'transparent',
+    background: 'linear-gradient(180deg, #f5f7fb 0%, #e6eefb 100%)',
   },
   content: {
-    width: '100%',
-    maxWidth: '430px',
-    margin: '0 auto',
-    padding: 0,
     minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px 16px',
   },
   card: {
-    background: 'linear-gradient(180deg, #f8fbff 0%, #ffffff 160px)',
-    borderRadius: 0,
-    minHeight: '100vh',
-    padding: 'max(16px, env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))',
-    border: 'none',
-    textAlign: 'center',
-    boxShadow: 'none',
+    width: '100%',
+    maxWidth: 420,
+    background: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    boxShadow: '0 18px 60px rgba(3, 101, 175, 0.14)',
+    border: '1px solid rgba(3, 101, 175, 0.08)',
   },
   backButton: {
-    border: '1px solid #c9def3',
-    background: '#ffffff',
-    color: '#0365af',
-    fontSize: '13px',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    border: '1px solid #dbe7ff',
+    background: '#fff',
+    color: '#0a57a4',
+    borderRadius: 999,
+    padding: '8px 14px',
     fontWeight: 600,
     cursor: 'pointer',
-    padding: '6px 12px',
-    borderRadius: '999px',
-    marginBottom: '18px',
-    textAlign: 'left',
+    marginBottom: 20,
   },
   logo: {
-    marginBottom: '20px',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   icon: {
-    fontSize: '52px',
-    marginBottom: '10px',
-    fontWeight: 'bold',
-    color: '#0f86d6',
+    width: 52,
+    height: 52,
+    borderRadius: 18,
+    background: 'linear-gradient(135deg, #0c73c7 0%, #0365af 100%)',
+    color: '#fff',
+    fontSize: 28,
+    fontWeight: 800,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   title: {
     margin: 0,
-    fontSize: '34px',
+    fontSize: 34,
+    lineHeight: 1.1,
+    color: '#0d4f8b',
     fontWeight: 800,
-    color: '#03559a',
-    letterSpacing: '0.2px',
   },
   subtitle: {
     margin: '10px 0 0',
-    fontSize: '15px',
-    color: '#475569',
-    fontWeight: 500,
+    color: '#5d7192',
+    fontSize: 16,
   },
   info: {
-    background: '#e9f3ff',
-    padding: '14px',
-    borderRadius: '14px',
-    border: '1px solid #cfe5fb',
-    marginBottom: '20px',
-    fontSize: '13px',
-    color: '#03559a',
-    lineHeight: 1.45,
-  },
-  error: {
-    background: '#fff1f2',
-    color: '#c62828',
-    padding: '12px',
-    borderRadius: '12px',
-    border: '1px solid #fecdd3',
-    marginBottom: '16px',
-    fontSize: '13px',
+    background: '#edf5ff',
+    border: '1px solid #d4e6ff',
+    color: '#1b4f8f',
+    borderRadius: 16,
+    padding: 16,
+    lineHeight: 1.55,
+    marginBottom: 16,
+    textAlign: 'center',
   },
   success: {
-    background: '#edf9ef',
-    color: '#2e7d32',
-    padding: '12px',
-    borderRadius: '12px',
-    border: '1px solid #cde9d1',
-    marginBottom: '16px',
-    fontSize: '13px',
+    background: '#eaf9ef',
+    border: '1px solid #bfe6c9',
+    color: '#156c2f',
+    borderRadius: 14,
+    padding: '12px 14px',
+    marginBottom: 14,
+    fontWeight: 600,
   },
-  note: {
-    marginTop: '16px',
-    fontSize: '12px',
-    color: '#999',
+  error: {
+    background: '#fff1f0',
+    border: '1px solid #ffc9c4',
+    color: '#c3372a',
+    borderRadius: 14,
+    padding: '12px 14px',
+    marginBottom: 14,
+    fontWeight: 600,
   },
   manualTokenWrap: {
-    marginTop: '14px',
-    textAlign: 'left',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
   },
   scanQrButton: {
-    width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 70%, #03559a 100%)',
-    color: '#fff',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
+    background: 'linear-gradient(135deg, #0c73c7 0%, #0365af 100%)',
+    color: '#fff',
+    padding: '14px 18px',
+    borderRadius: 16,
     fontWeight: 700,
-    marginBottom: '10px',
-    boxShadow: '0 10px 22px rgba(3, 101, 175, 0.25)',
+    fontSize: 16,
   },
   manualTokenTitle: {
-    margin: '0 0 8px',
-    fontSize: '13px',
-    color: '#334155',
+    margin: 0,
+    color: '#415a77',
     fontWeight: 600,
   },
   manualTokenInput: {
-    width: '100%',
-    borderRadius: '12px',
-    border: '1px solid #cad8e6',
-    background: '#f8fbff',
-    padding: '10px',
-    fontSize: '12px',
-    minHeight: '72px',
+    minHeight: 110,
+    borderRadius: 16,
+    border: '1px solid #d5deee',
+    padding: 14,
     resize: 'vertical',
-    boxSizing: 'border-box',
+    fontSize: 14,
+    lineHeight: 1.5,
+    outline: 'none',
   },
   manualTokenButton: {
-    marginTop: '8px',
-    width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(145deg, #16a34a 0%, #0e8c41 100%)',
-    color: '#fff',
     border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
+    background: '#16a34a',
+    color: '#fff',
+    padding: '14px 18px',
+    borderRadius: 16,
+    fontWeight: 700,
+    fontSize: 16,
+  },
+  webLoginWrap: {
+    marginTop: 8,
+    border: '1px solid #d7e6ff',
+    borderRadius: 18,
+    padding: 16,
+    background: '#f5f9ff',
+  },
+  webLoginTitle: {
+    margin: 0,
+    color: '#0d4f8b',
     fontWeight: 700,
   },
-  devLoginWrap: {
-    marginTop: '16px',
-    paddingTop: '16px',
-    borderTop: '1px solid #dbe4ef',
-  },
-  devLoginTitle: {
-    margin: '0 0 6px',
-    fontSize: '13px',
-    color: '#0f172a',
-    fontWeight: 700,
-  },
-  devLoginDesc: {
-    margin: '0 0 10px',
-    fontSize: '12px',
-    color: '#64748b',
+  webLoginDesc: {
+    margin: '8px 0 12px',
+    color: '#5d7192',
     lineHeight: 1.5,
+    fontSize: 14,
+  },
+  webLoginButton: {
+    width: '100%',
+    border: 'none',
+    background: '#0c73c7',
+    color: '#fff',
+    padding: '13px 18px',
+    borderRadius: 14,
+    fontWeight: 700,
+    fontSize: 15,
   },
   devInput: {
     width: '100%',
-    borderRadius: '12px',
-    border: '1px solid #cad8e6',
-    background: '#ffffff',
-    padding: '10px 12px',
-    fontSize: '13px',
+    borderRadius: 14,
+    border: '1px solid #d5deee',
+    padding: '12px 14px',
+    marginBottom: 10,
+    fontSize: 14,
+    outline: 'none',
     boxSizing: 'border-box',
-    marginBottom: '8px',
   },
-  devLoginButton: {
-    width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(145deg, #f59e0b 0%, #d97706 100%)',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
-    fontWeight: 700,
+  note: {
+    margin: '16px 0 0',
+    textAlign: 'center',
+    color: '#6b7e99',
+    fontSize: 14,
+    lineHeight: 1.5,
   },
 };
 
 export default LoginPage;
+

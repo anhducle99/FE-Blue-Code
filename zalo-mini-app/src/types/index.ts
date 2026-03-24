@@ -22,6 +22,27 @@ export interface CallLog {
   rejectedAt?: string;
 }
 
+export interface FloorAccountOption {
+  id: number;
+  name: string;
+}
+
+export interface DepartmentOption {
+  id: number;
+  name: string;
+  phone?: string;
+}
+
+export interface MiniDashboardOptions {
+  floorAccounts: FloorAccountOption[];
+  departments: DepartmentOption[];
+}
+
+export interface MiniCallRequestResult {
+  callId: string;
+  receiverNames: string[];
+}
+
 export interface AuthResponse {
   success: boolean;
   message: string;
