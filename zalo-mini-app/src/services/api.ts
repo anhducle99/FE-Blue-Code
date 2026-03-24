@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import { ApiResponse, CallLog } from '../types';
+import { ApiResponse, CallLog, MiniCallRequestResult, MiniDashboardOptions } from '../types';
 
 const DEFAULT_API_URL = 'http://localhost:5000/api';
 const HTTP_API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).trim();
@@ -60,6 +60,32 @@ class ApiService {
     const response = await this.client.post('/mini/auth/dev-login', {
       email,
       password,
+    });
+    return response.data;
+  }
+
+  async passwordLogin(email: string, password: string) {
+    const response = await this.client.post('/mini/auth/password-login', {
+      email,
+      password,
+    });
+    return response.data;
+  }
+
+  async getDashboardOptions(): Promise<ApiResponse<MiniDashboardOptions>> {
+    const response = await this.client.get('/mini/dashboard-options');
+    return response.data;
+  }
+
+  async requestCall(
+    targetKeys: string[],
+    message?: string,
+    fromDept?: string
+  ): Promise<ApiResponse<MiniCallRequestResult>> {
+    const response = await this.client.post('/mini/call', {
+      targetKeys,
+      message,
+      fromDept,
     });
     return response.data;
   }

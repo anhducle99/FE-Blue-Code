@@ -65,7 +65,11 @@ function App() {
           <Routes>
             <Route 
               path="/login" 
-              element={<LoginPage onLinked={handleLinked} />} 
+              element={
+                isAuthenticated
+                  ? <Navigate to="/home" replace />
+                  : <LoginPage onLinked={handleLinked} />
+              } 
             />
             <Route 
               path="/" 
@@ -93,11 +97,7 @@ function App() {
             />
             <Route 
               path="/call/:callId" 
-              element={
-                isAuthenticated ? 
-                  <CallDetailPage /> : 
-                  <Navigate to="/login" replace />
-              } 
+              element={<CallDetailPage />} 
             />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>

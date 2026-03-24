@@ -146,7 +146,7 @@ export const UsersPage: React.FC = () => {
     email: Yup.string().email("Email không hợp lệ").required("Email bắt buộc"),
     phone: Yup.string()
       .required("Số điện thoại không được để trống")
-      .matches(/^[0-9]{10,11}$/, "Số điện thoại phải có dung 10 chữ số"),
+      .matches(/^[0-9]{10,11}$/, "Số điện thoại phải có đúng 10 chữ số"),
     password: Yup.string().when([], {
       is: () => !editingUser,
       then: (schema) =>
@@ -178,7 +178,7 @@ export const UsersPage: React.FC = () => {
     onSubmit: async (values) => {
       try {
         if (values.is_department_account && !values.department_id) {
-          message.error("Vui lòng chọn đội phản ứng khi bật tài khoản xửu lý sự cố");
+          message.error("Vui lòng chọn đội phản ứng khi bật tài khoản xử lý sự cố");
           return;
         }
 
@@ -193,9 +193,9 @@ export const UsersPage: React.FC = () => {
           );
 
           if (hasDuplicateName) {
-            formik.setFieldError("name", "TÃªn ngÆ°á»i dÃ¹ng Ä‘Ã£ tá»“n táº¡i trong tá»• chá»©c nÃ y");
+            formik.setFieldError("name", "Tên người dùng đã tồn tại trong tổ chức này");
             formik.setFieldTouched("name", true, false);
-            message.error("TÃªn ngÆ°á»i dÃ¹ng Ä‘Ã£ tá»“n táº¡i trong tá»• chá»©c nÃ y");
+            message.error("Tên người dùng đã tồn tại trong tổ chức này");
             return;
           }
         }
@@ -462,10 +462,10 @@ export const UsersPage: React.FC = () => {
                     <tr key={u.id} className="border-b hover:bg-gray-50 relative">
                       <td className="px-4 py-3">{u.name}</td>
                       <td className="px-4 py-3">{u.email}</td>
-                      <td className="px-4 py-3">{u.organization_name ?? "—"}</td>
+                      <td className="px-4 py-3">{u.organization_name ?? "-"}</td>
                       <td className="px-4 py-3">
                         {!u.is_department_account ? (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-gray-400">-</span>
                         ) : (u.zalo_display_name || u.zalo_user_id) ? (
                           <div className="leading-tight">
                             <div className="font-medium text-gray-800 break-all">

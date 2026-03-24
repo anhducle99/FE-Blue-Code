@@ -13,6 +13,7 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
   const { callId } = useParams<{ callId: string }>();
   const navigate = useNavigate();
   const user = auth.getUser();
+  const hasSession = auth.isAuthenticated() && !!user;
 
   const [call, setCall] = useState<CallLog | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,13 +34,20 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
   };
 
   useEffect(() => {
+    if (!hasSession) {
+      setIsLoading(false);
+      setCall(null);
+      setError('');
+      return;
+    }
     if (callId) {
       loadCallDetail();
       onViewed?.();
     }
-  }, [callId]);
+  }, [callId, hasSession, onViewed]);
 
   useEffect(() => {
+    if (!hasSession) return;
     const socket = getSocket();
     if (!socket || !callId) return;
 
@@ -73,9 +81,14 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
       socket.off('callStatusUpdate', onStatusUpdate);
       socket.off('callLogUpdated', onLogUpdated);
     };
-  }, [callId, user?.name, user?.departmentName]);
+  }, [callId, hasSession, user?.name, user?.departmentName]);
 
   const loadCallDetail = async () => {
+    if (!hasSession || !callId) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError('');
 
@@ -170,6 +183,20 @@ function CallDetailPage({ onViewed }: CallDetailPageProps = {}) {
         <div style={styles.center}>
           <div style={styles.spinner}></div>
           <p>Đang tải...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasSession) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.header}>
+          <button onClick={() => navigate('/home')} style={styles.backBtn}>← Quay lại</button>
+          <h1 style={styles.headerTitle}>Chi tiết cuộc gọi</h1>
+        </div>
+        <div style={styles.center}>
+          <p style={styles.emptyText}>Vui lòng đăng nhập để xem chi tiết cuộc gọi.</p>
         </div>
       </div>
     );
@@ -327,6 +354,10 @@ const styles: Record<string, React.CSSProperties> = {
   error: {
     color: '#c62828',
     marginBottom: '16px',
+  },
+  emptyText: {
+    margin: 0,
+    color: '#475569',
   },
   retryBtn: {
     background: 'linear-gradient(145deg, #0f86d6 0%, #0365af 70%, #03559a 100%)',

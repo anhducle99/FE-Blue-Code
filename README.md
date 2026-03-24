@@ -1,22 +1,24 @@
 # FE-Blue-Code
 
-Frontend web của BlueCode, phục vụ web app quản trị và màn hình gọi khẩn chính. Repo này cũng chứa mini app Zalo như một app con ở `zalo-mini-app/`.
+Frontend web c?a BlueCode, ph?c v? web app qu?n tr?< v� m�n h�nh g?i kh?n ch�nh. Repo n�y cung ch?a mini app Zalo nhu m?Tt app con ?Y `zalo-mini-app/`.
 
-## Phạm vi repo
+## Ph?m vi repo
 
-Current state repo này chịu trách nhiệm cho:
+Current state repo n�y ch?<u tr�ch nhi??m cho:
 
-- Web login bằng email/password
-- Màn hình gọi khẩn chính (`/main`)
-- Dashboard quản trị (`/dashboard/*`)
-- Kết nối Socket.IO realtime
-- PWA trên web production
+- Web login b?ng email/password
+- M�n h�nh g?i kh?n ch�nh (`/main`)
+- Dashboard qu?n tr?< (`/dashboard/*`)
+- K?t n?'i Socket.IO realtime
+- PWA tr�n web production
 - Capacitor wrappers cho native shell
-- Luồng tạo `linkToken` và QR login session để phối hợp với mini app
+- Lu?"ng t?o `linkToken` v� QR login session ?'?f ph?'i h?p v?>i mini app
+- Man hinh goi khan web hien cho phep tai khoan xu ly su co chon chinh doi phan ung cua minh; backend se loai chinh account dang goi khoi danh sach nhan
+- Man hinh goi khan web hien cung cho phep chon `Vi tri su co`; gia tri duoc chon se duoc gui qua `fromDept` khi tao cuoc goi
 
-Mini app Zalo có README riêng tại [zalo-mini-app/README.md](zalo-mini-app/README.md).
+Mini app Zalo c� README ri�ng t?i [zalo-mini-app/README.md](zalo-mini-app/README.md).
 
-## Entry points chính
+## Entry points ch�nh
 
 - `src/index.tsx`
 - `src/App.tsx`
@@ -26,7 +28,7 @@ Mini app Zalo có README riêng tại [zalo-mini-app/README.md](zalo-mini-app/RE
 - `src/services/api.ts`
 - `src/config/env.ts`
 
-## Cài đặt và chạy local
+## C�i ?'?t v� ch?y local
 
 ```powershell
 cd FE-Blue-Code
@@ -35,43 +37,44 @@ Copy-Item .env.example .env
 npm start
 ```
 
-Dev server mặc định ở `http://localhost:3000`.
+Dev server m?c ?'?<nh ?Y `http://localhost:3000`.
 
-## Scripts chính
+## Scripts ch�nh
 
-| Script | Mục đích current state |
+| Script | M?c ?'�ch current state |
 | --- | --- |
-| `npm start` | Chạy web app ở chế độ dev |
-| `npm run dev` | Alias của `npm start` |
-| `npm run build:pwa` | Build web/PWA thuần |
-| `npm run build` | Build rồi chạy `cap:sync` |
+| `npm start` | Ch?y web app ?Y ch? ?'?T dev |
+| `npm run dev` | Alias c?a `npm start` |
+| `npm run build:pwa` | Build web/PWA thu?n |
+| `npm run build` | Build r?"i ch?y `cap:sync` |
 | `npm test` | Test theo `react-scripts test` |
-| `npm run cap:sync` | Đồng bộ output vào Capacitor |
-| `npm run cap:run:android` | Build + chạy Android |
-| `npm run cap:run:ios` | Build + chạy iOS |
+| `npm run cap:sync` | D?"ng b?T output v�o Capacitor |
+| `npm run cap:run:android` | Build + ch?y Android |
+| `npm run cap:run:ios` | Build + ch?y iOS |
 
-## Env đang đọc
+## Env ?'ang ?'?c
 
 - `REACT_APP_API_URL`
 - `REACT_APP_NATIVE_API_URL`
 - `REACT_APP_SOCKET_URL`
 
-`src/config/env.ts` tự chuẩn hóa base URL và socket URL theo web/native runtime.
+`src/config/env.ts` t? chu?n h�a base URL v� socket URL theo web/native runtime.
 
 ## Current-state notes
 
-- Service worker chỉ được register khi chạy web production và không-native.
-- Provider stack được khai báo tập trung trong `src/index.tsx`.
-- `is_admin_view` hiện được FE dùng như một cờ mở quyền giao diện admin.
-- `src/contexts/IncidentContext.tsx` và các widget history/live feed hiện ưu tiên consume socket payload trước, sau đó mới dùng polling fallback để tự sync.
-- Polling/refetch nền đã giảm tải: current state tránh reload định kỳ khi tab web ẩn hoặc khi vừa có socket event mới.
-- Repo có service gọi `/api/upload/image` và `/api/push/*`, nhưng backend current state chưa thấy route tương ứng.
-- Chuỗi tiếng Việt trong một số file nguồn đang bị lỗi encoding; pass tài liệu này không sửa source đó.
+- Service worker ch?? ?'u?c register khi ch?y web production v� kh�ng-native.
+- Provider stack ?'u?c khai b�o t?p trung trong `src/index.tsx`.
+- `is_admin_view` hi??n ?'u?c FE d�ng nhu m?Tt c? m?Y quy?n giao di??n admin.
+- `src/contexts/IncidentContext.tsx` v� c�c widget history/live feed hi??n uu ti�n consume socket payload tru?>c, sau ?'� m?>i d�ng polling fallback ?'?f t? sync.
+- Polling/refetch n?n ?'� gi?m t?i: current state tr�nh reload ?'?<nh k? khi tab web ?n ho?c khi v?a c� socket event m?>i.
+- Repo c� service g?i `/api/upload/image` v� `/api/push/*`, nhung backend current state chua th?y route tuong ?ng.
+- Chu?-i ti?ng Vi??t trong m?Tt s?' file ngu?"n ?'ang b?< l?-i encoding; pass t�i li??u n�y kh�ng s?a source ?'�.
 
-## Tài liệu liên quan
+## T�i li??u li�n quan
 
-- [README gốc workspace](../README.md)
+- [README g?'c workspace](../README.md)
 - [Project context](../docs/PROJECT_CONTEXT.md)
 - [Architecture](../docs/ARCHITECTURE.md)
 - [HDSD](../docs/HDSD.md)
 - [Rules](../docs/RULES.md)
+
